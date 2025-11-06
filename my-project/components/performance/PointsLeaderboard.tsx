@@ -10,8 +10,13 @@ async function getPointsLeaderboard() {
   return res.data;
 }
 
+interface LeaderboardEntry {
+  name: string;
+  totalPoints: number;
+}
+
 export function PointsLeaderboard() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<LeaderboardEntry[]>({
     queryKey: ['pointsLeaderboard'],
     queryFn: getPointsLeaderboard,
   });
@@ -22,6 +27,7 @@ export function PointsLeaderboard() {
   return (
     <div>
       <h3 className="text-lg font-medium">Points Leaderboard</h3>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -30,7 +36,7 @@ export function PointsLeaderboard() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data?.map((emp: any) => (
+          {data?.map((emp: LeaderboardEntry) => (
             <TableRow key={emp.name}>
               <TableCell>{emp.name}</TableCell>
               <TableCell>{emp.totalPoints}</TableCell>
@@ -38,6 +44,7 @@ export function PointsLeaderboard() {
           ))}
         </TableBody>
       </Table>
+    </div>
     </div>
   );
 }

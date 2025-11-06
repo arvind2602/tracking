@@ -8,29 +8,47 @@ import toast from 'react-hot-toast';
 import { Loader } from 'lucide-react';
 import Link from 'next/link';
 
+interface Task {
+  id: string;
+  description: string;
+  status: string;
+  points: number;
+  assignedToName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  startDate: string;
+  tasks: Task[];
+}
+
 const ProjectDetailsPage = () => {
   const params = useParams();
   const { projectId } = params;
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const fetchProject = async () => {
+      setIsLoading(true);
+      try {
+        const response = await axios.get(`/projects/${projectId}`);
+        setProject(response.data);
+      } catch (error) {
+        toast.error('Failed to fetch project details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     if (projectId) {
       fetchProject();
     }
   }, [projectId]);
-
-  const fetchProject = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get(`/projects/${projectId}`);
-      setProject(response.data);
-    } catch (error) {
-      toast.error('Failed to fetch project details');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -52,9 +70,9 @@ const ProjectDetailsPage = () => {
 
   const stats = [
     { label: 'Total Tasks', value: project.tasks?.length || 0 },
-    { label: 'Completed', value: project.tasks?.filter((t: any) => t.status === 'DONE').length || 0 },
-    { label: 'In Progress', value: project.tasks?.filter((t: any) => t.status === 'IN_PROGRESS').length || 0 },
-    { label: 'To Do', value: project.tasks?.filter((t: any) => t.status === 'TODO').length || 0 },
+    { label: 'Completed', value: project.tasks?.filter((t: Task) => t.status === 'DONE').length || 0 },
+    { label: 'In Progress', value: project.tasks?.filter((t: Task) => t.status === 'IN_PROGRESS').length || 0 },
+    { label: 'To Do', value: project.tasks?.filter((t: Task) => t.status === 'TODO').length || 0 },
   ];
 
   return (
@@ -84,7 +102,7 @@ const ProjectDetailsPage = () => {
       <h2 className="text-xl font-bold mt-8 mb-4">Tasks</h2>
       {project.tasks?.length > 0 ? (
         <div className="space-y-3">
-          {project.tasks.map((task: any) => (
+          {project.tasks.map((task: Task) => (
             <div key={task.id} className="p-4 border rounded-lg bg-card hover:bg-accent/5 transition cursor-pointer">
               <Link href={`/dashboard/tasks/${task.id}`}>
                 <div className="flex justify-between items-start">

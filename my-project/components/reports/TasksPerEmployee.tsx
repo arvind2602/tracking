@@ -10,8 +10,14 @@ async function getTasksPerEmployee() {
   return res.data;
 }
 
+interface EmployeeTask {
+  name: string;
+  taskCount: number;
+  totalPoints: number;
+}
+
 export function TasksPerEmployee() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<EmployeeTask[]>({
     queryKey: ['tasksPerEmployee'],
     queryFn: getTasksPerEmployee,
   });
@@ -22,6 +28,7 @@ export function TasksPerEmployee() {
   return (
     <div>
       <h3 className="text-lg font-medium">Tasks per Employee</h3>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -31,7 +38,7 @@ export function TasksPerEmployee() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data?.map((emp: any) => (
+          {data?.map((emp: EmployeeTask) => (
             <TableRow key={emp.name + emp.taskCount}>
               <TableCell>{emp.name}</TableCell>
               <TableCell>{emp.taskCount}</TableCell>
@@ -40,6 +47,7 @@ export function TasksPerEmployee() {
           ))}
         </TableBody>
       </Table>
+    </div>
     </div>
   );
 }

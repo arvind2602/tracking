@@ -10,8 +10,14 @@ async function getAverageTaskCompletionTime() {
   return res.data;
 }
 
+interface AverageCompletionTime {
+  id: string;
+  name: string;
+  averageCompletionTime: number;
+}
+
 export function AverageTaskCompletionTime() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<AverageCompletionTime[]>({
     queryKey: ['averageTaskCompletionTime'],
     queryFn: getAverageTaskCompletionTime,
   });
@@ -22,6 +28,7 @@ export function AverageTaskCompletionTime() {
   return (
     <div>
       <h3 className="text-lg font-medium">Average Task Completion Time</h3>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -30,7 +37,7 @@ export function AverageTaskCompletionTime() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data?.map((emp: any) => (
+          {data?.map((emp: AverageCompletionTime) => (
             <TableRow key={emp.id}>
               <TableCell>{emp.name}</TableCell>
               <TableCell>{(emp.averageCompletionTime / (1000 * 60 * 60)).toFixed(2)}</TableCell>
@@ -38,6 +45,7 @@ export function AverageTaskCompletionTime() {
           ))}
         </TableBody>
       </Table>
+    </div>
     </div>
   );
 }

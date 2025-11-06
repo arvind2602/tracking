@@ -126,3 +126,25 @@
 .glow-text {
   text-shadow: 0 0 8px var(--accent), 0 0 15px var(--accent), 0 0 20px var(--accent);
 }
+
+@media (max-width: 768px) {
+  .responsive-table thead {
+    display: none;
+  }
+  .responsive-table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 0.5rem;
+  }
+  .responsive-table td {
+    display: block;
+    text-align: right;
+    border-bottom: 1px solid #eee;
+  }
+  .responsive-table td:before {
+    content: attr(data-label);
+    float: left;
+    font-weight: bold;
+  }
+}

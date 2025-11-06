@@ -143,7 +143,7 @@ export default function Users() {
             <p className="text-sm text-white">Total Users: {usersList.length}</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-left responsive-table">
               <thead className="border-b border-accent/20">
                 <tr>
                   <th className="p-4 font-semibold">Name</th>
@@ -156,7 +156,7 @@ export default function Users() {
               <tbody>
                 {usersList.map((u) => (
                   <tr key={u.id} className="border-b border-accent/20">
-                    <td className="p-4">
+                    <td className="p-4" data-label="Name">
                       <span
                         className="cursor-pointer"
                         onClick={() => router.push(`/dashboard/users/${u.id}/tasks`)}
@@ -164,10 +164,10 @@ export default function Users() {
                         {`${u.firstName} ${u.lastName}`}
                       </span>
                     </td>
-                    <td className="p-4">{u.email}</td>
-                    <td className="p-4">{u.position}</td>
-                    <td className="p-4">{u.role}</td>
-                    <td className="p-4">
+                    <td className="p-4" data-label="Email">{u.email}</td>
+                    <td className="p-4" data-label="Position">{u.position}</td>
+                    <td className="p-4" data-label="Role">{u.role}</td>
+                    <td className="p-4" data-label="Actions">
                       <Button variant="destructive" onClick={() => handleDeleteUser(u.id)}>
                         Delete
                       </Button>

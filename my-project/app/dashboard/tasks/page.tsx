@@ -20,9 +20,16 @@ import AllTasks from "@/components/tasks/AllTasks";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { ListChecks, Hourglass, CheckCircle, Plus } from 'lucide-react';
 
+interface DecodedToken {
+  user: {
+    role: string;
+  };
+  organizationId: string;
+}
+
 export default function Tasks() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"All Tasks" | "My Tasks">("All Tasks");
+  const [activeTab, setActiveTab] = useState<"All Tasks">("All Tasks");
   const modalRef = useRef<HTMLDivElement>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -41,10 +48,27 @@ export default function Tasks() {
   });
 
   useEffect(() => {
+    const fetchInitialData = async (organizationId: string) => {
+      setIsLoading(true);
+      try {
+        const [projectsResponse, usersResponse] = await Promise.all([
+          axios.get("/projects"),
+          axios.get(`/auth/organization`),
+        ]);
+        setProjects(projectsResponse.data);
+        setUsers(usersResponse.data);
+        fetchAllTasks();
+      } catch {
+        toast.error("Failed to fetch initial data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     const token = localStorage.getItem("token");
     if (token) {
       try {
-        const payload: any = jwtDecode(token);
+        const payload: DecodedToken = jwtDecode(token);
         setUserRole(payload.user.role);
         fetchInitialData(payload.organizationId);
       } catch {
@@ -52,23 +76,6 @@ export default function Tasks() {
       }
     }
   }, [router]);
-
-  const fetchInitialData = async (organizationId: string) => {
-    setIsLoading(true);
-    try {
-      const [projectsResponse, usersResponse] = await Promise.all([
-        axios.get("/projects"),
-        axios.get(`/auth/organization`),
-      ]);
-      setProjects(projectsResponse.data);
-      setUsers(usersResponse.data);
-      fetchAllTasks();
-    } catch {
-      toast.error("Failed to fetch initial data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const fetchAllTasks = async () => {
     try {
@@ -153,12 +160,9 @@ export default function Tasks() {
         </div>
       ) : (
         <div>
-          {activeTab === "All Tasks" ? (
+          {activeTab === "All Tasks" && (
             <AllTasks tasks={tasks} users={users} projects={projects} setTasks={setTasks} />
-          ) : (
-            <MyTasks tasks={tasks} users={users} projects={projects} setTasks={setTasks} currentUser={currentUser} />
           )}
-
         </div>
       )}
 

@@ -11,8 +11,13 @@ async function getEmployeeCountPerOrg() {
   return res.data;
 }
 
+interface EmployeeCount {
+  name: string;
+  employeeCount: number;
+}
+
 export function EmployeeCountPerOrg() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<EmployeeCount[]>({
     queryKey: ['employeeCountPerOrg'],
     queryFn: getEmployeeCountPerOrg,
   });
@@ -32,7 +37,7 @@ export function EmployeeCountPerOrg() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data?.map((org: any) => (
+            {data?.map((org: EmployeeCount) => (
               <TableRow key={org.name}>
                 <TableCell>{org.name}</TableCell>
                 <TableCell>{org.employeeCount}</TableCell>

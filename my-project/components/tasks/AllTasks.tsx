@@ -169,7 +169,7 @@ export default function AllTasks({ tasks, users, projects, setTasks }: AllTasksP
           </Button>
         )}
       </div>
-      <table className="w-full text-left">
+      <table className="w-full text-left responsive-table">
         <thead className="border-b border-accent/20">
           <tr>
             <th className="p-4 font-semibold">Description</th>
@@ -183,10 +183,10 @@ export default function AllTasks({ tasks, users, projects, setTasks }: AllTasksP
         <tbody>
           {tasks.map((task) => (
             <tr key={task.id} className="border-b border-accent/20 hover:bg-accent/5">
-              <td className="p-4 cursor-pointer" onClick={() => handleOpenTaskDetail(task)}> {/* Make description clickable */}
+              <td className="p-4 cursor-pointer" onClick={() => handleOpenTaskDetail(task)} data-label="Description"> {/* Make description clickable */}
                 {task.description}
               </td>
-              <td className="p-4">
+              <td className="p-4" data-label="Status">
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-medium ${task.status === "completed"
                       ? "bg-green-500/20 text-green-400"
@@ -198,15 +198,15 @@ export default function AllTasks({ tasks, users, projects, setTasks }: AllTasksP
                   {task.status?.replace("-", " ")}
                 </span>
               </td>
-              <td className="p-4">
+              <td className="p-4" data-label="Assigned To">
                 <span className="cursor-pointer" onClick={() => router.push(`/dashboard/users/${task.assignedTo}/tasks`)}>
                   {users.find((u) => u.id === task.assignedTo)?.firstName}{" "}
                   {users.find((u) => u.id === task.assignedTo)?.lastName || "Unassigned"}
                 </span>
               </td>
-              <td className="p-4 font-semibold">{task.points}</td>
-              <td className="p-4">{projects.find((p) => p.id === task.projectId)?.name}</td>
-              <td className="p-4 flex space-x-2">
+              <td className="p-4 font-semibold" data-label="Points">{task.points}</td>
+              <td className="p-4" data-label="Project">{projects.find((p) => p.id === task.projectId)?.name}</td>
+              <td className="p-4 flex space-x-2" data-label="Actions">
                 {userRole === 'ADMIN' && (
                   <Button variant="outline" size="sm" onClick={() => handleAssignClick(task)}>
                     Assign

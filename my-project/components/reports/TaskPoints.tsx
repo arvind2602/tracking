@@ -10,8 +10,15 @@ async function getTaskPoints() {
   return res.data;
 }
 
+interface TaskPointsData {
+    data: any[];
+    employees: string[];
+}
+
+const COLORS = ['#FFBB28', '#FF8042', '#0088FE', '#00C49F', '#82ca9d'];
+
 export function TaskPoints() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<TaskPointsData>({
     queryKey: ['taskPoints'],
     queryFn: getTaskPoints,
   });
@@ -28,9 +35,9 @@ export function TaskPoints() {
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Legend />
-          {data?.employees.map((emp: any, index: number) => (
-            <Bar key={emp} dataKey={emp} fill={`#${Math.floor(Math.random() * 16777215).toString(16)}`} stackId="a" />
+          <Legend wrapperStyle={{ paddingTop: '20px' }} />
+          {data?.employees.map((emp: string, index: number) => (
+            <Bar key={emp} dataKey={emp} fill={COLORS[index % COLORS.length]} stackId="a" />
           ))}
         </BarChart>
       </ResponsiveContainer>

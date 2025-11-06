@@ -10,8 +10,14 @@ async function getTaskCompletionRate() {
   return res.data;
 }
 
+interface TaskCompletion {
+  id: string;
+  name: string;
+  completionRate: number | string;
+}
+
 export function TaskCompletionRate() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<TaskCompletion[]>({
     queryKey: ['taskCompletionRate'],
     queryFn: getTaskCompletionRate,
   });
@@ -22,6 +28,7 @@ export function TaskCompletionRate() {
   return (
     <div>
       <h3 className="text-lg font-medium">Task Completion Rate per Employee</h3>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -30,7 +37,7 @@ export function TaskCompletionRate() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data?.map((emp: any) => (
+          {data?.map((emp: TaskCompletion) => (
             <TableRow key={emp.id}>
               <TableCell>{emp.name}</TableCell>
               <TableCell>{typeof emp.completionRate === 'number' ? emp.completionRate.toFixed(2) : 'N/A'}%</TableCell>
@@ -38,6 +45,7 @@ export function TaskCompletionRate() {
           ))}
         </TableBody>
       </Table>
+    </div>
     </div>
   );
 }

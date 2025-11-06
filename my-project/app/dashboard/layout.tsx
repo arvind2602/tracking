@@ -2,9 +2,26 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Code, GraduationCap, Lightbulb, LogOut, Menu, X, BarChart, Activity } from 'lucide-react';
+import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
+
+interface DecodedToken {
+  user: {
+    role: string;
+  };
+}
+
+let userRole: string | null = null;
+const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+if (token) {
+  try {
+    const payload: DecodedToken = jwtDecode(token);
+    userRole = payload.user.role;
+  } catch (error) {
+    console.error('Invalid token', error);
+  }
+}
 
 export default function DashboardLayout({
   children,
@@ -15,20 +32,10 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const payload: any = jwtDecode(token);
-        setUserRole(payload.user.role);
-      } catch (error) {
-        console.error('Invalid token', error);
-        router.push('/');
-      }
-    }
-  }, [router]);
+  if (!userRole && typeof window !== 'undefined') {
+    router.push('/');
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('token');

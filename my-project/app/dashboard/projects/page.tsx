@@ -84,21 +84,34 @@ const ProjectsPage = () => {
           <Loader className="animate-spin h-12 w-12 text-accent" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects.map((project) => (
-            <div key={project.id} className="bg-card p-4 rounded-lg shadow-md">
-              <h2 className="text-xl font-bold mb-2">{project.name}</h2>
-              <p>{project.description}</p>
-              <div className="flex justify-between items-center mt-4">
-                <Link href={`/dashboard/projects/${project.id}`}>
-                  <Button variant="link">
-                    View Tasks
-                  </Button>
-                </Link>
-                <Button variant="destructive" onClick={() => handleDeleteProject(project.id)}>Delete</Button>
-              </div>
-            </div>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left responsive-table">
+            <thead className="border-b border-accent/20">
+              <tr>
+                <th className="p-4 font-semibold">Name</th>
+                <th className="p-4 font-semibold">Description</th>
+                <th className="p-4 font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projects.map((project) => (
+                <tr key={project.id} className="border-b border-accent/20">
+                  <td className="p-4" data-label="Name">{project.name}</td>
+                  <td className="p-4" data-label="Description">{project.description}</td>
+                  <td className="p-4" data-label="Actions">
+                    <div className="flex justify-between items-center">
+                      <Link href={`/dashboard/projects/${project.id}`}>
+                        <Button variant="link">
+                          View Tasks
+                        </Button>
+                      </Link>
+                      <Button variant="destructive" onClick={() => handleDeleteProject(project.id)}>Delete</Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

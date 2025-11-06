@@ -26,8 +26,8 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Reports</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+        <h1 className="text-2xl font-bold mb-2 md:mb-0">Reports</h1>
         <button
           onClick={handleExport}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -35,14 +35,14 @@ export default function ReportsPage() {
           Export
         </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="border rounded-lg p-4">
           <EmployeeCountPerOrg />
         </div>
         <div className="border rounded-lg p-4">
           <ActiveVsArchivedEmployees />
         </div>
-        <div className="border rounded-lg p-4 col-span-2">
+        <div className="border rounded-lg p-4 md:col-span-3">
           <ProjectsPerOrg />
         </div>
         <div className="border rounded-lg p-4">
@@ -51,10 +51,10 @@ export default function ReportsPage() {
         <div className="border rounded-lg p-4">
           <RoleDistribution />
         </div>
-        <div className="border rounded-lg p-4 col-span-2">
+        <div className="border rounded-lg p-4 md:col-span-3">
           <TasksPerEmployee />
         </div>
-        <div className="border rounded-lg p-4 col-span-2">
+        <div className="border rounded-lg p-4 md:col-span-3">
           <TaskPoints />
         </div>
       </div>

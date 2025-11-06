@@ -10,10 +10,15 @@ async function getRoleDistribution() {
   return res.data;
 }
 
+interface Role {
+  name: string;
+  value: number;
+}
+
 const COLORS = ['#FFBB28', '#FF8042'];
 
 export function RoleDistribution() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<Role[]>({
     queryKey: ['roleDistribution'],
     queryFn: getRoleDistribution,
   });
@@ -27,11 +32,11 @@ export function RoleDistribution() {
       <ResponsiveContainer width="100%" height={350}>
         <PieChart>
           <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} fill="#8884d8" label>
-            {data?.map((entry: any, index: number) => (
+            {data?.map((entry: Role, index: number) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
-          <Legend />
+          <Legend wrapperStyle={{ paddingTop: '20px' }} />
         </PieChart>
       </ResponsiveContainer>
     </div>

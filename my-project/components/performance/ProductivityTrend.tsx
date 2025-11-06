@@ -28,7 +28,7 @@ export function ProductivityTrend() {
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
-          <Legend />
+          <Legend wrapperStyle={{ paddingTop: '20px' }} />
           <Line type="monotone" dataKey="points" stroke="#8884d8" activeDot={{ r: 8 }} />
         </LineChart>
       </ResponsiveContainer>

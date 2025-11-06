@@ -11,8 +11,19 @@ async function getProjectsPerOrg() {
   return res.data;
 }
 
+interface Project {
+  id: string;
+  name: string;
+  progress: number;
+}
+
+interface Organization {
+  name: string;
+  projects: Project[];
+}
+
 export function ProjectsPerOrg() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<Organization[]>({
     queryKey: ['projectsPerOrg'],
     queryFn: getProjectsPerOrg,
   });
@@ -23,6 +34,7 @@ export function ProjectsPerOrg() {
   return (
     <div>
       <h3 className="text-lg font-medium">Projects per Organization</h3>
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -32,8 +44,8 @@ export function ProjectsPerOrg() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data?.map((org: any) =>
-            {(org.projects || []).map((proj: any) => (
+          {data?.map((org: Organization) =>
+            {(org.projects || []).map((proj: Project) => (
               <TableRow key={proj.id}>
                 <TableCell>{org.name}</TableCell>
                 <TableCell>{proj.name}</TableCell>
@@ -45,6 +57,7 @@ export function ProjectsPerOrg() {
           )}
         </TableBody>
       </Table>
+    </div>
     </div>
   );
 }
