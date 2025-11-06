@@ -17,11 +17,11 @@ instance.interceptors.request.use((config) => {
 
 instance.interceptors.response.use(
   (response) => {
-    toast.success('API call successful!');
+    // toast.success('API call successful!');
     return response;
   },
   (error) => {
-    toast.error(error.response?.data?.message || 'Something went wrong!');
+    // toast.error(error.response?.data?.message || 'Something went wrong!');
     return Promise.reject(error);
   }
 );
