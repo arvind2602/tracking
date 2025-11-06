@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model organiation {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime?  @updatedAt
+  employees employee[]
+  projects  projects[]
+}
+
+model employee {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName     String
+  lastName      String
+  email         String      @unique
+  position      String
+  role          role
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime?   @updatedAt
+  is_archived   Boolean     @default(false)
+  organiationId String      @db.Uuid
+  password      String
+  comments      comment[]
+  organiation   organiation @relation(fields: [organiationId], references: [id])
+}
+
+model projects {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  description   String
+  startDate     DateTime
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime?   @updatedAt
+  is_archived   Boolean     @default(false)
+  organiationId String      @db.Uuid
+  organiation   organiation @relation(fields: [organiationId], references: [id])
+  task          task[]
+}
+
+model task {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  description String
+  status      String
+  createdBy   String
+  assignedTo  String?
+  assigned_at DateTime?
+  points      Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime? @updatedAt
+  projectId   String    @db.Uuid
+  comments    comment[]
+  project     projects  @relation(fields: [projectId], references: [id])
+}
+
+model comment {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+  taskId    String    @db.Uuid
+  authorId  String    @db.Uuid
+  author    employee  @relation(fields: [authorId], references: [id])
+  task      task      @relation(fields: [taskId], references: [id])
+}
+
+enum role {
+  ADMIN
+  USER
+}
