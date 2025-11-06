@@ -9,18 +9,51 @@ import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { Loader } from 'lucide-react';
+import { jwtDecode } from 'jwt-decode';
 
 const ProjectsPage = () => {
-  const [projects, setProjects] = useState([]);
+  interface Project {
+    id: number;
+    name: string;
+    description: string;
+    startDate: string;
+  }
+  
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newProjectStartDate, setNewProjectStartDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload: any = jwtDecode(token);
+        setUserRole(payload.user.role);
+      } catch (error) {
+        console.error('Invalid token', error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let filtered = projects;
+    if (searchQuery) {
+      filtered = filtered.filter((project) =>
+        project.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    setFilteredProjects(filtered);
+  }, [projects, searchQuery]);
 
   const fetchProjects = async () => {
     setIsLoading(true);
@@ -55,7 +88,7 @@ const ProjectsPage = () => {
     }
   };
 
-  const handleDeleteProject = async (projectId) => {
+  const handleDeleteProject = async (projectId: number) => {
     const toastId = toast.loading('Deleting project...');
     try {
       await axios.delete(`/projects/${projectId}`);
@@ -76,7 +109,18 @@ const ProjectsPage = () => {
       <Breadcrumbs items={breadcrumbItems} />
       <div className="flex justify-between items-center mb-4 mt-4">
         <h1 className="text-2xl font-bold">Projects</h1>
-        <Button onClick={() => setIsModalOpen(true)}>Add New Project</Button>
+        {userRole === 'ADMIN' && (
+          <div className="flex space-x-4">
+            <Input
+              type="text"
+              placeholder="Search by name"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full md:w-64"
+            />
+            <Button onClick={() => setIsModalOpen(true)}>Add New Project</Button>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -93,9 +137,8 @@ const ProjectsPage = () => {
                 <th className="p-4 font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {projects.map((project) => (
-                <tr key={project.id} className="border-b border-accent/20">
+                          <tbody>
+                            {filteredProjects.map((project) => (                <tr key={project.id} className="border-b border-accent/20">
                   <td className="p-4" data-label="Name">{project.name}</td>
                   <td className="p-4" data-label="Description">{project.description}</td>
                   <td className="p-4" data-label="Actions">

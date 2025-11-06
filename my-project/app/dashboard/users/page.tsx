@@ -39,10 +39,24 @@ export default function Users() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const [positionFilter, setPositionFilter] = useState<string>("");
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
 
   useEffect(() => {
     getUsers();
   }, []);
+
+  useEffect(() => {
+    let filtered = usersList;
+    if (roleFilter && roleFilter !== "all") {
+      filtered = filtered.filter((user) => user.role === roleFilter);
+    }
+    if (positionFilter && positionFilter !== "all") {
+      filtered = filtered.filter((user) => user.position === positionFilter);
+    }
+    setFilteredUsers(filtered);
+  }, [usersList, roleFilter, positionFilter]);
 
   const getUsers = async () => {
     setIsLoading(true);
@@ -133,6 +147,36 @@ export default function Users() {
         </div>
       </div>
 
+      <div className="flex space-x-4 mb-8">
+        {userRole === 'ADMIN' && (
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="w-full md:w-1/4">
+              <SelectValue placeholder="Filter by role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Roles</SelectItem>
+              <SelectItem value="USER">USER</SelectItem>
+              <SelectItem value="ADMIN">ADMIN</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        {userRole === 'ADMIN' && (
+          <Select value={positionFilter} onValueChange={setPositionFilter}>
+            <SelectTrigger className="w-full md:w-1/4">
+              <SelectValue placeholder="Filter by position" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Positions</SelectItem>
+              {[...new Set(usersList.map((user) => user.position).filter(Boolean))].map((position) => (
+                <SelectItem key={position} value={position}>
+                  {position}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <Loader className="animate-spin h-12 w-12 text-accent" />
@@ -154,7 +198,7 @@ export default function Users() {
                 </tr>
               </thead>
               <tbody>
-                {usersList.map((u) => (
+                {filteredUsers.map((u) => (
                   <tr key={u.id} className="border-b border-accent/20">
                     <td className="p-4" data-label="Name">
                       <span

@@ -53,7 +53,7 @@ model task {
   createdBy   String
   assignedTo  String?
   assigned_at DateTime?
-  points      Int
+  points      Float
   createdAt   DateTime  @default(now())
   updatedAt   DateTime? @updatedAt
   projectId   String    @db.Uuid

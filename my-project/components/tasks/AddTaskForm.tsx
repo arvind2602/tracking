@@ -22,9 +22,15 @@ interface AddTaskFormProps {
 }
 
 export function AddTaskForm({ users, projects, onTaskAdded, onClose }: AddTaskFormProps) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    description: string;
+    status: "pending" | "in-progress" | "completed";
+    assignedTo: string | undefined;
+    points: string;
+    projectId: string;
+  }>({
     description: "",
-    status: "pending" as "pending" | "in-progress" | "completed",
+    status: "pending",
     assignedTo: undefined, // Make assignedTo optional
     points: "",
     projectId: "",
@@ -82,13 +88,13 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose }: AddTaskFo
         </SelectContent>
       </Select>
       <Input
-        placeholder="Points"
-        type="number"
-        min="0"
-        value={form.points}
-        onChange={(e) => setForm({ ...form, points: e.target.value })}
-        className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
-      />
+  placeholder="Points"
+  type="number"
+  step="any"
+  min="0"
+  value={form.points}
+  onChange={(e) => setForm({ ...form, points: e.target.value })}
+/>
       <Select
         value={form.projectId}
         onValueChange={(val) => setForm({ ...form, projectId: val })}

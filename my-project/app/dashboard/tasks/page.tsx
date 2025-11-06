@@ -38,6 +38,10 @@ export default function Tasks() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [projectFilter, setProjectFilter] = useState<string>("");
+  const [userFilter, setUserFilter] = useState<string>("");
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
 
   const [form, setForm] = useState({
     description: "",
@@ -46,6 +50,20 @@ export default function Tasks() {
     points: "",
     projectId: "",
   });
+
+  useEffect(() => {
+    let filtered = tasks;
+    if (statusFilter && statusFilter !== "all") {
+      filtered = filtered.filter((task) => task.status === statusFilter);
+    }
+    if (projectFilter && projectFilter !== "all") {
+      filtered = filtered.filter((task) => task.projectId === projectFilter);
+    }
+    if (userFilter && userFilter !== "all") {
+      filtered = filtered.filter((task) => task.assignedTo === userFilter);
+    }
+    setFilteredTasks(filtered);
+  }, [tasks, statusFilter, projectFilter, userFilter]);
 
   useEffect(() => {
     const fetchInitialData = async (organizationId: string) => {
@@ -119,6 +137,7 @@ export default function Tasks() {
   const completedTasks = tasks.filter(task => task.status === 'completed').length;
   const pendingTasks = tasks.filter(task => task.status === 'pending' || task.status === 'in-progress').length;
   const allTasksCount = tasks.length;
+  const pointsToday = tasks.filter(task => task.status === 'completed' && new Date(task.updatedAt).toDateString() === new Date().toDateString()).reduce((acc, task) => acc + task.points, 0);
 
   return (
     <div className="font-mono">
@@ -136,10 +155,57 @@ export default function Tasks() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <SummaryCard title="All Tasks" value={allTasksCount} icon={<ListChecks className="h-4 w-4 text-muted-foreground" />} />
         <SummaryCard title="Pending Tasks" value={pendingTasks} icon={<Hourglass className="h-4 w-4 text-muted-foreground" />} />
         <SummaryCard title="Completed Tasks" value={completedTasks} icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} />
+        <SummaryCard title="Points Today" value={pointsToday} icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} />
+      </div>
+
+      <div className="flex space-x-4 mb-8">
+        {userRole === 'ADMIN' && (
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full md:w-1/4">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="in-progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        {userRole === 'ADMIN' && (
+          <Select value={projectFilter} onValueChange={setProjectFilter}>
+            <SelectTrigger className="w-full md:w-1/4">
+              <SelectValue placeholder="Filter by project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {userRole === 'ADMIN' && (
+          <Select value={userFilter} onValueChange={setUserFilter}>
+            <SelectTrigger className="w-full md:w-1/4">
+              <SelectValue placeholder="Filter by user" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              {users.map((user) => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.firstName} {user.lastName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <div className="flex space-x-6 border-b border-accent/20 mb-8">
@@ -161,7 +227,7 @@ export default function Tasks() {
       ) : (
         <div>
           {activeTab === "All Tasks" && (
-            <AllTasks tasks={tasks} users={users} projects={projects} setTasks={setTasks} />
+            <AllTasks tasks={filteredTasks} users={users} projects={projects} setTasks={setTasks} />
           )}
         </div>
       )}
