@@ -1,6 +1,5 @@
 const Joi = require('joi');
 const pool = require('../../config/db');
-const { v4: uuidv4 } = require('uuid');
 const { BadRequestError, UnprocessableEntityError } = require('../../utils/errors');
 const { generateJwtToken } = require('../../utils/jwtGenerator');
 const bcrypt = require('bcryptjs');
