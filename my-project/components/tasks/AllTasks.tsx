@@ -105,7 +105,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const handleMarkAsCompleted = async (taskId: string) => {
     const toastId = toast.loading("Marking as completed...");
     try {
-      const response = await axios.put(`/tasks/status/${taskId}`, { status: 'completed' });
+      const response = await axios.put(`/tasks/${taskId}/status`, { status: 'completed' });
       setTasks((prev) =>
         prev.map((task) => (task.id === taskId ? response.data : task))
       );
