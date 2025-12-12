@@ -16,13 +16,19 @@ export interface Task {
   assignedTo: any;
   id: string;
   title: string;
-  status: Status;
+  status: string; // Changed to string to match backend
   points: number | null;
   createdAt: Date;
   updatedAt: Date;
   employeeId: string | null;
   projectId: string;
   comments: Comment[];
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+  dueDate?: string;
+  order?: number;
+  creatorFirstName?: string;
+  creatorLastName?: string;
+  assigned_at?: string;
 }
 
 export interface Employee {
@@ -45,8 +51,8 @@ export interface Organization {
 }
 
 export interface User {
-  firstName: ReactNode;
-  lastName: ReactNode;
+  firstName: string;
+  lastName: string;
   id: string;
   name: string;
   email: string;

@@ -11,5 +11,6 @@ performance.get('/points-leaderboard', performanceController.getPointsLeaderboar
 performance.get('/productivity-trend', performanceController.getProductivityTrend);
 performance.get('/task-completion-rate', performanceController.getTaskCompletionRate);
 performance.get('/recent-activity', performanceController.getRecentActivity);
+performance.get('/dashboard-summary', performanceController.getDashboardSummary);
 
 module.exports = performance;

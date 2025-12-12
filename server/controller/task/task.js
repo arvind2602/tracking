@@ -11,13 +11,15 @@ const createTask = async (req, res, next) => {
     status: Joi.string().valid('pending', 'in-progress', 'completed').default('pending'),
     assignedTo: Joi.string().optional().allow('').empty(''),
     points: Joi.number().integer().min(1).required(),
-    projectId: Joi.string().required()
+    projectId: Joi.string().required(),
+    priority: Joi.string().valid('LOW', 'MEDIUM', 'HIGH').default('MEDIUM'),
+    dueDate: Joi.date().optional().allow(null)
   });
 
   const { error } = schema.validate(req.body);
   if (error) return next(new BadRequestError(error.details[0].message));
 
-  const { description, status, assignedTo, points, projectId } = req.body;
+  const { description, status, assignedTo, points, projectId, priority, dueDate } = req.body;
   const createdBy = req.user.user_uuid;
   const organiationId = req.user.organization_uuid;
 
@@ -30,14 +32,66 @@ const createTask = async (req, res, next) => {
     if (projectCheck.rowCount === 0) return next(new NotFoundError('Project not found'));
 
     const result = await pool.query(
-      `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at")
-             VALUES ($1, $2, $3, $4, $5, $6, NOW())
-             RETURNING id, description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at"`,
-      [description, status, createdBy, assignedTo, points, projectId]
+      `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate")
+             VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
+             RETURNING id, description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate"`,
+      [description, status, createdBy, assignedTo, points, projectId, priority, dueDate]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) { next(error); }
+};
+
+// Export Tasks
+const exportTasks = async (req, res, next) => {
+  const organiationId = req.user.organization_uuid;
+  try {
+    const result = await pool.query(`
+            SELECT 
+                t.id, 
+                t.description, 
+                t.status, 
+                t.points, 
+                t.priority,
+                t."dueDate",
+                p.name as "projectName",
+                COALESCE(e."firstName" || ' ' || e."lastName", 'Unassigned') as "assignedName"
+            FROM task t
+            JOIN projects p ON t."projectId" = p.id
+            LEFT JOIN employee e ON t."assignedTo"::uuid = e.id
+            WHERE p."organiationId" = $1
+            ORDER BY t."createdAt" DESC
+        `, [organiationId]);
+
+    const tasks = result.rows;
+
+    // Convert to CSV
+    const header = ['ID', 'Description', 'Status', 'Points', 'Priority', 'Due Date', 'Project', 'Assigned To'];
+    const csvRows = [header.join(',')];
+
+    tasks.forEach(task => {
+      const row = [
+        task.id,
+        `"${(task.description || '').replace(/"/g, '""')}"`,
+        task.status,
+        task.points,
+        task.priority,
+        task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+        `"${(task.projectName || '').replace(/"/g, '""')}"`,
+        `"${(task.assignedName || '').replace(/"/g, '""')}"`
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    const csvContent = csvRows.join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="tasks_export.csv"');
+    res.send(csvContent);
+
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Get Task by ID
@@ -65,26 +119,123 @@ const getTaskByEmployee = async (req, res, next) => {
   const organiationId = req.user.organization_uuid;
   const isAdmin = req.user.role === 'ADMIN';
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    const { status, projectId, assignedTo, date } = req.query;
+
     let result;
-    console.log("employeeId:", employeeId, "organiationId:", organiationId, "isAdmin:", isAdmin);
+    let totalCount;
+    let stats;
+
+    // 1. Base Conditions (Organization/Role)
+    let contextWhere = "";
+    let contextParams = [];
+
     if (isAdmin) {
-      result = await pool.query(
-        `SELECT t.* FROM task t
-                    JOIN projects p ON t."projectId" = p.id
-                    WHERE p."organiationId" = $1
-                ORDER BY t."createdAt" DESC`,
-        [organiationId]
-      );
+      contextWhere = 'WHERE p."organiationId" = $1';
+      contextParams = [organiationId];
     } else {
-      result = await pool.query(
-        `SELECT t.* FROM task t
-                    JOIN projects p ON t."projectId" = p.id
-                    WHERE t."assignedTo" = $1 AND p."organiationId" = $2
-                ORDER BY t."createdAt" DESC`,
-        [employeeId, organiationId]
-      );
+      contextWhere = 'WHERE t."assignedTo" = $1 AND p."organiationId" = $2';
+      contextParams = [employeeId, organiationId];
     }
-    res.json(result.rows);
+
+    // 2. Apply Context Filters (Project, User, Date) - These affect Stats AND Table
+    let paramIdx = contextParams.length + 1;
+
+    if (projectId && projectId !== 'all') {
+      contextWhere += ` AND t."projectId" = $${paramIdx}`;
+      contextParams.push(projectId);
+      paramIdx++;
+    }
+
+    // Allow filtering by user (For Admin, or strictly speaking for anyone but User role is already limited. 
+    // If User tries to filter by 'me' it works. If 'other', it returns 0. Consistent.)
+    if (assignedTo && assignedTo !== 'all') {
+      contextWhere += ` AND t."assignedTo" = $${paramIdx}`;
+      contextParams.push(assignedTo);
+      paramIdx++;
+    }
+
+    if (date) {
+      if (date === 'today') {
+        contextWhere += ` AND t."assigned_at"::date = CURRENT_DATE`;
+      } else if (date === 'week') {
+        contextWhere += ` AND t."assigned_at" >= CURRENT_DATE - INTERVAL '7 days'`;
+      } else if (date === 'overdue') {
+        contextWhere += ` AND t."dueDate" < CURRENT_DATE AND t.status != 'completed'`;
+      }
+    }
+
+    // 3. Get Stats (Using Context Filters, IGNORING Status Filter)
+    // This ensures that when you click "Pending", the "Completed" card still shows the count of completed tasks in the current Project/Date view.
+    const statsResult = await pool.query(
+      `SELECT
+         COUNT(*) as "totalTasks",
+         COUNT(*) FILTER (WHERE t.status = 'completed') as "completedCount",
+         COUNT(*) FILTER (WHERE t.status = 'pending') as "pendingCount",
+         COUNT(*) FILTER (WHERE t.status = 'in-progress') as "inProgressCount",
+         COALESCE(SUM(t.points) FILTER (WHERE t.status = 'completed' AND t."updatedAt"::date = CURRENT_DATE), 0) as "pointsToday"
+       FROM task t
+       JOIN projects p ON t."projectId" = p.id
+       ${contextWhere}`,
+      contextParams
+    );
+    stats = statsResult.rows[0];
+
+    // 4. Apply Status Filter (Affects Table/Pagination Only)
+    let mainWhere = contextWhere;
+    let mainParams = [...contextParams];
+    // paramIdx is already incremented for contextParams. 
+
+    if (status && status !== 'all') {
+      mainWhere += ` AND t.status = $${paramIdx}`;
+      mainParams.push(status);
+      paramIdx++;
+    }
+
+    // 5. Get Total Count (Filtered by Status)
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM task t
+       JOIN projects p ON t."projectId" = p.id
+       ${mainWhere}`,
+      mainParams
+    );
+    totalCount = parseInt(countResult.rows[0].count);
+
+    // 6. Get Data (Filtered by Status + Paginated)
+    const pagingParams = [...mainParams, limit, offset];
+    // paramIdx is now mainParams.length + 1
+
+    result = await pool.query(
+      `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
+       FROM task t
+       JOIN projects p ON t."projectId" = p.id
+       LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+       ${mainWhere}
+       ORDER BY t."order" ASC, t."createdAt" DESC
+       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      pagingParams
+    );
+
+    res.json({
+      tasks: result.rows,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      },
+      stats: {
+        totalTasks: parseInt(stats.totalTasks),
+        pendingTasks: parseInt(stats.pendingCount),
+        inProgressTasks: parseInt(stats.inProgressCount),
+        completedTasks: parseInt(stats.completedCount),
+        pointsToday: parseFloat(stats.pointsToday) || 0
+      }
+    });
+
   } catch (error) { next(error); }
 };
 
@@ -96,10 +247,12 @@ const getTasksByProject = async (req, res, next) => {
 
   try {
     const result = await pool.query(
-      `SELECT t.* FROM task t
-             JOIN projects p ON t."projectId" = p.id
-             WHERE p.id = $1 AND p."organiationId" = $2
-             ORDER BY t."createdAt" DESC`,
+      `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
+       FROM task t
+       JOIN projects p ON t."projectId" = p.id
+       LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+       WHERE p.id = $1 AND p."organiationId" = $2
+       ORDER BY t."order" ASC, t."createdAt" DESC`,
       [projectId, organiationId]
     );
     res.json(result.rows);
@@ -109,7 +262,7 @@ const getTasksByProject = async (req, res, next) => {
 // Update Task
 const updateTask = async (req, res, next) => {
   const { id } = req.params;
-  const { description, status, assignedTo, points } = req.body;
+  const { description, status, assignedTo, points, priority, dueDate } = req.body;
   const organiationId = req.user.organization_uuid;
 
   try {
@@ -119,12 +272,14 @@ const updateTask = async (req, res, next) => {
              status = COALESCE($2, t.status),
              "assignedTo" = COALESCE($3, t."assignedTo"),
              points = COALESCE($4, t.points),
+             priority = COALESCE($5, t.priority),
+             "dueDate" = COALESCE($6, t."dueDate"),
              "assigned_at" = CASE WHEN $3 IS NOT NULL THEN NOW() ELSE t."assigned_at" END,
              "updatedAt" = NOW()
              FROM projects p
-             WHERE t.id = $5 AND t."projectId" = p.id AND p."organiationId" = $6
+             WHERE t.id = $7 AND t."projectId" = p.id AND p."organiationId" = $8
              RETURNING t.*`,
-      [description, status, assignedTo, points, id, organiationId]
+      [description, status, assignedTo, points, priority, dueDate, id, organiationId]
     );
     if (result.rowCount === 0) return next(new NotFoundError('Task not found'));
     res.json(result.rows[0]);
@@ -271,10 +426,12 @@ const assignTask = async (req, res, next) => {
 const getTasksPerEmployee = async (req, res, next) => {
   try {
     const userId = req.params.id;
-console.log("Getting tasks for user:", userId);
+    console.log("Getting tasks for user:", userId);
     const result = await pool.query(`
-      SELECT 
-      * from task where "assignedTo" = $1 
+      SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
+      from task t
+      LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+      where t."assignedTo" = $1 
     `, [userId]);
 
     res.json(result.rows);
@@ -283,10 +440,31 @@ console.log("Getting tasks for user:", userId);
   }
 };
 
+const reorderTasks = async (req, res, next) => {
+  const { tasks } = req.body; // Array of { id, order }
+  const organiationId = req.user.organization_uuid;
 
+  try {
+    await pool.query('BEGIN');
+    for (const task of tasks) {
+      await pool.query(
+        `UPDATE task t SET "order" = $1, "updatedAt" = NOW()
+         FROM projects p
+         WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3`,
+        [task.order, task.id, organiationId]
+      );
+    }
+    await pool.query('COMMIT');
+    res.json({ message: 'Tasks reordered' });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    next(error);
+  }
+};
 
 module.exports = {
   createTask,
+  exportTasks,
   getTask,
   getTasksByProject,
   updateTask,
@@ -296,5 +474,6 @@ module.exports = {
   assignTask,
   getCommentsByTask,
   changeTaskStatus,
-  getTasksPerEmployee
+  getTasksPerEmployee,
+  reorderTasks
 };

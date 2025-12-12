@@ -11,7 +11,7 @@ reports.get('/task-points', reportsController.getTaskPoints);
 reports.get('/tasks-by-status', reportsController.getTasksByStatus);
 reports.get('/tasks-per-employee', reportsController.getTasksPerEmployee);
 reports.get('/employee-count-per-org', reportsController.getEmployeeCountPerOrg);
-reports.get('/projects-per-org', reportsController.getActiveVsArchivedEmployees);
+reports.get('/projects-per-org', reportsController.getProjectsPerOrg);
 reports.get('/active-vs-archived-employees', reportsController.getActiveVsArchivedEmployees);
 
 module.exports = reports;

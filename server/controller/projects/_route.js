@@ -8,7 +8,9 @@ projects.use(authMiddleware);
 
 // In your router file
 projects.post('/', projectsController.createProject);
+projects.get('/export', projectsController.exportProjects);
 projects.get('/', projectsController.getProjects);
+projects.get('/:id/export', projectsController.exportProjectTasks);
 projects.get('/:id', projectsController.getProject);
 projects.put('/:id', projectsController.updateProject);
 projects.delete('/:id', projectsController.deleteProject);

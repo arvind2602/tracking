@@ -43,73 +43,82 @@ export function AddUserForm({ organizationId, onUserAdded, onClose }: AddUserFor
   };
 
   return (
-    <div className="space-y-6">
-      <Input
-        placeholder="First Name"
-        value={form.firstName}
-        onChange={(e) =>
-          setForm({ ...form, firstName: e.target.value })
-        }
-        className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
-      />
-      <Input
-        placeholder="Last Name"
-        value={form.lastName}
-        onChange={(e) =>
-          setForm({ ...form, lastName: e.target.value })
-        }
-        className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
-      />
-      <Input
-        placeholder="Email"
-        type="email"
-        value={form.email}
-        onChange={(e) => setForm({ ...form, email: e.target.value })}
-        className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
-      />
-      <Input
-        placeholder="Position"
-        value={form.position}
-        onChange={(e) =>
-          setForm({ ...form, position: e.target.value })
-        }
-        className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
-      />
-      <Select
-        value={form.role}
-        onValueChange={(val: "USER" | "ADMIN") =>
-          setForm({ ...form, role: val })
-        }
-      >
-        <SelectTrigger className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white">
-          <SelectValue placeholder="Select Role" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="USER">USER</SelectItem>
-          <SelectItem value="ADMIN">ADMIN</SelectItem>
-        </SelectContent>
-      </Select>
-      <Input
-        placeholder="Password"
-        type="password"
-        value={form.password}
-        onChange={(e) =>
-          setForm({ ...form, password: e.target.value })
-        }
-        className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
-      />
+    <div className="space-y-4 py-2">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium leading-none">First Name</label>
+          <Input
+            placeholder="John"
+            value={form.firstName}
+            onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+            className="w-full"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium leading-none">Last Name</label>
+          <Input
+            placeholder="Doe"
+            value={form.lastName}
+            onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+            className="w-full"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium leading-none">Email Address</label>
+        <Input
+          placeholder="john.doe@example.com"
+          type="email"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          className="w-full"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium leading-none">Position</label>
+          <Input
+            placeholder="Developer"
+            value={form.position}
+            onChange={(e) => setForm({ ...form, position: e.target.value })}
+            className="w-full"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium leading-none">Role</label>
+          <Select
+            value={form.role}
+            onValueChange={(val: "USER" | "ADMIN") => setForm({ ...form, role: val })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select Role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="USER">User</SelectItem>
+              <SelectItem value="ADMIN">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium leading-none">Password</label>
+        <Input
+          placeholder="••••••••"
+          type="password"
+          value={form.password}
+          onChange={(e) => setForm({ ...form, password: e.target.value })}
+          className="w-full"
+        />
+      </div>
+
       <div className="flex justify-end space-x-4 mt-8">
-        <Button
-          variant="outline"
-          className="rounded-full px-6 py-3 border-accent/50 text-accent hover:bg-accent/10"
-          onClick={onClose}
-        >
+        <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button
-          className="bg-primary text-white hover:bg-primary/90 rounded-full px-6 py-3 shadow-[0_0_15px_rgba(37,99,235,0.5)]"
-          onClick={handleSubmit}
-        >
+        <Button onClick={handleSubmit}>
           Save
         </Button>
       </div>

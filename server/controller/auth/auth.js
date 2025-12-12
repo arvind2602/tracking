@@ -102,13 +102,36 @@ const getEmployee = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
-// View all in organization
+// View all in organization with ranking
 const getEmployeesByOrg = async (req, res, next) => {
-    const  organizationId  = req.user.organization_uuid;
+    const organizationId = req.user.organization_uuid;
     console.log('Fetching employees for organization:', organizationId);
     try {
         const result = await pool.query(
-            'SELECT id, "firstName", "lastName", email, position, role FROM employee WHERE "organiationId" = $1 AND is_archived = false',
+            `WITH WeeklyStats AS (
+                SELECT 
+                    e.id,
+                    COALESCE(SUM(t.points), 0) as "weeklyPoints"
+                FROM employee e
+                LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
+                    AND LOWER(t.status) IN ('done', 'completed')
+                    AND t."updatedAt" >= NOW() - INTERVAL '7 days'
+                WHERE e."organiationId" = $1
+                GROUP BY e.id
+             )
+             SELECT 
+                e.id, 
+                e."firstName", 
+                e."lastName", 
+                e.email, 
+                e.position, 
+                e.role,
+                ws."weeklyPoints",
+                RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
+             FROM employee e
+             JOIN WeeklyStats ws ON e.id = ws.id
+             WHERE e."organiationId" = $1 AND e.is_archived = false
+             ORDER BY ws."weeklyPoints" DESC, e."firstName" ASC`,
             [organizationId]
         );
         res.json(result.rows);
@@ -162,6 +185,68 @@ const deleteEmployee = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+// Export Employees
+const exportUsers = async (req, res, next) => {
+    const organizationId = req.user.organization_uuid;
+    try {
+        const result = await pool.query(
+            `WITH WeeklyStats AS (
+                SELECT 
+                    e.id,
+                    COALESCE(SUM(t.points), 0) as "weeklyPoints"
+                FROM employee e
+                LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
+                    AND LOWER(t.status) IN ('done', 'completed')
+                    AND t."updatedAt" >= NOW() - INTERVAL '7 days'
+                WHERE e."organiationId" = $1
+                GROUP BY e.id
+             )
+             SELECT 
+                e.id, 
+                e."firstName", 
+                e."lastName", 
+                e.email, 
+                e.position, 
+                e.role,
+                e."createdAt",
+                ws."weeklyPoints",
+                RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
+             FROM employee e
+             JOIN WeeklyStats ws ON e.id = ws.id
+             WHERE e."organiationId" = $1 AND e.is_archived = false
+             ORDER BY ws."weeklyPoints" DESC, e."firstName" ASC`,
+            [organizationId]
+        );
+
+        const users = result.rows;
+
+        // Convert to CSV
+        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Weekly Points', 'Joined At'];
+        const csvRows = [header.join(',')];
+
+        users.forEach(user => {
+            const row = [
+                user.id,
+                user.rank,
+                `"${(user.firstName || '').replace(/"/g, '""')}"`,
+                `"${(user.lastName || '').replace(/"/g, '""')}"`,
+                `"${(user.email || '').replace(/"/g, '""')}"`,
+                `"${(user.position || '').replace(/"/g, '""')}"`,
+                user.role,
+                user.weeklyPoints,
+                user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : ''
+            ];
+            csvRows.push(row.join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="users_export.csv"');
+        res.send(csvContent);
+    } catch (error) { next(error); }
+};
+
 
 module.exports = {
     login,
@@ -171,5 +256,5 @@ module.exports = {
     forgetPassword,
     updateEmployee,
     deleteEmployee,
-    
+    exportUsers
 };

@@ -38,6 +38,7 @@ model projects {
   name          String
   description   String
   startDate     DateTime
+  endDate       DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime?   @updatedAt
   is_archived   Boolean     @default(false)
@@ -59,6 +60,15 @@ model task {
   projectId   String    @db.Uuid
   comments    comment[]
   project     projects  @relation(fields: [projectId], references: [id])
+  priority    Priority  @default(MEDIUM)
+  dueDate     DateTime?
+  order       Int       @default(0)
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 model comment {

@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
-import { Loader } from 'lucide-react';
+import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 
 const ProjectsPage = () => {
@@ -17,8 +18,11 @@ const ProjectsPage = () => {
     name: string;
     description: string;
     startDate: string;
+    totalPoints: number;
+    yesterdayPoints: number;
+    topPerformers: { name: string; initial: string; points: number }[];
   }
-  
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +30,7 @@ const ProjectsPage = () => {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newProjectStartDate, setNewProjectStartDate] = useState('');
+  const [newProjectEndDate, setNewProjectEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -75,11 +80,13 @@ const ProjectsPage = () => {
           name: newProjectName,
           description: newProjectDescription,
           startDate: newProjectStartDate,
+          endDate: newProjectEndDate,
         });
         setProjects([...projects, response.data]);
         setNewProjectName('');
         setNewProjectDescription('');
         setNewProjectStartDate('');
+        setNewProjectEndDate('');
         setIsModalOpen(false);
         toast.success('Project added successfully', { id: toastId });
       } catch (error) {
@@ -99,6 +106,23 @@ const ProjectsPage = () => {
     }
   };
 
+  const handleExportProjects = async () => {
+    const toastId = toast.loading('Exporting projects...');
+    try {
+      const response = await axios.get('/projects/export', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'projects.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Projects exported', { id: toastId });
+    } catch {
+      toast.error('Export failed', { id: toastId });
+    }
+  };
+
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/dashboard' },
     { label: 'Projects', href: '/dashboard/projects' },
@@ -109,18 +133,29 @@ const ProjectsPage = () => {
       <Breadcrumbs items={breadcrumbItems} />
       <div className="flex justify-between items-center mb-4 mt-4">
         <h1 className="text-2xl font-bold">Projects</h1>
-        {userRole === 'ADMIN' && (
-          <div className="flex space-x-4">
-            <Input
-              type="text"
-              placeholder="Search by name"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full md:w-64"
-            />
-            <Button onClick={() => setIsModalOpen(true)}>Add New Project</Button>
-          </div>
-        )}
+        <div className="flex space-x-4">
+          <Input
+            type="text"
+            placeholder="Search by name"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full md:w-64"
+          />
+          <Button
+            onClick={handleExportProjects}
+            variant="outline"
+            className="gap-2 rounded-full"
+          >
+            <Download className="h-4 w-4" />
+            Export Projects
+          </Button>
+          {userRole === 'ADMIN' && (
+            <Button onClick={() => setIsModalOpen(true)} className="gap-2 rounded-full">
+              <Plus className="h-4 w-4" />
+              Add New Project
+            </Button>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
@@ -128,33 +163,87 @@ const ProjectsPage = () => {
           <Loader className="animate-spin h-12 w-12 text-accent" />
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left responsive-table">
-            <thead className="border-b border-accent/20">
-              <tr>
-                <th className="p-4 font-semibold">Name</th>
-                <th className="p-4 font-semibold">Description</th>
-                <th className="p-4 font-semibold">Actions</th>
-              </tr>
-            </thead>
-                          <tbody>
-                            {filteredProjects.map((project) => (                <tr key={project.id} className="border-b border-accent/20">
-                  <td className="p-4" data-label="Name">{project.name}</td>
-                  <td className="p-4" data-label="Description">{project.description}</td>
-                  <td className="p-4" data-label="Actions">
-                    <div className="flex justify-between items-center">
-                      <Link href={`/dashboard/projects/${project.id}`}>
-                        <Button variant="link">
-                          View Tasks
-                        </Button>
-                      </Link>
-                      <Button variant="destructive" onClick={() => handleDeleteProject(project.id)}>Delete</Button>
-                    </div>
-                  </td>
+        <div className="bg-card/50 backdrop-blur-lg rounded-xl border border-accent/20 shadow-lg overflow-x-auto">
+          <div className="overflow-auto border border-border rounded-lg bg-background">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead className="bg-muted/40 sticky top-0 z-10">
+                <tr>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[200px]">Name</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground">Description</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[200px]">Top Performers</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[120px]">Total Points</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[120px]">Yesterday</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[180px]">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredProjects.map((project) => (
+                  <tr key={project.id} className="group hover:bg-accent/5 transition-colors">
+                    <td className="border border-border px-3 py-1.5 align-middle font-medium text-foreground">
+                      {project.name}
+                    </td>
+                    <td className="border border-border px-3 py-1.5 align-middle">
+                      <div className="line-clamp-2 text-muted-foreground text-sm" title={project.description}>
+                        {project.description}
+                      </div>
+                    </td>
+                    <td className="border border-border px-3 py-1.5 align-middle">
+                      <div className="flex flex-col gap-1 min-h-[50px] justify-center">
+                        {project.topPerformers && project.topPerformers.length > 0 ? (
+                          project.topPerformers.map((p, i) => (
+                            <div key={i} className={`flex items-center gap-2 ${i === 0 ? 'text-sm font-medium' : 'text-xs'}`}>
+                              {i === 0 && <Trophy className="h-3 w-3 text-yellow-500" />}
+                              {i === 1 && <Trophy className="h-3 w-3 text-gray-400" />}
+                              {i === 2 && <Trophy className="h-3 w-3 text-amber-600" />}
+                              <div className="flex flex-1 justify-between items-center gap-2">
+                                <span className="font-medium truncate max-w-[100px]" title={p.name}>{p.name} {p.initial}.</span>
+                                <span className="text-muted-foreground font-mono">{p.points}</span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground italic">No data</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="border border-border px-3 py-1.5 align-middle">
+                      <Badge variant="secondary" className="font-mono text-sm">
+                        {project.totalPoints || 0} pts
+                      </Badge>
+                    </td>
+                    <td className="border border-border px-3 py-1.5 align-middle">
+                      <span className={`font-mono text-sm font-medium ${project.yesterdayPoints > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                        {project.yesterdayPoints > 0 ? '+' : ''}{project.yesterdayPoints || 0} pts
+                      </span>
+                    </td>
+                    <td className="border border-border px-3 py-1.5 align-middle">
+                      <div className="flex items-center gap-2">
+                        <Link href={`/dashboard/projects/${project.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="View Tasks"
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          onClick={() => handleDeleteProject(project.id)}
+                          title="Delete Project"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -180,6 +269,13 @@ const ProjectsPage = () => {
               placeholder="Start Date"
               value={newProjectStartDate}
               onChange={(e) => setNewProjectStartDate(e.target.value)}
+              className="mb-4"
+            />
+            <Input
+              type="date"
+              placeholder="End Date (Optional)"
+              value={newProjectEndDate}
+              onChange={(e) => setNewProjectEndDate(e.target.value)}
               className="mb-4"
             />
             <div className="flex justify-end gap-4">

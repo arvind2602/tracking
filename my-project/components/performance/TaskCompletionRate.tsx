@@ -29,23 +29,23 @@ export function TaskCompletionRate() {
     <div>
       <h3 className="text-lg font-medium">Task Completion Rate per Employee</h3>
       <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Employee</TableHead>
-            <TableHead>Completion Rate</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data?.map((emp: TaskCompletion) => (
-            <TableRow key={emp.id}>
-              <TableCell>{emp.name}</TableCell>
-              <TableCell>{typeof emp.completionRate === 'number' ? emp.completionRate.toFixed(2) : 'N/A'}%</TableCell>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee</TableHead>
+              <TableHead>Completion Rate</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {data?.map((emp: TaskCompletion) => (
+              <TableRow key={emp.id}>
+                <TableCell>{emp.name}</TableCell>
+                <TableCell>{!isNaN(Number(emp.completionRate)) ? Number(emp.completionRate).toFixed(2) : '0.00'}%</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

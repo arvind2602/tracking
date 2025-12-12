@@ -30,26 +30,32 @@ const getRecentActivity = async (req, res, next) => {
     const result = await pool.query(`
       SELECT 
         t.id,
-        e."firstName" || ' ' || e."lastName" AS user,
-        t."updatedAt" AS time,
-        'updated task' AS action,
+        COALESCE(e."firstName" || ' ' || e."lastName", 'Unknown User') AS user,
+        COALESCE(t."updatedAt", t."createdAt") AS time,
+        CASE 
+           WHEN LOWER(t.status) IN ('done', 'completed') THEN 'completed task' 
+           ELSE 'updated task' 
+        END AS action,
         t.description AS target
       FROM task t
-      JOIN employee e ON t."createdBy"::uuid = e.id
+      LEFT JOIN employee e ON t."assignedTo"::uuid = e.id
       JOIN projects p ON t."projectId" = p.id
       WHERE p."organiationId" = $1::uuid
+      
       UNION ALL
+      
       SELECT 
         c.id,
-        e."firstName" || ' ' || e."lastName" AS user,
+        COALESCE(e."firstName" || ' ' || e."lastName", 'Unknown User') AS user,
         c."createdAt" AS time,
         'commented on' AS action,
         t.description AS target
       FROM comment c
-      JOIN employee e ON c."authorId" = e.id
+      LEFT JOIN employee e ON c."authorId"::uuid = e.id
       JOIN task t ON c."taskId" = t.id
       JOIN projects p ON t."projectId" = p.id
       WHERE p."organiationId" = $1::uuid
+      
       ORDER BY time DESC
       LIMIT 10
     `, [req.user.organization_uuid]);
@@ -79,16 +85,16 @@ const getDashboardSummary = async (req, res, next) => {
          JOIN projects p ON t."projectId" = p.id 
          WHERE p."organiationId" = $1::uuid) AS "totalPoints",
         COALESCE((
-          SELECT json_agg(
-            json_build_object(
-              'status', t.status,
-              '_count', json_build_object('status', COUNT(*)::int)
-            )
-          )
-          FROM task t
-          JOIN projects p ON t."projectId" = p.id
-          WHERE p."organiationId" = $1::uuid
-          GROUP BY t.status
+          SELECT json_agg(stats)
+          FROM (
+            SELECT 
+              t.status, 
+              json_build_object('status', COUNT(*)::int) as _count
+            FROM task t
+            JOIN projects p ON t."projectId" = p.id
+            WHERE p."organiationId" = $1::uuid
+            GROUP BY t.status
+          ) stats
         ), '[]'::json) AS "tasksByStatus"
     `, [req.user.organization_uuid]);
 
@@ -102,8 +108,8 @@ const getDashboardSummary = async (req, res, next) => {
 };
 
 const getPointsLeaderboard = async (req, res, next) => {
-    try {
-        const result = await pool.query(`
+  try {
+    const result = await pool.query(`
       SELECT 
         e."firstName" || ' ' || e."lastName" AS name,
         COALESCE(SUM(t.points), 0)::int AS "totalPoints"
@@ -115,16 +121,16 @@ const getPointsLeaderboard = async (req, res, next) => {
       LIMIT 10
     `, [req.user.organization_uuid]);
 
-        res.json(result.rows);
-    } catch (error) {
-        next(error);
-    }
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
 };
 
 
 const getProductivityTrend = async (req, res, next) => {
-    try {
-        const result = await pool.query(`
+  try {
+    const result = await pool.query(`
       SELECT 
         to_char(date_trunc('week', t."updatedAt"), 'YYYY-MM-DD') AS name,
         COALESCE(SUM(t.points), 0)::int AS points
@@ -137,45 +143,45 @@ const getProductivityTrend = async (req, res, next) => {
       ORDER BY name
     `, [req.user.organization_uuid]);
 
-        res.json(result.rows);
-    } catch (error) {
-        next(error);
-    }
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
 };
 
 
 const getTaskCompletionRate = async (req, res, next) => {
-    try {
-        const result = await pool.query(`
+  try {
+    const result = await pool.query(`
       SELECT 
         e.id,
         e."firstName" || ' ' || e."lastName" AS name,
         CASE 
           WHEN COUNT(t.id) = 0 THEN 0
           ELSE ROUND(
-            COUNT(t.id) FILTER (WHERE t.status = 'completed')::numeric / COUNT(t.id) * 100, 2
-          )
+            COUNT(t.id) FILTER (WHERE LOWER(t.status) IN ('done', 'completed'))::numeric / COUNT(t.id) * 100, 2
+          )::float
         END AS "completionRate"
       FROM employee e
-      LEFT JOIN task t ON t."assignedTo" = e.id::text
+      LEFT JOIN task t ON t."assignedTo"::uuid = e.id
       WHERE e."organiationId" = $1::uuid AND e.is_archived = false
       GROUP BY e.id
       ORDER BY "completionRate" DESC
     `, [req.user.organization_uuid]);
 
-        res.json(result.rows);
-    } catch (error) {
-        next(error);
-    }
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
 };
 
 
 
 module.exports = {
-    getAverageTaskCompletionTime,
-    getPointsLeaderboard,
-    getProductivityTrend,
-    getTaskCompletionRate,
-    getRecentActivity,
-    getDashboardSummary
+  getAverageTaskCompletionTime,
+  getPointsLeaderboard,
+  getProductivityTrend,
+  getTaskCompletionRate,
+  getRecentActivity,
+  getDashboardSummary
 };

@@ -8,12 +8,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
-import { Loader } from "lucide-react";
+import { Loader, Trash2, Download, Plus } from "lucide-react";
 import { get } from "http";
 
 interface User {
@@ -23,6 +23,8 @@ interface User {
   email: string;
   position: string;
   role: string;
+  rank?: number;
+  weeklyPoints?: number;
 }
 
 export default function Users() {
@@ -42,6 +44,28 @@ export default function Users() {
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [positionFilter, setPositionFilter] = useState<string>("");
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+
+  const groupedUsers = useMemo(() => {
+    const groups: { [key: string]: User[] } = {};
+    filteredUsers.forEach((user) => {
+      const position = user.position ? user.position.charAt(0).toUpperCase() + user.position.slice(1) : "Unassigned";
+      if (!groups[position]) {
+        groups[position] = [];
+      }
+      groups[position].push(user);
+    });
+
+    // Sort users within groups: ADMIN first
+    Object.keys(groups).forEach((key) => {
+      groups[key].sort((a, b) => {
+        if (a.role === "ADMIN" && b.role !== "ADMIN") return -1;
+        if (a.role !== "ADMIN" && b.role === "ADMIN") return 1;
+        return 0;
+      });
+    });
+
+    return groups;
+  }, [filteredUsers]);
 
   useEffect(() => {
     getUsers();
@@ -105,7 +129,7 @@ export default function Users() {
   const handleExportUsers = async () => {
     const toastId = toast.loading("Exporting users...");
     try {
-      const response = await axios.get("/users/export", { responseType: "blob" });
+      const response = await axios.get("/auth/export", { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
@@ -130,18 +154,19 @@ export default function Users() {
       <div className="flex justify-between items-center mb-8 mt-4">
         <h1 className="text-4xl font-bold text-white">Users</h1>
         <div className="flex space-x-4">
-          {userRole === "ADMIN" && (
-            <Button
-              onClick={handleExportUsers}
-              className="bg-green-500 text-white hover:bg-green-600 rounded-full px-6 py-3 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
-            >
-              Export Users
-            </Button>
-          )}
           <Button
-            className="bg-primary text-white hover:bg-primary/90 rounded-full px-6 py-3 shadow-[0_0_15px_rgba(37,99,235,0.5)]"
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleExportUsers}
+            variant="outline"
+            className="rounded-full gap-2"
           >
+            <Download className="h-4 w-4" />
+            Export Users
+          </Button>
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            className="rounded-full gap-2"
+          >
+            <Plus className="h-4 w-4" />
             Add New User
           </Button>
         </div>
@@ -182,41 +207,76 @@ export default function Users() {
           <Loader className="animate-spin h-12 w-12 text-accent" />
         </div>
       ) : (
-        <div className="bg-card/50 backdrop-blur-lg rounded-xl border border-accent/20 shadow-lg">
+        <div className="bg-card/50 backdrop-blur-lg rounded-xl border border-accent/20 shadow-lg overflow-x-auto">
           <div className="flex justify-between items-center p-4">
-            <p className="text-sm text-white">Total Users: {usersList.length}</p>
+            <p className="text-sm text-foreground">Total Users: {usersList.length}</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left responsive-table">
-              <thead className="border-b border-accent/20">
+          <div className="overflow-auto border border-border rounded-lg bg-background">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead className="bg-muted/40 sticky top-0 z-10">
                 <tr>
-                  <th className="p-4 font-semibold">Name</th>
-                  <th className="p-4 font-semibold">Email</th>
-                  <th className="p-4 font-semibold">Position</th>
-                  <th className="p-4 font-semibold">Role</th>
-                  <th className="p-4 font-semibold">Actions</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[60px]">S.No</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[80px]">Rank</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground">Name</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground">Email</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground">Role</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[100px]">Weekly Pts</th>
+                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[100px]">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((u) => (
-                  <tr key={u.id} className="border-b border-accent/20">
-                    <td className="p-4" data-label="Name">
-                      <span
-                        className="cursor-pointer"
-                        onClick={() => router.push(`/dashboard/users/${u.id}/tasks`)}
-                      >
-                        {`${u.firstName} ${u.lastName}`}
-                      </span>
-                    </td>
-                    <td className="p-4" data-label="Email">{u.email}</td>
-                    <td className="p-4" data-label="Position">{u.position}</td>
-                    <td className="p-4" data-label="Role">{u.role}</td>
-                    <td className="p-4" data-label="Actions">
-                      <Button variant="destructive" onClick={() => handleDeleteUser(u.id)}>
-                        Delete
-                      </Button>
-                    </td>
-                  </tr>
+                {Object.entries(groupedUsers).sort((a, b) => a[0].localeCompare(b[0])).map(([position, users]) => (
+                  <>
+                    <tr key={`group-${position}`} className="bg-muted/20">
+                      <td colSpan={7} className="border border-border px-3 py-2 font-semibold text-foreground bg-muted/30">
+                        {position} <span className="text-muted-foreground font-normal ml-1">({users.length})</span>
+                      </td>
+                    </tr>
+                    {users.map((u, index) => (
+                      <tr key={u.id} className="group hover:bg-accent/5 transition-colors">
+                        <td className="border border-border px-3 py-1.5 align-middle text-muted-foreground font-mono text-xs">
+                          {index + 1}
+                        </td>
+                        <td className="border border-border px-3 py-1.5 align-middle text-center">
+                          {u.rank ? (
+                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${u.rank === '1' || u.rank === 1 ? 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/50' : u.rank === '2' || u.rank === 2 ? 'bg-gray-400/20 text-gray-400 border border-gray-400/50' : u.rank === '3' || u.rank === 3 ? 'bg-orange-500/20 text-orange-600 border border-orange-500/50' : 'text-muted-foreground'}`}>
+                              {u.rank}
+                            </span>
+                          ) : '-'}
+                        </td>
+                        <td className="border border-border px-3 py-1.5 align-middle">
+                          <span
+                            className="cursor-pointer font-medium hover:underline decoration-primary/50 underline-offset-4"
+                            onClick={() => router.push(`/dashboard/users/${u.id}/tasks`)}
+                          >
+                            {`${u.firstName} ${u.lastName}`}
+                          </span>
+                        </td>
+                        <td className="border border-border px-3 py-1.5 align-middle">{u.email}</td>
+                        <td className="border border-border px-3 py-1.5 align-middle">
+                          <span className={`text-xs px-2 py-0.5 rounded-full border ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="border border-border px-3 py-1.5 align-middle font-mono text-sm">
+                          {u.weeklyPoints || 0}
+                        </td>
+                        <td className="border border-border px-3 py-1.5 align-middle">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              onClick={() => handleDeleteUser(u.id)}
+                              title="Delete User"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
                 ))}
               </tbody>
             </table>

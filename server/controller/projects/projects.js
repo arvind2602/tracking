@@ -5,27 +5,27 @@ const { BadRequestError, NotFoundError } = require('../../utils/errors');
 
 // Create Project
 const createProject = async (req, res, next) => {
-    const schema = Joi.object({
-        name: Joi.string().required(),
-        description: Joi.string().allow(''),
-        startDate: Joi.date().iso().required()
-    });
+  const schema = Joi.object({
+    name: Joi.string().required(),
+    description: Joi.string().allow(''),
+    startDate: Joi.date().iso().required()
+  });
 
-    const { error } = schema.validate(req.body);
-    if (error) return next(new BadRequestError(error.details[0].message));
+  const { error } = schema.validate(req.body);
+  if (error) return next(new BadRequestError(error.details[0].message));
 
-    const { name, description, startDate } = req.body;
-    const organiationId = req.user.organization_uuid;
+  const { name, description, startDate } = req.body;
+  const organiationId = req.user.organization_uuid;
 
-    try {
-        const result = await pool.query(
-            `INSERT INTO projects (name, description, "startDate", "organiationId")
+  try {
+    const result = await pool.query(
+      `INSERT INTO projects (name, description, "startDate", "organiationId")
              VALUES ($1, $2, $3, $4) RETURNING id, name, description, "startDate"`,
-            [name, description || '', startDate, organiationId]
-        );
+      [name, description || '', startDate, organiationId]
+    );
 
-        res.status(201).json(result.rows[0]);
-    } catch (error) { next(error); }
+    res.status(201).json(result.rows[0]);
+  } catch (error) { next(error); }
 };
 
 // Get Single Project
@@ -82,11 +82,53 @@ const getProjects = async (req, res, next) => {
 
   try {
     const result = await pool.query(
-      `SELECT id, name, description, "startDate", "createdAt"
-       FROM projects 
-       WHERE "organiationId" = $1 
-       AND is_archived = false 
-       ORDER BY "createdAt" DESC`,
+      `WITH ProjectStats AS (
+         SELECT 
+             p.id,
+             COALESCE(SUM(t.points), 0) as "totalPoints",
+             COALESCE(SUM(CASE WHEN LOWER(t.status) IN ('done', 'completed') AND t."updatedAt"::date = (CURRENT_DATE - 1) THEN t.points ELSE 0 END), 0) as "yesterdayPoints"
+         FROM projects p
+         LEFT JOIN task t ON p.id = t."projectId"
+         WHERE p."organiationId" = $1 AND p.is_archived = false
+         GROUP BY p.id
+       ),
+       PerformerStats AS (
+         SELECT 
+             t."projectId",
+             e."firstName",
+             e."lastName",
+             SUM(t.points) as points
+         FROM task t
+         JOIN employee e ON t."assignedTo"::uuid = e.id
+         WHERE LOWER(t.status) IN ('done', 'completed')
+         GROUP BY t."projectId", e.id, e."firstName", e."lastName"
+       ),
+       RankedPerformers AS (
+         SELECT 
+             "projectId",
+             "firstName",
+             "lastName",
+             points,
+             ROW_NUMBER() OVER (PARTITION BY "projectId" ORDER BY points DESC) as rnk
+         FROM PerformerStats
+       )
+       SELECT 
+         p.id, 
+         p.name, 
+         p.description, 
+         p."startDate", 
+         p."createdAt",
+         ps."totalPoints",
+         ps."yesterdayPoints",
+         COALESCE((
+           SELECT json_agg(json_build_object('name', rp."firstName", 'initial', SUBSTRING(rp."lastName", 1, 1), 'points', rp.points))
+           FROM RankedPerformers rp
+           WHERE rp."projectId" = p.id AND rp.rnk <= 3
+         ), '[]'::json) as "topPerformers"
+       FROM projects p
+       JOIN ProjectStats ps ON p.id = ps.id
+       WHERE p."organiationId" = $1 AND p.is_archived = false
+       ORDER BY ps."totalPoints" DESC, p."createdAt" DESC`,
       [organiationId]
     );
     res.json(result.rows);
@@ -97,42 +139,178 @@ const getProjects = async (req, res, next) => {
 
 // Update Project
 const updateProject = async (req, res, next) => {
-    const { id } = req.params;
-    const { name, description, startDate } = req.body;
-    const organiationId = req.user.organization_uuid;
+  const { id } = req.params;
+  const { name, description, startDate } = req.body;
+  const organiationId = req.user.organization_uuid;
 
-    try {
-        const result = await pool.query(
-            `UPDATE projects SET name = $1, description = $2, "startDate" = $3, "updatedAt" = NOW()
+  try {
+    const result = await pool.query(
+      `UPDATE projects SET name = $1, description = $2, "startDate" = $3, "updatedAt" = NOW()
              WHERE id = $4 AND "organiationId" = $5
              RETURNING id, name, description, "startDate"`,
-            [name, description || '', startDate, id, organiationId]
-        );
-        if (result.rowCount === 0) return next(new NotFoundError('Project not found'));
-        res.json(result.rows[0]);
-    } catch (error) { next(error); }
+      [name, description || '', startDate, id, organiationId]
+    );
+    if (result.rowCount === 0) return next(new NotFoundError('Project not found'));
+    res.json(result.rows[0]);
+  } catch (error) { next(error); }
 };
 
 // Delete Project (soft or hard - adjust as needed)
 const deleteProject = async (req, res, next) => {
-    const { id } = req.params;
-    const organiationId = req.user.organization_uuid;
+  const { id } = req.params;
+  const organiationId = req.user.organization_uuid;
 
-    try {
-        const result = await pool.query(
-            `UPDATE projects SET is_archived = true, "updatedAt" = NOW()
+  try {
+    const result = await pool.query(
+      `UPDATE projects SET is_archived = true, "updatedAt" = NOW()
              WHERE id = $1 AND "organiationId" = $2 RETURNING id`,
-            [id, organiationId]
-        );
-        if (result.rowCount === 0) return next(new NotFoundError('Project not found'));
-        res.json({ message: 'Project deleted' });
-    } catch (error) { next(error); }
+      [id, organiationId]
+    );
+    if (result.rowCount === 0) return next(new NotFoundError('Project not found'));
+    res.json({ message: 'Project deleted' });
+  } catch (error) { next(error); }
+};
+
+// Export Projects
+const exportProjects = async (req, res, next) => {
+  const organiationId = req.user.organization_uuid;
+  try {
+    const result = await pool.query(
+      `WITH ProjectStats AS (
+         SELECT 
+             p.id,
+             COALESCE(SUM(t.points), 0) as "totalPoints",
+             COALESCE(SUM(CASE WHEN LOWER(t.status) IN ('done', 'completed') AND t."updatedAt"::date = (CURRENT_DATE - 1) THEN t.points ELSE 0 END), 0) as "yesterdayPoints"
+         FROM projects p
+         LEFT JOIN task t ON p.id = t."projectId"
+         WHERE p."organiationId" = $1 AND p.is_archived = false
+         GROUP BY p.id
+       ),
+       PerformerStats AS (
+         SELECT 
+             t."projectId",
+             e."firstName",
+             e."lastName",
+             SUM(t.points) as points
+         FROM task t
+         JOIN employee e ON t."assignedTo"::uuid = e.id
+         WHERE LOWER(t.status) IN ('done', 'completed')
+         GROUP BY t."projectId", e.id, e."firstName", e."lastName"
+       ),
+       RankedPerformers AS (
+         SELECT 
+             "projectId",
+             "firstName",
+             "lastName",
+             points,
+             ROW_NUMBER() OVER (PARTITION BY "projectId" ORDER BY points DESC) as rnk
+         FROM PerformerStats
+       )
+       SELECT 
+         p.id, 
+         p.name, 
+         p.description, 
+         p."startDate", 
+         p."createdAt",
+         ps."totalPoints",
+         ps."yesterdayPoints",
+         COALESCE((
+           SELECT string_agg(rp."firstName" || ' ' || SUBSTRING(rp."lastName", 1, 1) || '. (' || rp.points || ' pts)', '; ')
+           FROM RankedPerformers rp
+           WHERE rp."projectId" = p.id AND rp.rnk <= 3
+         ), '') as "topPerformers"
+       FROM projects p
+       JOIN ProjectStats ps ON p.id = ps.id
+       WHERE p."organiationId" = $1 AND p.is_archived = false
+       ORDER BY ps."totalPoints" DESC, p."createdAt" DESC`,
+      [organiationId]
+    );
+
+    const projects = result.rows;
+
+    // Convert to CSV
+    const header = ['ID', 'Name', 'Description', 'Start Date', 'Total Points', 'Yesterday Points', 'Top Performers', 'Created At'];
+    const csvRows = [header.join(',')];
+
+    projects.forEach(project => {
+      const row = [
+        project.id,
+        `"${(project.name || '').replace(/"/g, '""')}"`,
+        `"${(project.description || '').replace(/"/g, '""')}"`,
+        project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
+        project.totalPoints,
+        project.yesterdayPoints,
+        `"${(project.topPerformers || '').replace(/"/g, '""')}"`,
+        project.createdAt ? new Date(project.createdAt).toISOString().split('T')[0] : ''
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    const csvContent = csvRows.join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="projects_export.csv"');
+    res.send(csvContent);
+  } catch (error) { next(error); }
+};
+
+// Export Tasks for a specific Project
+const exportProjectTasks = async (req, res, next) => {
+  const { id } = req.params;
+  const organiationId = req.user.organization_uuid;
+
+  try {
+    // Verify project belongs to organization
+    const projectCheck = await pool.query(
+      'SELECT name FROM projects WHERE id = $1 AND "organiationId" = $2',
+      [id, organiationId]
+    );
+    if (projectCheck.rowCount === 0) return next(new NotFoundError('Project not found'));
+    const projectName = projectCheck.rows[0].name.replace(/[^a-zA-Z0-9]/g, '_');
+
+    const result = await pool.query(
+      `SELECT 
+         t.description,
+         t.status,
+         t.points,
+         COALESCE(e."firstName" || ' ' || e."lastName", 'Unassigned') AS "assignedToName"
+       FROM task t
+       LEFT JOIN employee e ON t."assignedTo"::uuid = e.id
+       WHERE t."projectId" = $1
+       ORDER BY t.status, t."createdAt" DESC`,
+      [id]
+    );
+
+    const tasks = result.rows;
+
+    // Convert to CSV
+    const header = ['Description', 'Assigned To', 'Status', 'Points'];
+    const csvRows = [header.join(',')];
+
+    tasks.forEach(task => {
+      const row = [
+        `"${(task.description || '').replace(/"/g, '""')}"`,
+        `"${(task.assignedToName || '').replace(/"/g, '""')}"`,
+        task.status,
+        task.points || 0
+      ];
+      csvRows.push(row.join(','));
+    });
+
+    const csvContent = csvRows.join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${projectName}_tasks_export.csv"`);
+    res.send(csvContent);
+  } catch (error) { next(error); }
 };
 
 module.exports = {
-    createProject,
-    getProject,
-    getProjects,
-    updateProject,
-    deleteProject
+  createProject,
+  getProject,
+  getProjects,
+  updateProject,
+  deleteProject,
+  exportProjects,
+  exportProjectTasks
 };

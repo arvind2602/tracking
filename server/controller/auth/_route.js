@@ -11,6 +11,7 @@ employee.post('/forget-password', employeeController.forgetPassword);
 // Protected Routes
 employee.use(authMiddleware);
 employee.get('/organization', employeeController.getEmployeesByOrg);
+employee.get('/export', employeeController.exportUsers);
 employee.post('/register', employeeController.register);
 employee.get('/profile', employeeController.getEmployee);
 
