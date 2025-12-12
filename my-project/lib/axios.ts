@@ -2,9 +2,9 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const instance = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  // baseURL: 'http://localhost:5000/api',
   // baseURL: 'https://89q8wp9g-5000.inc1.devtunnels.ms/api',
-  // baseURL: 'https://tasksb.vercel.app/api',
+  baseURL: 'https://tasksb.vercel.app/api',
 });
 
 instance.interceptors.request.use((config) => {
