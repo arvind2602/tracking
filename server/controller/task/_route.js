@@ -7,19 +7,25 @@ const authMiddleware = require('../../middleware/authMiddleware');
 task.use(authMiddleware);
 
 task.post('/', taskController.createTask);
+
+// Specific routes MUST come before generic :id routes
 task.get('/export', taskController.exportTasks);
-task.get('/:id', taskController.getTask);
 task.get('/projects/:projectId/tasks', taskController.getTasksByProject);
-task.put('/:id', taskController.updateTask);
-task.delete('/:id', taskController.deleteTask);
-task.post('/comments/:taskId', taskController.createComment);
 task.get('/comments/:taskId', taskController.getCommentsByTask);
+task.post('/comments/:taskId', taskController.createComment);
 task.get('/employees/tasks', taskController.getTaskByEmployee);
+task.get('/user/:id', taskController.getTasksPerEmployee);
 task.put('/assign/:id', taskController.assignTask);
-task.put('/:id/status', taskController.changeTaskStatus);
-task.patch('/:id/status', taskController.changeTaskStatus);
 task.put('/reorder', taskController.reorderTasks);
 task.patch('/reorder', taskController.reorderTasks);
-task.get('/user/:id', taskController.getTasksPerEmployee);
+
+// Status change routes - must be before generic /:id
+task.put('/:id/status', taskController.changeTaskStatus);
+task.patch('/:id/status', taskController.changeTaskStatus);
+
+// Generic :id routes MUST come last
+task.get('/:id', taskController.getTask);
+task.put('/:id', taskController.updateTask);
+task.delete('/:id', taskController.deleteTask);
 
 module.exports = task;

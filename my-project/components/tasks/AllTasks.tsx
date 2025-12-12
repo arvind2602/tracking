@@ -109,7 +109,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       setTasks((prev) =>
         prev.map((task) => (task.id === taskId ? response.data : task))
       );
-
+      toast.success("Task marked as completed", { id: toastId });
     } catch {
       toast.error("Failed to mark task as completed", { id: toastId });
     }
