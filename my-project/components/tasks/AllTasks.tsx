@@ -214,6 +214,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
           <thead className="bg-muted/40 sticky top-0 z-10">
             <tr>
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[50px] text-center">S.No</th>
+              <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[100px]">Actions</th>
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[300px]">Description</th>
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[120px]">Status</th>
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[100px]">Priority</th>
@@ -222,7 +223,6 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[80px] text-center">Points</th>
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[150px]">Project</th>
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[120px]">Due Date</th>
-              <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[100px]">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -247,6 +247,79 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                       {/* S.No */}
                       <td className="border border-border px-3 py-1.5 align-middle text-center text-muted-foreground">
                         {index + 1}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="border border-border px-3 py-1.5 align-middle">
+                        <div className="flex items-center gap-1">
+                          {task.status !== "completed" && (
+                            <button
+                              onClick={() => handleMarkAsCompleted(task.id)}
+                              className="hover:text-green-600 text-muted-foreground transition-colors p-1"
+                              title="Mark Done"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </button>
+                          )}
+                          {userRole === "ADMIN" && (
+                            <button
+                              onClick={() => handleDeleteTask(task.id)}
+                              className="hover:text-red-600 text-muted-foreground transition-colors p-1"
+                              title="Delete"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M18 6 6 18" />
+                                <path d="m6 6 12 12" />
+                              </svg>
+                            </button>
+                          )}
+                          {userRole === "ADMIN" && (
+                            <button
+                              onClick={() => handleAssignClick(task)}
+                              className="hover:text-blue-600 text-muted-foreground transition-colors p-1"
+                              title="Assign"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Description */}
@@ -351,78 +424,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                         )}
                       </td>
 
-                      {/* Actions */}
-                      <td className="border border-border px-3 py-1.5 align-middle">
-                        <div className="flex items-center gap-1">
-                          {task.status !== "completed" && (
-                            <button
-                              onClick={() => handleMarkAsCompleted(task.id)}
-                              className="hover:text-green-600 text-muted-foreground transition-colors p-1"
-                              title="Mark Done"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            </button>
-                          )}
-                          {userRole === "ADMIN" && (
-                            <button
-                              onClick={() => handleDeleteTask(task.id)}
-                              className="hover:text-red-600 text-muted-foreground transition-colors p-1"
-                              title="Delete"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M18 6 6 18" />
-                                <path d="m6 6 12 12" />
-                              </svg>
-                            </button>
-                          )}
-                          {userRole === "ADMIN" && (
-                            <button
-                              onClick={() => handleAssignClick(task)}
-                              className="hover:text-blue-600 text-muted-foreground transition-colors p-1"
-                              title="Assign"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                <circle cx="9" cy="7" r="4" />
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      </td>
+
                     </tr>
                   );
                 })}
