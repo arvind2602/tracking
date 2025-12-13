@@ -239,7 +239,7 @@ export default function Users() {
                         </td>
                         <td className="border border-border px-3 py-1.5 align-middle text-center">
                           {u.rank ? (
-                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${u.rank === '1' || u.rank === 1 ? 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/50' : u.rank === '2' || u.rank === 2 ? 'bg-gray-400/20 text-gray-400 border border-gray-400/50' : u.rank === '3' || u.rank === 3 ? 'bg-orange-500/20 text-orange-600 border border-orange-500/50' : 'text-muted-foreground'}`}>
+                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${u.rank === 1 ? 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/50' : u.rank === 2 ? 'bg-gray-400/20 text-gray-400 border border-gray-400/50' : u.rank === 3 ? 'bg-orange-500/20 text-orange-600 border border-orange-500/50' : 'text-muted-foreground'}`}>
                               {u.rank}
                             </span>
                           ) : '-'}
