@@ -14,7 +14,6 @@ import Breadcrumbs from "@/components/ui/breadcrumbs";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
 import { Loader, Trash2, Download, Plus } from "lucide-react";
-import { get } from "http";
 
 interface User {
   id: string;

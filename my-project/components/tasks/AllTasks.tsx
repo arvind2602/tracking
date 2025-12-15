@@ -11,7 +11,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Loader, Calendar as CalendarIcon } from "lucide-react";
+import { Loader, Calendar as CalendarIcon, Copy, Check } from "lucide-react";
 import ReactDOM from 'react-dom';
 import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
@@ -33,6 +33,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [copiedDate, setCopiedDate] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -153,6 +154,50 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     });
   }, [groupedTasks]);
 
+  const copyTaskSummary = (dateKey: string) => {
+    const tasksForDate = groupedTasks[dateKey];
+    const totalPoints = tasksForDate.reduce((sum, task) => sum + (task.points || 0), 0);
+    const completedTasks = tasksForDate.filter(t => t.status === 'completed').length;
+    const pendingTasks = tasksForDate.filter(t => t.status !== 'completed').length;
+    const inProgressTasks = tasksForDate.filter(t => t.status === 'in-progress').length;
+
+    let summary = `DAILY TASK UPDATE - ${dateKey}\n`;
+    summary += `${'='.repeat(50)}\n\n`;
+    summary += `SUMMARY:\n`;
+    summary += `- Total Tasks: ${tasksForDate.length}\n`;
+    summary += `- Completed: ${completedTasks}\n`;
+    summary += `- In Progress: ${inProgressTasks}\n`;
+    summary += `- Pending: ${pendingTasks}\n`;
+    summary += `- Total Points: ${totalPoints}\n`;
+    summary += `\n${'-'.repeat(50)}\n`;
+    summary += `TASK DETAILS:\n${'-'.repeat(50)}\n\n`;
+
+    tasksForDate.forEach((task, index) => {
+      const assignedUser = users.find((u) => u.id === task.assignedTo);
+      const project = projects.find((p) => p.id === task.projectId);
+
+      summary += `${index + 1}. ${task.description}\n`;
+      summary += `   Status: ${task.status?.replace('-', ' ').toUpperCase()}\n`;
+      if (task.priority) summary += `   Priority: ${task.priority}\n`;
+      summary += `   Assigned To: ${assignedUser ? `${assignedUser.firstName} ${assignedUser.lastName}` : 'Unassigned'}\n`;
+      if (task.points) summary += `   Points: ${task.points}\n`;
+      if (project) summary += `   Project: ${project.name}\n`;
+      if (task.dueDate) summary += `   Due Date: ${new Date(task.dueDate).toLocaleDateString()}\n`;
+      summary += `\n`;
+    });
+
+    summary += `${'-'.repeat(50)}\n`;
+    summary += `End of Report\n`;
+
+    navigator.clipboard.writeText(summary).then(() => {
+      setCopiedDate(dateKey);
+      toast.success('Task summary copied to clipboard!');
+      setTimeout(() => setCopiedDate(null), 2000);
+    }).catch(() => {
+      toast.error('Failed to copy to clipboard');
+    });
+  };
+
   const modalContent = isAssignModalOpen && selectedTask && (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999]">
       <div className="bg-card/80 backdrop-blur-lg p-8 rounded-2xl shadow-xl w-full max-w-md border border-accent/20 z-[10000] relative">
@@ -230,7 +275,21 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
               <>
                 <tr key={dateKey} className="bg-muted/30">
                   <td colSpan={10} className="px-3 py-2 font-semibold text-xs text-muted-foreground border border-border uppercase tracking-wider">
-                    {dateKey}
+                    <div className="flex items-center justify-between">
+                      <span>{dateKey}</span>
+                      <button
+                        onClick={() => copyTaskSummary(dateKey)}
+                        className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-accent/10"
+                        title="Copy task summary to clipboard"
+                      >
+                        {copiedDate === dateKey ? (
+                          <Check className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                        <span className="text-[10px] normal-case">Copy Summary</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
                 {groupedTasks[dateKey].map((task, index) => {
