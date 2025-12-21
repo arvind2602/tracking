@@ -15,6 +15,7 @@ model organiation {
   updatedAt DateTime?  @updatedAt
   employees employee[]
   projects  projects[]
+  sites     Site[]
 }
 
 model employee {
@@ -29,9 +30,38 @@ model employee {
   is_archived   Boolean     @default(false)
   organiationId String      @db.Uuid
   password      String
+  lastDeviceId  String?
   comments      comment[]
+  timeLogs      TimeLog[]
   organiation   organiation @relation(fields: [organiationId], references: [id])
 }
+
+model TimeLog {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId  String    @db.Uuid
+  employee    employee  @relation(fields: [employeeId], references: [id])
+  checkIn     DateTime  @default(now())
+  checkOut    DateTime?
+  type        LogType   @default(WORK)
+  reason      String?
+  latitude    Float?
+  longitude   Float?
+  deviceId    String?
+  deviceType  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime? @updatedAt
+}
+
+enum LogType {
+  WORK
+  LUNCH
+  BREAK
+  WASHROOM
+  PERSONAL_EMERGENCY
+  HOME
+  OTHER
+}
+
 
 model projects {
   id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -86,4 +116,16 @@ model comment {
 enum role {
   ADMIN
   USER
+}
+
+model Site {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  latitude       Float
+  longitude      Float
+  organizationId String      @db.Uuid
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime?   @updatedAt
+  organiation    organiation @relation(fields: [organizationId], references: [id])
 }
