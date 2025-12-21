@@ -26,6 +26,13 @@ import { Task, User } from '@/lib/types';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { Calendar as CalendarIcon, Clock, User as UserIcon } from 'lucide-react';
+import { formatDateTimeIST, formatDateIST } from '@/lib/utils';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface KanbanBoardProps {
     tasks: Task[];
@@ -319,10 +326,21 @@ function TaskCard({ task, users, isOverlay }: { task: Task; users: User[]; isOve
                 </div>
 
                 {task.dueDate && (
-                    <div className={`flex items-center gap-1 text-[10px] ${isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}>
-                        <CalendarIcon className="h-3 w-3" />
-                        <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                    </div>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div
+                                    className={`flex items-center gap-1 text-[10px] cursor-help w-fit ${isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}
+                                >
+                                    <CalendarIcon className="h-3 w-3" />
+                                    <span>{formatDateIST(task.dueDate)}</span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{formatDateTimeIST(task.dueDate)}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 )}
             </div>
         </div>

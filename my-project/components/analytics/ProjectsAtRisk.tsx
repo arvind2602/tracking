@@ -1,11 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Calendar } from "lucide-react";
+import { formatDateTimeIST, formatDateIST } from "@/lib/utils";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ProjectRisk {
     id: string;
@@ -17,23 +24,15 @@ interface ProjectRisk {
 }
 
 export function ProjectsAtRisk() {
-    const [projects, setProjects] = useState<ProjectRisk[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchProjects = async () => {
-            try {
-                const response = await axios.get('/analytics/projects-risk');
-                setProjects(response.data);
-            } catch (error) {
-                console.error('Failed to fetch projects at risk', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProjects();
-    }, []);
+    const { data: projects = [], isLoading: loading } = useQuery<ProjectRisk[]>({
+        queryKey: ['projects-risk'],
+        queryFn: async () => {
+            const response = await axios.get('/analytics/projects-risk');
+            const data = response.data;
+            return Array.isArray(data) ? data : [];
+        },
+        staleTime: 5 * 60 * 1000,
+    });
 
     if (loading) return <div>Loading...</div>;
 
@@ -68,7 +67,20 @@ export function ProjectsAtRisk() {
                                 <TableRow key={project.id}>
                                     <TableCell className="font-medium">{project.name}</TableCell>
                                     <TableCell>
-                                        {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="cursor-help">
+                                                        {project.endDate ? formatDateIST(project.endDate) : 'N/A'}
+                                                    </span>
+                                                </TooltipTrigger>
+                                                {project.endDate && (
+                                                    <TooltipContent>
+                                                        <p>{formatDateTimeIST(project.endDate)}</p>
+                                                    </TooltipContent>
+                                                )}
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </TableCell>
                                     <TableCell>{project.completionRate}%</TableCell>
                                     <TableCell>{project.overdueTasks}</TableCell>

@@ -25,6 +25,7 @@ export interface Task {
   comments: Comment[];
   priority?: 'LOW' | 'MEDIUM' | 'HIGH';
   dueDate?: string;
+  completedAt?: string;
   order?: number;
   creatorFirstName?: string;
   creatorLastName?: string;

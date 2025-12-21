@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Clock, AlertCircle } from "lucide-react";
+import { formatDateTimeIST, formatDateIST } from "@/lib/utils";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface StuckTask {
     id: string;
@@ -19,23 +26,14 @@ interface TaskInsightsData {
 }
 
 export function TaskInsights() {
-    const [data, setData] = useState<TaskInsightsData | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await axios.get('/analytics/task-insights');
-                setData(response.data);
-            } catch (error) {
-                console.error('Failed to fetch task insights', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, []);
+    const { data, isLoading: loading } = useQuery<TaskInsightsData>({
+        queryKey: ['task-insights'],
+        queryFn: async () => {
+            const response = await axios.get('/analytics/task-insights');
+            return response.data;
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes cache
+    });
 
     if (loading) return <div>Loading...</div>;
 
@@ -73,8 +71,18 @@ export function TaskInsights() {
                                 <div key={task.id} className="flex justify-between items-center border-b pb-2 last:border-0">
                                     <div>
                                         <p className="text-sm font-medium truncate max-w-[200px]">{task.description}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {task.firstName} {task.lastName} • {new Date(task.updatedAt).toLocaleDateString()}
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            {task.firstName} {task.lastName} •
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="cursor-help">{formatDateIST(task.updatedAt)}</span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{formatDateTimeIST(task.updatedAt)}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </p>
                                     </div>
                                 </div>

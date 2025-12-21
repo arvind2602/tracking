@@ -63,6 +63,7 @@ model task {
   priority    Priority  @default(MEDIUM)
   dueDate     DateTime?
   order       Int       @default(0)
+  completedAt DateTime?
 }
 
 enum Priority {

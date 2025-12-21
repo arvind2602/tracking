@@ -170,6 +170,8 @@ const getTaskByEmployee = async (req, res, next) => {
 
     // 3. Get Stats (Using Context Filters, IGNORING Status Filter)
     // This ensures that when you click "Pending", the "Completed" card still shows the count of completed tasks in the current Project/Date view.
+    // 3. Get Stats (Using Context Filters, IGNORING Status Filter)
+    // This ensures that when you click "Pending", the "Completed" card still shows the count of completed tasks in the current Project/Date view.
     const statsResult = await pool.query(
       `SELECT
          COUNT(*) as "totalTasks",
@@ -184,7 +186,20 @@ const getTaskByEmployee = async (req, res, next) => {
     );
     stats = statsResult.rows[0];
 
-    // 4. Apply Status Filter (Affects Table/Pagination Only)
+    // 4. Determine Total Count based on Status Filter (Optimization: Avoid extra Count Query)
+    if (!status || status === 'all') {
+      totalCount = parseInt(stats.totalTasks);
+    } else if (status === 'pending') {
+      totalCount = parseInt(stats.pendingCount);
+    } else if (status === 'in-progress') {
+      totalCount = parseInt(stats.inProgressCount);
+    } else if (status === 'completed') {
+      totalCount = parseInt(stats.completedCount);
+    } else {
+      totalCount = 0;
+    }
+
+    // 5. Get Data (Filtered by Status + Paginated)
     let mainWhere = contextWhere;
     let mainParams = [...contextParams];
     // paramIdx is already incremented for contextParams. 
@@ -195,18 +210,12 @@ const getTaskByEmployee = async (req, res, next) => {
       paramIdx++;
     }
 
-    // 5. Get Total Count (Filtered by Status)
-    const countResult = await pool.query(
-      `SELECT COUNT(*) FROM task t
-       JOIN projects p ON t."projectId" = p.id
-       ${mainWhere}`,
-      mainParams
-    );
-    totalCount = parseInt(countResult.rows[0].count);
-
-    // 6. Get Data (Filtered by Status + Paginated)
     const pagingParams = [...mainParams, limit, offset];
     // paramIdx is now mainParams.length + 1
+
+    console.log('Main Where:', mainWhere);
+    console.log('Paging Params:', pagingParams);
+    console.log('Limit Index:', paramIdx, 'Offset Index:', paramIdx + 1);
 
     result = await pool.query(
       `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
@@ -262,7 +271,7 @@ const getTasksByProject = async (req, res, next) => {
 // Update Task
 const updateTask = async (req, res, next) => {
   const { id } = req.params;
-  const { description, status, assignedTo, points, priority, dueDate } = req.body;
+  const { description, status, assignedTo, points, priority, dueDate, completedAt } = req.body;
   const organiationId = req.user.organization_uuid;
 
   try {
@@ -275,11 +284,16 @@ const updateTask = async (req, res, next) => {
              priority = COALESCE($5, t.priority),
              "dueDate" = COALESCE($6, t."dueDate"),
              "assigned_at" = CASE WHEN $3 IS NOT NULL THEN NOW() ELSE t."assigned_at" END,
+             "completedAt" = COALESCE($9, CASE 
+                WHEN $2::text IS NOT NULL AND LOWER($2) IN ('done', 'completed') THEN NOW()
+                WHEN $2::text IS NOT NULL AND LOWER($2) NOT IN ('done', 'completed') THEN NULL
+                ELSE t."completedAt"
+             END),
              "updatedAt" = NOW()
              FROM projects p
              WHERE t.id = $7 AND t."projectId" = p.id AND p."organiationId" = $8
              RETURNING t.*`,
-      [description, status, assignedTo, points, priority, dueDate, id, organiationId]
+      [description, status, assignedTo, points, priority, dueDate, id, organiationId, completedAt]
     );
     if (result.rowCount === 0) return next(new NotFoundError('Task not found'));
     res.json(result.rows[0]);
@@ -387,6 +401,10 @@ const changeTaskStatus = async (req, res, next) => {
     const result = await pool.query(
       `UPDATE task t SET
                 status = $1,
+                "completedAt" = CASE 
+                   WHEN LOWER($1) IN ('done', 'completed') THEN NOW() 
+                   ELSE NULL 
+                END,
                 "updatedAt" = NOW()
                 FROM projects p
                 WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3

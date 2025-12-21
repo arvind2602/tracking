@@ -11,10 +11,17 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { formatDateTimeIST, formatDateIST } from "@/lib/utils";
 import { Loader, Calendar as CalendarIcon, Copy, Check } from "lucide-react";
 import ReactDOM from 'react-dom';
 import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AllTasksProps {
   tasks: Task[];
@@ -121,30 +128,50 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     router.push(`/dashboard/tasks/${task.id}`);
   };
 
+
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }), []);
+
+
   const groupedTasks = useMemo(() => {
     const groups: Record<string, Task[]> = {};
-    tasks.forEach((task) => {
-      const date = task.assigned_at
-        ? new Date(task.assigned_at).toLocaleDateString("en-US", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-        : "Unassigned Date";
-      if (!groups[date]) {
-        groups[date] = [];
+    if (!Array.isArray(tasks)) return groups;
+
+    const safeTasks = tasks.filter(t => t && typeof t === 'object');
+
+    safeTasks.forEach((task) => {
+      let dateKey = "Unassigned Date";
+      // Fallback to createdAt if assigned_at is missing, common in older tasks
+      const dateStr = task.assigned_at || (task as any).startDate || task.createdAt;
+
+      if (dateStr) {
+        try {
+          const d = new Date(dateStr);
+          if (!isNaN(d.getTime())) {
+            dateKey = dateFormatter.format(d);
+          }
+        } catch (e) {
+          // Fallback
+        }
       }
-      groups[date].push(task);
+
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(task);
     });
 
-    // Sort tasks within each group by createdAt DESC (Latest first)
     Object.keys(groups).forEach((key) => {
       groups[key].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     });
 
     return groups;
-  }, [tasks]);
+  }, [tasks, dateFormatter]);
 
   const sortedDateKeys = useMemo(() => {
     return Object.keys(groupedTasks).sort((a, b) => {
@@ -182,7 +209,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       summary += `   Assigned To: ${assignedUser ? `${assignedUser.firstName} ${assignedUser.lastName}` : 'Unassigned'}\n`;
       if (task.points) summary += `   Points: ${task.points}\n`;
       if (project) summary += `   Project: ${project.name}\n`;
-      if (task.dueDate) summary += `   Due Date: ${new Date(task.dueDate).toLocaleDateString()}\n`;
+      if (task.dueDate) summary += `   Due Date: ${formatDateTimeIST(task.dueDate)}\n`;
       summary += `\n`;
     });
 
@@ -268,13 +295,14 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[80px] text-center">Points</th>
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[150px]">Project</th>
               <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[120px]">Due Date</th>
+              <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[120px]">Completed At</th>
             </tr>
           </thead>
           <tbody>
             {sortedDateKeys.map((dateKey) => (
               <>
                 <tr key={dateKey} className="bg-muted/30">
-                  <td colSpan={10} className="px-3 py-2 font-semibold text-xs text-muted-foreground border border-border uppercase tracking-wider">
+                  <td colSpan={11} className="px-3 py-2 font-semibold text-xs text-muted-foreground border border-border uppercase tracking-wider">
                     <div className="flex items-center justify-between">
                       <span>{dateKey}</span>
                       <button
@@ -313,7 +341,15 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                         <div className="flex items-center gap-1">
                           {task.status !== "completed" && (
                             <button
-                              onClick={() => handleMarkAsCompleted(task.id)}
+                              onClick={() => {
+                                handleMarkAsCompleted(task.id);
+                                if (window.location.pathname.includes('tasks')) {
+                                  // Force refresh or invalidate query via prop if possible, but setTasks is optimistic.
+                                  // The setTasks call above updates local state. 
+                                  // However, if we are relying on query cache, we might need invalidation.
+                                  // But since Tasks page passes setTaskCache which updates cache, this should work.
+                                }
+                              }}
                               className="hover:text-green-600 text-muted-foreground transition-colors p-1"
                               title="Mark Done"
                             >
@@ -467,20 +503,41 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
                       {/* Due Date */}
                       <td className="border border-border px-3 py-1.5 align-middle">
-                        {task.dueDate ? (
-                          <div
-                            className={`text-xs ${isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"
-                              }`}
-                          >
-                            {new Date(task.dueDate).toLocaleDateString(undefined, {
-                              month: "numeric",
-                              day: "numeric",
-                              year: "2-digit",
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className={`text-xs w-fit cursor-help ${isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"
+                                  }`}
+                              >
+                                {task.dueDate ? formatDateIST(task.dueDate) : "-"}
+                              </div>
+                            </TooltipTrigger>
+                            {task.dueDate && (
+                              <TooltipContent>
+                                <p>{formatDateTimeIST(task.dueDate)}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
+                      </td>
+
+                      {/* Completed At */}
+                      <td className="border border-border px-3 py-1.5 align-middle">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="text-xs text-green-600 dark:text-green-500 font-medium w-fit cursor-help">
+                                {task.completedAt ? formatDateIST(task.completedAt) : "-"}
+                              </div>
+                            </TooltipTrigger>
+                            {task.completedAt && (
+                              <TooltipContent>
+                                <p>{formatDateTimeIST(task.completedAt)}</p>
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
                       </td>
 
 

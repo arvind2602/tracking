@@ -115,7 +115,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                 FROM employee e
                 LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
                     AND LOWER(t.status) IN ('done', 'completed')
-                    AND t."updatedAt" >= NOW() - INTERVAL '7 days'
+                    AND t."completedAt" >= NOW() - INTERVAL '7 days'
                 WHERE e."organiationId" = $1
                 GROUP BY e.id
              )
