@@ -80,7 +80,7 @@ const ProjectsPage = () => {
           name: newProjectName,
           description: newProjectDescription,
           startDate: newProjectStartDate,
-          endDate: newProjectEndDate,
+          // endDate: newProjectEndDate,
         });
         setProjects([...projects, response.data]);
         setNewProjectName('');
@@ -271,13 +271,7 @@ const ProjectsPage = () => {
               onChange={(e) => setNewProjectStartDate(e.target.value)}
               className="mb-4"
             />
-            <Input
-              type="date"
-              placeholder="End Date (Optional)"
-              value={newProjectEndDate}
-              onChange={(e) => setNewProjectEndDate(e.target.value)}
-              className="mb-4"
-            />
+
             <div className="flex justify-end gap-4">
               <Button variant="outline" onClick={() => setIsModalOpen(false)}>
                 Cancel
