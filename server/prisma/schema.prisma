@@ -13,6 +13,7 @@ model organiation {
   name      String
   createdAt DateTime   @default(now())
   updatedAt DateTime?  @updatedAt
+  Site      Site[]
   employees employee[]
   projects  projects[]
 }
@@ -29,6 +30,8 @@ model employee {
   is_archived   Boolean     @default(false)
   organiationId String      @db.Uuid
   password      String
+  lastDeviceId  String?
+  TimeLog       TimeLog[]
   comments      comment[]
   organiation   organiation @relation(fields: [organiationId], references: [id])
 }
@@ -38,11 +41,11 @@ model projects {
   name          String
   description   String
   startDate     DateTime
-  endDate       DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime?   @updatedAt
-  is_archived   Boolean     @default(false)
   organiationId String      @db.Uuid
+  is_archived   Boolean     @default(false)
+  endDate       DateTime?
   organiation   organiation @relation(fields: [organiationId], references: [id])
   task          task[]
 }
@@ -58,18 +61,17 @@ model task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime? @updatedAt
   projectId   String    @db.Uuid
-  comments    comment[]
-  project     projects  @relation(fields: [projectId], references: [id])
-  priority    Priority  @default(MEDIUM)
   dueDate     DateTime?
   order       Int       @default(0)
+  priority    Priority  @default(MEDIUM)
   completedAt DateTime?
-}
+  comments    comment[]
+  project     projects  @relation(fields: [projectId], references: [id])
 
-enum Priority {
-  LOW
-  MEDIUM
-  HIGH
+  @@index([projectId, status], map: "idx_task_project_status")
+  @@index([assignedTo, status, updatedAt(sort: Desc)], map: "idx_task_assigned_status")
+  @@index([projectId], map: "idx_task_project")
+  @@index([projectId, order, createdAt(sort: Desc)], map: "idx_task_project_order")
 }
 
 model comment {
@@ -81,9 +83,56 @@ model comment {
   authorId  String    @db.Uuid
   author    employee  @relation(fields: [authorId], references: [id])
   task      task      @relation(fields: [taskId], references: [id])
+
+  @@index([authorId], map: "idx_comment_author")
+  @@index([taskId, createdAt(sort: Desc)], map: "idx_comment_task")
+}
+
+model Site {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  latitude       Float
+  longitude      Float
+  organizationId String      @db.Uuid
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime?
+  organiation    organiation @relation(fields: [organizationId], references: [id])
+}
+
+model TimeLog {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId String    @db.Uuid
+  checkIn    DateTime  @default(now())
+  checkOut   DateTime?
+  type       LogType   @default(WORK)
+  reason     String?
+  latitude   Float?
+  longitude  Float?
+  deviceId   String?
+  deviceType String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime?
+  employee   employee  @relation(fields: [employeeId], references: [id])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 enum role {
   ADMIN
   USER
+}
+
+enum LogType {
+  WORK
+  LUNCH
+  BREAK
+  WASHROOM
+  PERSONAL_EMERGENCY
+  HOME
+  OTHER
 }

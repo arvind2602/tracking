@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -6,10 +7,10 @@ interface SummaryCardProps {
   value: string | number;
   icon: React.ReactNode;
   onClick?: () => void;
-  className?: string; // Add className prop for flexibility
+  className?: string;
 }
 
-export function SummaryCard({ title, value, icon, onClick, className }: SummaryCardProps) {
+export const SummaryCard = memo(function SummaryCard({ title, value, icon, onClick, className }: SummaryCardProps) {
   return (
     <Card
       className={cn(onClick && "cursor-pointer hover:bg-muted/50 transition-colors", className)}
@@ -24,4 +25,4 @@ export function SummaryCard({ title, value, icon, onClick, className }: SummaryC
       </CardContent>
     </Card>
   );
-}
+});

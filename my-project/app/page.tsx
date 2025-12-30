@@ -5,14 +5,19 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import axios from '@/lib/axios';
+import { Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
+    setError('');
+    setIsLoading(true);
     try {
       const response = await axios.post('/auth/login', {
         email,
@@ -23,21 +28,132 @@ export default function Home() {
       router.push('/dashboard');
     } catch (error) {
       setError('Invalid email or password');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && email && password) {
+      handleLogin();
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background font-mono p-4 sm:p-6 md:p-8">
-      <main className="flex flex-col items-center justify-center w-full max-w-sm sm:max-w-md p-6 sm:p-8 bg-card/50 backdrop-blur-lg rounded-xl border border-accent/20 shadow-lg">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text mb-6">
-          Login
-        </h1>
-        <div className="w-full space-y-4">
-          <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white" />
-          <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white" />
-          {error && <p className="text-red-500">{error}</p>}
-          <Button className="w-full bg-primary text-white hover:bg-primary/90 rounded-full px-6 py-3 shadow-[0_0_15px_rgba(37,99,235,0.5)]" onClick={handleLogin}>Login</Button>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 font-mono p-4">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
+
+      {/* Grid Pattern Overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+
+      <main className="relative z-10 w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
+        {/* Logo/Header Section */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/50">
+            <Sparkles className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-2">
+            Welcome Back
+          </h1>
+          <p className="text-sm text-slate-400">Sign in to access your dashboard</p>
         </div>
+
+        {/* Login Card */}
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl shadow-2xl shadow-black/50 p-8 transition-all duration-300 hover:shadow-blue-500/20">
+          <div className="space-y-6">
+            {/* Email Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                Email Address
+              </label>
+              <div className="relative group">
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-500/50 transition-all duration-300 hover:border-white/20"
+                  disabled={isLoading}
+                />
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
+              </div>
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <Lock className="w-4 h-4" />
+                Password
+              </label>
+              <div className="relative group">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="w-full px-4 py-3 pr-12 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-500/50 transition-all duration-300 hover:border-white/20"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors duration-200"
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                <p className="text-sm text-red-400 text-center">{error}</p>
+              </div>
+            )}
+
+            {/* Login Button */}
+            <Button
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl px-6 py-6 text-base font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleLogin}
+              disabled={isLoading || !email || !password}
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Signing in...</span>
+                </div>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+
+            {/* Additional Links */}
+            <div className="text-center pt-2">
+              <a href="#" className="text-sm text-slate-400 hover:text-white transition-colors duration-200">
+                Forgot your password?
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-sm text-slate-500 mt-6">
+          Secure Project management system
+        </p>
       </main>
     </div>
   );

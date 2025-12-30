@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/command";
 import { formatDateTimeIST, formatDateIST } from "@/lib/utils";
 import { Loader, Calendar as CalendarIcon, Copy, Check } from "lucide-react";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import ReactDOM from 'react-dom';
 import { jwtDecode } from 'jwt-decode';
 import { useRouter } from 'next/navigation';
@@ -41,6 +42,8 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
   const [copiedDate, setCopiedDate] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -54,16 +57,24 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     }
   }, []);
 
-  const handleDeleteTask = async (taskId: string) => {
+  const initiateDeleteTask = (taskId: string) => {
+    setTaskToDelete(taskId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteTask = async () => {
+    if (!taskToDelete) return;
+
     const toastId = toast.loading("Deleting...");
     try {
-      await axios.delete(`/tasks/${taskId}`);
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
-
+      await axios.delete(`/tasks/${taskToDelete}`);
+      setTasks((prev) => prev.filter((t) => t.id !== taskToDelete));
+      toast.success("Task deleted", { id: toastId });
     } catch {
       toast.error("Failed to delete", { id: toastId });
     } finally {
       toast.dismiss(toastId);
+      setTaskToDelete(null);
     }
   };
 
@@ -370,7 +381,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                           )}
                           {userRole === "ADMIN" && (
                             <button
-                              onClick={() => handleDeleteTask(task.id)}
+                              onClick={() => initiateDeleteTask(task.id)}
                               className="hover:text-red-600 text-muted-foreground transition-colors p-1"
                               title="Delete"
                             >
@@ -575,6 +586,16 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       )}
 
       {typeof document !== 'undefined' && ReactDOM.createPortal(modalContent, document.getElementById('modal-root') as HTMLElement)}
+
+      <ConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDeleteTask}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
+        confirmText="Delete Task"
+        variant="destructive"
+      />
     </div>
   );
 }

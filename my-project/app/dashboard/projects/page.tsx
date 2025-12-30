@@ -10,6 +10,7 @@ import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download } from 'lucide-react';
+import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { jwtDecode } from 'jwt-decode';
 
 const ProjectsPage = () => {
@@ -25,6 +26,8 @@ const ProjectsPage = () => {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -95,14 +98,23 @@ const ProjectsPage = () => {
     }
   };
 
-  const handleDeleteProject = async (projectId: number) => {
+  const initiateDeleteProject = (projectId: number) => {
+    setProjectToDelete(projectId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
+
     const toastId = toast.loading('Deleting project...');
     try {
-      await axios.delete(`/projects/${projectId}`);
-      setProjects(projects.filter(p => p.id !== projectId));
+      await axios.delete(`/projects/${projectToDelete}`);
+      setProjects(projects.filter(p => p.id !== projectToDelete));
       toast.success('Project deleted successfully', { id: toastId });
     } catch (error) {
       toast.error('Failed to delete project', { id: toastId });
+    } finally {
+      setProjectToDelete(null);
     }
   };
 
@@ -232,7 +244,7 @@ const ProjectsPage = () => {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          onClick={() => handleDeleteProject(project.id)}
+                          onClick={() => initiateDeleteProject(project.id)}
                           title="Delete Project"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -281,6 +293,16 @@ const ProjectsPage = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDeleteProject}
+        title="Delete Project"
+        description="Are you sure you want to delete this project? This will permanently remove all tasks and data associated with it."
+        confirmText="Delete Project"
+        variant="destructive"
+      />
     </div>
   );
 };

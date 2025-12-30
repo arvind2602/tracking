@@ -14,6 +14,7 @@ import Breadcrumbs from "@/components/ui/breadcrumbs";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
 import { Loader, Trash2, Download, Plus } from "lucide-react";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 
 interface User {
   id: string;
@@ -37,6 +38,8 @@ export default function Users() {
     role: "USER" as "USER" | "ADMIN",
   });
   const [usersList, setUsersList] = useState<User[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -46,21 +49,28 @@ export default function Users() {
 
   const groupedUsers = useMemo(() => {
     const groups: { [key: string]: User[] } = {};
-    filteredUsers.forEach((user) => {
+
+    // First, separate users by role
+    const adminUsers = filteredUsers.filter(user => user.role === "ADMIN");
+    const regularUsers = filteredUsers.filter(user => user.role !== "ADMIN");
+
+    // Process admins first
+    adminUsers.forEach((user) => {
+      const position = user.position ? user.position.charAt(0).toUpperCase() + user.position.slice(1) : "Unassigned";
+      const key = `ADMIN - ${position}`;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(user);
+    });
+
+    // Then process regular users
+    regularUsers.forEach((user) => {
       const position = user.position ? user.position.charAt(0).toUpperCase() + user.position.slice(1) : "Unassigned";
       if (!groups[position]) {
         groups[position] = [];
       }
       groups[position].push(user);
-    });
-
-    // Sort users within groups: ADMIN first
-    Object.keys(groups).forEach((key) => {
-      groups[key].sort((a, b) => {
-        if (a.role === "ADMIN" && b.role !== "ADMIN") return -1;
-        if (a.role !== "ADMIN" && b.role === "ADMIN") return 1;
-        return 0;
-      });
     });
 
     return groups;
@@ -114,14 +124,23 @@ export default function Users() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const initiateDeleteUser = (userId: string) => {
+    setUserToDelete(userId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
     const toastId = toast.loading("Deleting...");
     try {
-      await axios.delete(`/auth/${userId}`);
-      setUsersList((prev) => prev.filter((u) => u.id !== userId));
+      await axios.delete(`/auth/${userToDelete}`);
+      setUsersList((prev) => prev.filter((u) => u.id !== userToDelete));
       toast.success("User deleted", { id: toastId });
     } catch {
       toast.error("Failed to delete user", { id: toastId });
+    } finally {
+      setUserToDelete(null);
     }
   };
 
@@ -266,7 +285,7 @@ export default function Users() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              onClick={() => handleDeleteUser(u.id)}
+                              onClick={() => initiateDeleteUser(u.id)}
                               title="Delete User"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -351,6 +370,16 @@ export default function Users() {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDeleteUser}
+        title="Delete User"
+        description="Are you sure you want to delete this user? This action cannot be undone and will remove all their data."
+        confirmText="Delete User"
+        variant="destructive"
+      />
     </div>
   );
 }
