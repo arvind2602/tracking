@@ -9,12 +9,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState, useEffect, useMemo } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
 import { Loader, Trash2, Download, Plus } from "lucide-react";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { cn } from "@/lib/utils";
+
 
 interface User {
   id: string;
@@ -167,22 +170,27 @@ export default function Users() {
   ];
 
   return (
-    <div className="font-mono">
+    <div className="space-y-8">
       <Breadcrumbs items={breadcrumbItems} />
-      <div className="flex justify-between items-center mb-8 mt-4">
-        <h1 className="text-4xl font-bold text-white">Users</h1>
-        <div className="flex space-x-4">
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-200 to-purple-200">
+            Users Management
+          </h1>
+          <p className="text-slate-400 mt-2 font-medium">Manage and monitor organizational members.</p>
+        </div>
+        <div className="flex flex-wrap gap-4">
           <Button
             onClick={handleExportUsers}
-            variant="outline"
-            className="rounded-full gap-2"
+            className="bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-xl px-6 py-5 transition-all duration-300 gap-2"
           >
             <Download className="h-4 w-4" />
             Export Users
           </Button>
           <Button
             onClick={() => setIsModalOpen(true)}
-            className="rounded-full gap-2"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-5 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
           >
             <Plus className="h-4 w-4" />
             Add New User
@@ -190,13 +198,13 @@ export default function Users() {
         </div>
       </div>
 
-      <div className="flex space-x-4 mb-8">
+      <div className="flex flex-col md:flex-row gap-4">
         {userRole === 'ADMIN' && (
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-full md:w-1/4">
+            <SelectTrigger className="w-full md:w-1/4 bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
               <SelectValue placeholder="Filter by role" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
               <SelectItem value="all">All Roles</SelectItem>
               <SelectItem value="USER">USER</SelectItem>
               <SelectItem value="ADMIN">ADMIN</SelectItem>
@@ -205,10 +213,10 @@ export default function Users() {
         )}
         {userRole === 'ADMIN' && (
           <Select value={positionFilter} onValueChange={setPositionFilter}>
-            <SelectTrigger className="w-full md:w-1/4">
+            <SelectTrigger className="w-full md:w-1/4 bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
               <SelectValue placeholder="Filter by position" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
               <SelectItem value="all">All Positions</SelectItem>
               {[...new Set(usersList.map((user) => user.position).filter(Boolean))].map((position) => (
                 <SelectItem key={position} value={position}>
@@ -222,79 +230,75 @@ export default function Users() {
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <Loader className="animate-spin h-12 w-12 text-accent" />
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full animate-pulse"></div>
+          </div>
         </div>
       ) : (
-        <div className="bg-card/50 backdrop-blur-lg rounded-xl border border-accent/20 shadow-lg overflow-x-auto">
-          <div className="flex justify-between items-center p-4">
-            <p className="text-sm text-foreground">Total Users: {usersList.length}</p>
-          </div>
-          <div className="overflow-auto border border-border rounded-lg bg-background">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead className="bg-muted/40 sticky top-0 z-10">
-                <tr>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[60px]">S.No</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[80px]">Rank</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground">Name</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground">Email</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground">Role</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[100px]">Weekly Pts</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[100px]">Actions</th>
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-white/10 bg-white/5">
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">S.No</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Name</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Email</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Role</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-center">Weekly Pts</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-white/5">
                 {Object.entries(groupedUsers).sort((a, b) => a[0].localeCompare(b[0])).map(([position, users]) => (
-                  <>
-                    <tr key={`group-${position}`} className="bg-muted/20">
-                      <td colSpan={7} className="border border-border px-3 py-2 font-semibold text-foreground bg-muted/30">
-                        {position} <span className="text-muted-foreground font-normal ml-1">({users.length})</span>
+                  <React.Fragment key={`group-${position}`}>
+                    <tr className="bg-white/5/50">
+                      <td colSpan={6} className="px-4 py-2 font-bold text-blue-400/80 bg-blue-500/5 text-xs uppercase tracking-widest">
+                        {position} ({users.length})
                       </td>
                     </tr>
                     {users.map((u, index) => (
-                      <tr key={u.id} className="group hover:bg-accent/5 transition-colors">
-                        <td className="border border-border px-3 py-1.5 align-middle text-muted-foreground font-mono text-xs">
-                          {index + 1}
+                      <tr key={u.id} className="group hover:bg-white/5 transition-all duration-300">
+                        <td className="px-4 py-3 text-slate-500 font-mono text-xs">
+                          {String(index + 1).padStart(2, '0')}
                         </td>
-                        <td className="border border-border px-3 py-1.5 align-middle text-center">
-                          {u.rank ? (
-                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${u.rank === 1 ? 'bg-yellow-500/20 text-yellow-600 border border-yellow-500/50' : u.rank === 2 ? 'bg-gray-400/20 text-gray-400 border border-gray-400/50' : u.rank === 3 ? 'bg-orange-500/20 text-orange-600 border border-orange-500/50' : 'text-muted-foreground'}`}>
-                              {u.rank}
-                            </span>
-                          ) : '-'}
-                        </td>
-                        <td className="border border-border px-3 py-1.5 align-middle">
-                          <span
-                            className="cursor-pointer font-medium hover:underline decoration-primary/50 underline-offset-4"
+                        <td className="px-4 py-3">
+                          <button
+                            className="font-semibold text-white hover:text-blue-400 transition-colors"
                             onClick={() => router.push(`/dashboard/users/${u.id}/tasks`)}
                           >
-                            {`${u.firstName} ${u.lastName}`}
-                          </span>
+                            {u.firstName} {u.lastName}
+                          </button>
                         </td>
-                        <td className="border border-border px-3 py-1.5 align-middle">{u.email}</td>
-                        <td className="border border-border px-3 py-1.5 align-middle">
-                          <span className={`text-xs px-2 py-0.5 rounded-full border ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
+                        <td className="px-4 py-3 text-slate-400">{u.email}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border",
+                            u.role === 'ADMIN'
+                              ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                              : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          )}>
                             {u.role}
                           </span>
                         </td>
-                        <td className="border border-border px-3 py-1.5 align-middle font-mono text-sm">
-                          {u.weeklyPoints || 0}
+                        <td className="px-4 py-3 text-center">
+                          <span className="font-mono text-white font-bold">
+                            {u.weeklyPoints || 0}
+                          </span>
                         </td>
-                        <td className="border border-border px-3 py-1.5 align-middle">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              onClick={() => initiateDeleteUser(u.id)}
-                              title="Delete User"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                        <td className="px-4 py-3 text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-red-400 transition-colors"
+                            onClick={() => initiateDeleteUser(u.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </td>
                       </tr>
                     ))}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -303,68 +307,73 @@ export default function Users() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-card/80 backdrop-blur-lg p-8 rounded-2xl shadow-xl w-full max-w-lg border border-accent/20">
-            <h2 className="text-3xl font-bold text-white mb-6">Add New User</h2>
-            <div className="space-y-6">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-white/10 p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-white tracking-tight">Add New User</h2>
+              <p className="text-slate-400 mt-2">Create a new member for your organization.</p>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  placeholder="First Name"
+                  value={form.firstName}
+                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                  className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
+                />
+                <Input
+                  placeholder="Last Name"
+                  value={form.lastName}
+                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                  className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
+                />
+              </div>
               <Input
-                placeholder="First Name"
-                value={form.firstName}
-                onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
-              />
-              <Input
-                placeholder="Last Name"
-                value={form.lastName}
-                onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
-              />
-              <Input
-                placeholder="Email"
+                placeholder="Email Address"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
+                className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
               />
               <Input
-                placeholder="Position"
+                placeholder="Position (e.g. Developer, Designer)"
                 value={form.position}
                 onChange={(e) => setForm({ ...form, position: e.target.value })}
-                className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
+                className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
               />
               <Select
                 value={form.role}
                 onValueChange={(val: "USER" | "ADMIN") => setForm({ ...form, role: val })}
               >
-                <SelectTrigger className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white">
+                <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl py-6">
                   <SelectValue placeholder="Select Role" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USER">USER</SelectItem>
-                  <SelectItem value="ADMIN">ADMIN</SelectItem>
+                <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
+                  <SelectItem value="USER">Standard User</SelectItem>
+                  <SelectItem value="ADMIN">Administrator</SelectItem>
                 </SelectContent>
               </Select>
               <Input
-                placeholder="Password"
+                placeholder="Initial Password"
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full p-4 rounded-lg bg-background/80 border-accent/20 text-white"
+                className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
               />
             </div>
-            <div className="flex justify-end space-x-4 mt-8">
+            <div className="flex gap-4 mt-10">
               <Button
-                variant="outline"
-                className="rounded-full px-6 py-3 border-accent/50 text-accent hover:bg-accent/10"
+                variant="ghost"
+                className="flex-1 rounded-xl py-6 text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10"
                 onClick={() => setIsModalOpen(false)}
               >
                 Cancel
               </Button>
               <Button
-                className="bg-primary text-white hover:bg-primary/90 rounded-full px-6 py-3 shadow-[0_0_15px_rgba(37,99,235,0.5)]"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl py-6 font-bold shadow-lg shadow-blue-500/20"
                 onClick={handleSubmit}
               >
-                Save
+                Create User
               </Button>
             </div>
           </div>

@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 import { jwtDecode } from 'jwt-decode';
-import { Users, Briefcase, ListChecks, CheckCircle, Download } from 'lucide-react';
+import { Users, Briefcase, ListChecks, CheckCircle, Download, Activity, Sparkles } from 'lucide-react';
+import { cn } from "@/lib/utils";
+
 
 import { SummaryCard } from '@/components/dashboard/SummaryCard';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
@@ -84,92 +86,112 @@ export default function DashboardPage() {
     : 0;
 
   return (
-    <div className="p-4 md:p-8 space-y-8 font-sans">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+    <div className="p-4 md:p-8 space-y-10">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Welcome, {userName}!</h1>
-          <p className="text-muted-foreground mt-1">Here is your organization's performance overview.</p>
+          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-200 to-purple-200">
+            Welcome, {userName}!
+          </h1>
+          <p className="text-slate-400 mt-2 font-medium flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+            Here is your organization's performance overview.
+          </p>
         </div>
-        <Button onClick={handleExport} variant="outline" className="gap-2 mt-4 md:mt-0">
-          <Download className="h-4 w-4" />
+        <Button
+          onClick={handleExport}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-5 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
+        >
+          <Download className="h-5 w-5" />
           Export Report
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard title="Total Employees" value={data?.totalEmployees ?? 0} icon={<Users className="h-5 w-5 text-primary" />} className="border-primary/20 bg-primary/5" />
-        <SummaryCard title="Total Projects" value={data?.totalProjects ?? 0} icon={<Briefcase className="h-5 w-5 text-blue-500" />} className="border-blue-500/20 bg-blue-500/5" />
-        <SummaryCard title="Tasks Pending" value={tasksTodo} icon={<ListChecks className="h-5 w-5 text-orange-500" />} className="border-orange-500/20 bg-orange-500/5" />
-        <SummaryCard title="Total Points" value={data?.totalPoints ?? 0} icon={<CheckCircle className="h-5 w-5 text-green-500" />} className="border-green-500/20 bg-green-500/5" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <SummaryCard title="Total Employees" value={data?.totalEmployees ?? 0} icon={<Users className="h-5 w-5 text-blue-400" />} />
+        <SummaryCard title="Total Projects" value={data?.totalProjects ?? 0} icon={<Briefcase className="h-5 w-5 text-purple-400" />} />
+        <SummaryCard title="Tasks Pending" value={tasksTodo} icon={<ListChecks className="h-5 w-5 text-cyan-400" />} />
+        <SummaryCard title="Total Points" value={data?.totalPoints ?? 0} icon={<CheckCircle className="h-5 w-5 text-emerald-400" />} />
       </div>
 
-      {/* Combined Analytics & Reports Sections */}
-
       {/* Key Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
-          <EmployeeCountPerOrg />
-        </div>
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
-          <ActiveVsArchivedEmployees />
-        </div>
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6 md:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {[
+          <EmployeeCountPerOrg />,
+          <ActiveVsArchivedEmployees />,
           <ProjectsPerOrg />
-        </div>
+        ].map((child, idx) => (
+          <div key={idx} className={cn(
+            "backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300 group",
+            idx === 2 ? "md:col-span-2" : ""
+          )}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 group-hover:text-blue-400 transition-colors">
+                {idx === 0 ? "Employee Distribution" : idx === 1 ? "Employee Status" : "Active Projects"}
+              </h3>
+            </div>
+            {child}
+          </div>
+        ))}
       </div>
 
       {/* Advanced Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ProjectsAtRisk />
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+          <ProjectsAtRisk />
+        </div>
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
           <TaskInsights />
         </div>
       </div>
 
       {/* Employee Deep Dive */}
-      <div className="grid grid-cols-1">
+      <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
         <EmployeePerformance />
       </div>
 
       {/* Performance Trends */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6 lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300 lg:col-span-2">
           <ProductivityTrend />
         </div>
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
           <TaskCompletionRate />
         </div>
       </div>
 
       {/* Task & Role Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
           <TasksByStatus />
         </div>
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
           <RoleDistribution />
         </div>
       </div>
 
       {/* Detailed Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
           <PointsLeaderboard />
         </div>
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
           <TaskPoints />
         </div>
       </div>
 
       {/* Full Employee Task List */}
-      <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
+      <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
         <TasksPerEmployee />
       </div>
 
       {/* Recent Activity Feed */}
-      <div className="bg-card text-card-foreground rounded-xl border shadow-sm p-6">
-        <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+      <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-3 text-white">
+          <Activity className="w-5 h-5 text-blue-400" />
+          Recent Activity Feed
+        </h3>
         <RecentActivity />
       </div>
 

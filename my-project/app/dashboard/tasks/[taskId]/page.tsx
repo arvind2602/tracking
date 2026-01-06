@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { useParams, useRouter } from 'next/navigation';
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import Link from 'next/link';
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -110,6 +111,7 @@ export default function TaskDetailPage() {
   const assignedUser = users.find((user) => user.id === task.assignedTo);
   const project = projects.find((p) => p.id === task.projectId);
 
+
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/dashboard' },
     { label: 'Tasks', href: '/dashboard/tasks' },
@@ -136,6 +138,14 @@ export default function TaskDetailPage() {
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">{task.title}</h1>
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Created {new Date(task.createdAt).toLocaleDateString()}</span>
+              {task.parentId && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    Subtask of <a href={`/dashboard/tasks/${task.parentId}`} className="text-primary hover:underline font-medium">Parent Task</a>
+                  </span>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
@@ -199,75 +209,103 @@ export default function TaskDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
-        {/* Description */}
-        <Card className="bg-card/50 backdrop-blur-sm border-accent/20 shadow-sm">
-          <CardHeader className="pb-3 border-b border-border/50">
-            <CardTitle className="text-lg flex items-center gap-2">
-              Description
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="prose dark:prose-invert max-w-none text-foreground/90 whitespace-pre-wrap leading-relaxed">
-              {task.description}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          {/* Description */}
+          <Card className="bg-card/50 backdrop-blur-sm border-accent/20 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/50">
+              <CardTitle className="text-lg flex items-center gap-2">
+                Description
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="prose dark:prose-invert max-w-none text-foreground/90 whitespace-pre-wrap leading-relaxed">
+                {task.description}
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Comments */}
-        <Card className="bg-card/50 backdrop-blur-sm border-accent/20 shadow-sm">
-          <CardHeader className="pb-3 border-b border-border/50">
-            <CardTitle className="text-lg flex items-center gap-2">
-              Comments
-              <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs font-normal">{comments.length}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6 pt-6">
-            <ScrollArea className="h-[400px] pr-4">
-              {comments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm italic border-2 border-dashed rounded-lg bg-accent/5">
-                  No comments yet. Be the first to share your thoughts.
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-4 group">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0 ring-2 ring-background shadow-sm">
-                        {getInitials(comment.userName || 'U')}
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm">{comment.userName}</span>
-                          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{new Date(comment.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}</span>
+          {/* Comments */}
+          <Card className="bg-card/50 backdrop-blur-sm border-accent/20 shadow-sm">
+            <CardHeader className="pb-3 border-b border-border/50">
+              <CardTitle className="text-lg flex items-center gap-2">
+                Comments
+                <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs font-normal">{comments.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <ScrollArea className="h-[400px] pr-4">
+                {comments.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm italic border-2 border-dashed rounded-lg bg-accent/5">
+                    No comments yet. Be the first to share your thoughts.
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="flex gap-4 group">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0 ring-2 ring-background shadow-sm">
+                          {getInitials(comment.userName || 'U')}
                         </div>
-                        <div className="text-sm bg-muted/30 p-3 rounded-2xl rounded-tl-none text-foreground/90 leading-relaxed border border-border/50 hover:bg-muted/40 transition-colors">
-                          {comment.content}
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-sm">{comment.userName}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{new Date(comment.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}</span>
+                          </div>
+                          <div className="text-sm bg-muted/30 p-3 rounded-2xl rounded-tl-none text-foreground/90 leading-relaxed border border-border/50 hover:bg-muted/40 transition-colors">
+                            {comment.content}
+                          </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+
+              <div className="flex items-start gap-3 mt-6 pt-6 border-t border-border/50">
+                <Textarea
+                  placeholder="Add a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="min-h-[100px] resize-none bg-background/50 focus:bg-background transition-colors"
+                />
+                <Button
+                  onClick={handleAddComment}
+                  disabled={isSubmittingComment || !newComment.trim()}
+                  size="icon"
+                  className="h-10 w-10 shrink-0 shadow-sm"
+                >
+                  {isSubmittingComment ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-8">
+          {/* Subtasks */}
+          {task.subtasks && task.subtasks.length > 0 && (
+            <Card className="bg-card/50 backdrop-blur-sm border-accent/20 shadow-sm">
+              <CardHeader className="pb-3 border-b border-border/50">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  Subtasks ({task.subtasks.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                {task.subtasks.map((sub) => (
+                  <div key={sub.id} className="flex items-center justify-between p-2 rounded hover:bg-accent/5">
+                    <Link href={`/dashboard/tasks/${sub.id}`} className="font-medium text-primary hover:underline">
+                      {sub.title || (typeof sub.description === 'string' ? sub.description.slice(0, 30) : '')}
+                    </Link>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="capitalize">{sub.status}</span>
+                      <span className="text-muted-foreground">{sub.points} pts</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-
-            <div className="flex items-start gap-3 mt-6 pt-6 border-t border-border/50">
-              <Textarea
-                placeholder="Add a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="min-h-[100px] resize-none bg-background/50 focus:bg-background transition-colors"
-              />
-              <Button
-                onClick={handleAddComment}
-                disabled={isSubmittingComment || !newComment.trim()}
-                size="icon"
-                className="h-10 w-10 shrink-0 shadow-sm"
-              >
-                {isSubmittingComment ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

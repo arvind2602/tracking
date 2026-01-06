@@ -68,10 +68,15 @@ model task {
   comments    comment[]
   project     projects  @relation(fields: [projectId], references: [id])
 
+  parent   task?   @relation("SubTasks", fields: [parentId], references: [id])
+  parentId String? @db.Uuid
+  subtasks task[]  @relation("SubTasks")
+
   @@index([projectId, status], map: "idx_task_project_status")
   @@index([assignedTo, status, updatedAt(sort: Desc)], map: "idx_task_assigned_status")
   @@index([projectId], map: "idx_task_project")
   @@index([projectId, order, createdAt(sort: Desc)], map: "idx_task_project_order")
+  @@index([parentId], map: "idx_task_parent")
 }
 
 model comment {

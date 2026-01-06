@@ -30,6 +30,8 @@ export interface Task {
   creatorFirstName?: string;
   creatorLastName?: string;
   assigned_at?: string;
+  parentId?: string;
+  subtasks?: Task[];
 }
 
 export interface Employee {

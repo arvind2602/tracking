@@ -20,7 +20,10 @@ import AllTasks from "@/components/tasks/AllTasks";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { AddTaskForm } from "@/components/tasks/AddTaskForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
-import { ListChecks, Hourglass, CheckCircle, Plus, LayoutGrid, List, Timer } from 'lucide-react';
+import { ListChecks, Hourglass, CheckCircle, Plus, LayoutGrid, List, Timer, Sparkles } from 'lucide-react';
+import { cn } from "@/lib/utils";
+import React from 'react';
+
 
 interface DecodedToken {
   user: {
@@ -171,60 +174,80 @@ export default function Tasks() {
   ];
 
   return (
-    <div className="font-sans space-y-8">
+    <div className="space-y-10">
       <Breadcrumbs items={breadcrumbItems} />
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Tasks</h1>
-        {userRole === 'ADMIN' && (
-          <Button
-            className="rounded-full px-6"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add New Task
-          </Button>
-        )}
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-200 to-purple-200">
+            Tasks
+          </h1>
+          <p className="text-slate-400 mt-2 font-medium">Manage and monitor organizational tasks.</p>
+        </div>
+        <Button
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-8 py-6 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
+          onClick={() => setIsModalOpen(true)}
+        >
+          <Plus className="h-5 w-5" />
+          Add New Task
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <SummaryCard
           title="All Tasks"
           value={dashboardStats.totalTasks}
-          icon={<ListChecks className="h-4 w-4 text-muted-foreground" />}
+          icon={<ListChecks className="h-5 w-5 text-slate-400" />}
           onClick={() => setStatusFilter("all")}
-          className={statusFilter === "all" || statusFilter === "" ? "border-primary ring-1 ring-primary" : ""}
+          className={cn(
+            "transition-all duration-300",
+            (statusFilter === "all" || statusFilter === "") && "border-blue-500/50 bg-blue-500/10 shadow-lg shadow-blue-500/10"
+          )}
         />
         <SummaryCard
-          title="Pending Tasks"
+          title="Pending"
           value={dashboardStats.pendingTasks}
-          icon={<Hourglass className="h-4 w-4 text-muted-foreground" />}
+          icon={<Hourglass className="h-5 w-5 text-amber-400" />}
           onClick={() => setStatusFilter("pending")}
-          className={statusFilter === "pending" ? "border-primary ring-1 ring-primary" : ""}
+          className={cn(
+            "transition-all duration-300",
+            statusFilter === "pending" && "border-amber-500/50 bg-amber-500/10 shadow-lg shadow-amber-500/10"
+          )}
         />
         <SummaryCard
           title="In Progress"
           value={dashboardStats.inProgressTasks}
-          icon={<Timer className="h-4 w-4 text-muted-foreground" />}
+          icon={<Timer className="h-5 w-5 text-blue-400" />}
           onClick={() => setStatusFilter("in-progress")}
-          className={statusFilter === "in-progress" ? "border-primary ring-1 ring-primary" : ""}
+          className={cn(
+            "transition-all duration-300",
+            statusFilter === "in-progress" && "border-blue-500/50 bg-blue-500/10 shadow-lg shadow-blue-500/10"
+          )}
         />
         <SummaryCard
-          title="Completed Tasks"
+          title="Completed"
           value={dashboardStats.completedTasks}
-          icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />}
+          icon={<CheckCircle className="h-5 w-5 text-emerald-400" />}
           onClick={() => setStatusFilter("completed")}
-          className={statusFilter === "completed" ? "border-primary ring-1 ring-primary" : ""}
+          className={cn(
+            "transition-all duration-300",
+            statusFilter === "completed" && "border-emerald-500/50 bg-emerald-500/10 shadow-lg shadow-emerald-500/10"
+          )}
         />
-        <SummaryCard title="Points Today" value={dashboardStats.pointsToday} icon={<CheckCircle className="h-4 w-4 text-muted-foreground" />} />
+        <SummaryCard
+          title="Points Today"
+          value={dashboardStats.pointsToday}
+          icon={<Sparkles className="h-5 w-5 text-purple-400" />}
+        />
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-wrap gap-4">
         {userRole === 'ADMIN' && (
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[200px]">
-              <SelectValue placeholder="Filter by status" />
+            <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="in-progress">In Progress</SelectItem>
@@ -234,10 +257,10 @@ export default function Tasks() {
         )}
         {userRole === 'ADMIN' && (
           <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger className="w-full md:w-[200px]">
-              <SelectValue placeholder="Filter by project" />
+            <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+              <SelectValue placeholder="Project" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
               <SelectItem value="all">All Projects</SelectItem>
               {projects.map((project) => (
                 <SelectItem key={project.id} value={project.id}>
@@ -249,10 +272,10 @@ export default function Tasks() {
         )}
         {userRole === 'ADMIN' && (
           <Select value={userFilter} onValueChange={setUserFilter}>
-            <SelectTrigger className="w-full md:w-[200px]">
-              <SelectValue placeholder="Filter by user" />
+            <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+              <SelectValue placeholder="Assigned To" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
               <SelectItem value="all">All Users</SelectItem>
               {users.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
@@ -263,10 +286,10 @@ export default function Tasks() {
           </Select>
         )}
         <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="w-full md:w-[200px]">
-            <SelectValue placeholder="Filter by date" />
+          <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+            <SelectValue placeholder="Date" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
             <SelectItem value="all">All Dates</SelectItem>
             <SelectItem value="today">Today</SelectItem>
             <SelectItem value="week">This Week</SelectItem>
@@ -275,35 +298,28 @@ export default function Tasks() {
         </Select>
       </div>
 
-      <div className="flex space-x-6 border-b border-border">
+      <div className="flex space-x-8 border-b border-white/10">
         <button
           onClick={() => setActiveTab("All Tasks")}
-          className={`py-3 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${activeTab === "All Tasks"
-            ? "border-primary text-primary"
-            : "border-transparent text-muted-foreground hover:text-foreground"
+          className={`pb-4 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest ${activeTab === "All Tasks"
+            ? "border-blue-500 text-blue-400"
+            : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
         >
           <List className="h-4 w-4" />
           All Tasks
         </button>
-        {/* <button
-          onClick={() => setActiveTab("Kanban")}
-          className={`py-3 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${activeTab === "Kanban"
-            ? "border-primary text-primary"
-            : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-        >
-          <LayoutGrid className="h-4 w-4" />
-          Kanban Board
-        </button> */}
       </div>
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <Loader className="animate-spin h-8 w-8 text-primary" />
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full animate-pulse"></div>
+          </div>
         </div>
       ) : (
-        <div className="h-[calc(100vh-400px)]">
+        <div className="min-h-[500px] backdrop-blur-xl bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden">
           {activeTab === "All Tasks" && (
             <AllTasks
               tasks={tasks}
@@ -316,28 +332,25 @@ export default function Tasks() {
               itemsPerPage={itemsPerPage}
             />
           )}
-          {/* {activeTab === "Kanban" && (
-            <KanbanBoard tasks={tasks} users={users} onTaskUpdate={() => fetchAllTasks()} />
-          )} */}
         </div>
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
           <div
             ref={modalRef}
-            className="bg-card p-6 rounded-lg shadow-lg w-full max-w-lg border border-border z-[10000] relative"
+            className="bg-slate-900 border border-white/10 p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-card-foreground">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-3xl font-bold text-white tracking-tight">
                 Add New Task
               </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-slate-500 hover:text-white transition-colors"
               >
-                <span className="text-2xl">×</span>
+                <Plus className="h-8 w-8 rotate-45" />
               </button>
             </div>
 
@@ -353,3 +366,4 @@ export default function Tasks() {
     </div>
   );
 }
+

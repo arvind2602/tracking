@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
 import { User, Project } from "@/lib/types";
@@ -19,9 +19,13 @@ interface AddTaskFormProps {
   projects: Project[];
   onTaskAdded: () => void;
   onClose: () => void;
+  parentId?: string;
+  parentTask?: any;
+  currentUserId?: string | null;
 }
 
-export function AddTaskForm({ users, projects, onTaskAdded, onClose }: AddTaskFormProps) {
+export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, parentTask, currentUserId }: AddTaskFormProps) {
+  const [percentage, setPercentage] = useState<string>("");
   const [form, setForm] = useState<{
     description: string;
     status: "pending" | "in-progress" | "completed";
@@ -30,6 +34,7 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose }: AddTaskFo
     projectId: string;
     priority: "LOW" | "MEDIUM" | "HIGH";
     dueDate: string;
+    parentId?: string;
   }>({
     description: "",
     status: "pending",
@@ -38,12 +43,33 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose }: AddTaskFo
     projectId: "",
     priority: "MEDIUM",
     dueDate: "",
+    parentId: parentId || (parentTask ? parentTask.id : undefined),
   });
+
+  useEffect(() => {
+    if (parentTask) {
+      setForm(prev => ({
+        ...prev,
+        projectId: parentTask.projectId,
+        assignedTo: currentUserId || undefined,
+        parentId: parentTask.id
+      }));
+    }
+  }, [parentTask, currentUserId]);
+
+  useEffect(() => {
+    if (parentTask && percentage && parentTask.points) {
+      const calculatedPoints = (parseFloat(percentage) / 100) * Number(parentTask.points);
+      const decimalPoints = calculatedPoints.toFixed(2);
+      setForm(prev => ({ ...prev, points: decimalPoints }));
+    }
+  }, [percentage, parentTask]);
 
   const handleAddTask = async () => {
     const toastId = toast.loading("Adding task...");
     try {
-      await axios.post("/tasks", form);
+      const payload = { ...form, points: Number(form.points) };
+      await axios.post("/tasks", payload);
       onTaskAdded();
       onClose();
       toast.success("Task added", { id: toastId });
@@ -105,25 +131,27 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose }: AddTaskFo
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium leading-none">Assign To</label>
-          <Select
-            value={form.assignedTo || "unassigned"}
-            onValueChange={(val) => setForm({ ...form, assignedTo: val === "unassigned" ? undefined : val })}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Member" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {users.map((user) => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.firstName} {user.lastName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!parentTask && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium leading-none">Assign To</label>
+            <Select
+              value={form.assignedTo || "unassigned"}
+              onValueChange={(val) => setForm({ ...form, assignedTo: val === "unassigned" ? undefined : val })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select Member" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.firstName} {user.lastName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="space-y-2">
           <label className="text-sm font-medium leading-none">Due Date</label>
@@ -138,36 +166,58 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose }: AddTaskFo
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium leading-none">Points</label>
-          <Input
-            placeholder="0"
-            type="number"
-            step="any"
-            min="0"
-            value={form.points}
-            onChange={(e) => setForm({ ...form, points: e.target.value })}
-            className="w-full"
-          />
+          <label className="text-sm font-medium leading-none">
+            {parentTask ? "Percentage of Parent Task" : "Points"}
+          </label>
+          {parentTask ? (
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="e.g. 50"
+                type="number"
+                min="0"
+                max="100"
+                value={percentage}
+                onChange={(e) => setPercentage(e.target.value)}
+                className="w-full"
+              />
+              <span className="text-sm font-bold">%</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                ({form.points || 0} pts)
+              </span>
+            </div>
+          ) : (
+            <Input
+              placeholder="0"
+              type="number"
+              step="any"
+              min="0"
+              value={form.points}
+              onChange={(e) => setForm({ ...form, points: e.target.value })}
+              className="w-full"
+            />
+          )}
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium leading-none">Project</label>
-          <Select
-            value={form.projectId}
-            onValueChange={(val) => setForm({ ...form, projectId: val })}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Project" />
-            </SelectTrigger>
-            <SelectContent>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!parentTask && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium leading-none">Project</label>
+            <Select
+              value={form.projectId}
+              onValueChange={(val) => setForm({ ...form, projectId: val })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select Project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
       <div className="flex justify-end space-x-4 mt-8">
         <Button
@@ -182,6 +232,6 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose }: AddTaskFo
           Save
         </Button>
       </div>
-    </div>
+    </div >
   );
 }

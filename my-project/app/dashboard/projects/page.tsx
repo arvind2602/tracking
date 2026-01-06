@@ -12,6 +12,8 @@ import toast from 'react-hot-toast';
 import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { jwtDecode } from 'jwt-decode';
+import { cn } from '@/lib/utils';
+
 
 const ProjectsPage = () => {
   interface Project {
@@ -141,30 +143,41 @@ const ProjectsPage = () => {
   ];
 
   return (
-    <div>
+    <div className="space-y-8">
       <Breadcrumbs items={breadcrumbItems} />
-      <div className="flex justify-between items-center mb-4 mt-4">
-        <h1 className="text-2xl font-bold">Projects</h1>
-        <div className="flex space-x-4">
-          <Input
-            type="text"
-            placeholder="Search by name"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full md:w-64"
-          />
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-200 to-purple-200">
+            Projects
+          </h1>
+          <p className="text-slate-400 mt-2 font-medium">Manage and monitor organizational projects.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="relative group">
+            <Input
+              type="text"
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full md:w-64 bg-white/5 border-white/10 text-white rounded-xl py-6 pl-4 focus:border-blue-500/50 transition-all duration-300"
+            />
+            <div className="absolute inset-0 rounded-xl bg-blue-500/5 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300"></div>
+          </div>
           <Button
             onClick={handleExportProjects}
-            variant="outline"
-            className="gap-2 rounded-full"
+            className="bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-xl px-6 py-6 transition-all duration-300 gap-2"
           >
             <Download className="h-4 w-4" />
-            Export Projects
+            Export
           </Button>
           {userRole === 'ADMIN' && (
-            <Button onClick={() => setIsModalOpen(true)} className="gap-2 rounded-full">
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-6 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
+            >
               <Plus className="h-4 w-4" />
-              Add New Project
+              New Project
             </Button>
           )}
         </div>
@@ -172,83 +185,80 @@ const ProjectsPage = () => {
 
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <Loader className="animate-spin h-12 w-12 text-accent" />
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full animate-pulse"></div>
+          </div>
         </div>
       ) : (
-        <div className="bg-card/50 backdrop-blur-lg rounded-xl border border-accent/20 shadow-lg overflow-x-auto">
-          <div className="overflow-auto border border-border rounded-lg bg-background">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead className="bg-muted/40 sticky top-0 z-10">
-                <tr>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[200px]">Name</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground">Description</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[200px]">Top Performers</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[120px]">Total Points</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[120px]">Yesterday</th>
-                  <th className="border border-border px-3 py-2 font-medium text-muted-foreground w-[180px]">Actions</th>
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-white/10 bg-white/5">
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Project</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Description</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Top Performer</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-center">Points</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-center">Yesterday</th>
+                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-white/5">
                 {filteredProjects.map((project) => (
-                  <tr key={project.id} className="group hover:bg-accent/5 transition-colors">
-                    <td className="border border-border px-3 py-1.5 align-middle font-medium text-foreground">
-                      {project.name}
-                    </td>
-                    <td className="border border-border px-3 py-1.5 align-middle">
-                      <div className="line-clamp-2 text-muted-foreground text-sm" title={project.description}>
-                        {project.description}
-                      </div>
-                    </td>
-                    <td className="border border-border px-3 py-1.5 align-middle">
-                      <div className="flex flex-col gap-1 min-h-[50px] justify-center">
-                        {project.topPerformers && project.topPerformers.length > 0 ? (
-                          project.topPerformers.map((p, i) => (
-                            <div key={i} className={`flex items-center gap-2 ${i === 0 ? 'text-sm font-medium' : 'text-xs'}`}>
-                              {i === 0 && <Trophy className="h-3 w-3 text-yellow-500" />}
-                              {i === 1 && <Trophy className="h-3 w-3 text-gray-400" />}
-                              {i === 2 && <Trophy className="h-3 w-3 text-amber-600" />}
-                              <div className="flex flex-1 justify-between items-center gap-2">
-                                <span className="font-medium truncate max-w-[100px]" title={p.name}>{p.name} {p.initial}.</span>
-                                <span className="text-muted-foreground font-mono">{p.points}</span>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <span className="text-sm text-muted-foreground italic">No data</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="border border-border px-3 py-1.5 align-middle">
-                      <Badge variant="secondary" className="font-mono text-sm">
-                        {project.totalPoints || 0} pts
-                      </Badge>
-                    </td>
-                    <td className="border border-border px-3 py-1.5 align-middle">
-                      <span className={`font-mono text-sm font-medium ${project.yesterdayPoints > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
-                        {project.yesterdayPoints > 0 ? '+' : ''}{project.yesterdayPoints || 0} pts
+                  <tr key={project.id} className="group hover:bg-white/5 transition-all duration-300">
+                    <td className="px-4 py-4 align-top">
+                      <span className="font-bold text-white block">
+                        {project.name}
                       </span>
                     </td>
-                    <td className="border border-border px-3 py-1.5 align-middle">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-4 align-top">
+                      <p className="line-clamp-2 text-slate-400 text-sm" title={project.description}>
+                        {project.description}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 align-top">
+                      {project.topPerformers && project.topPerformers.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="font-medium text-white text-sm">{project.topPerformers[0].name} {project.topPerformers[0].initial}.</span>
+                          <span className="text-[10px] text-blue-400 font-mono">{project.topPerformers[0].points} pts</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500 italic">No performer yet</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-center align-top">
+                      <span className="font-mono text-sm font-bold text-white">{project.totalPoints || 0}</span>
+                    </td>
+                    <td className="px-4 py-4 text-center align-top">
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[10px] font-bold border",
+                        project.yesterdayPoints > 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-slate-500/10 text-slate-400 border-white/5"
+                      )}>
+                        {project.yesterdayPoints > 0 ? `+${project.yesterdayPoints}` : project.yesterdayPoints || 0}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right align-top">
+                      <div className="flex items-center justify-end gap-2">
                         <Link href={`/dashboard/projects/${project.id}`}>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            title="View Tasks"
+                            className="h-8 w-8 text-slate-400 hover:text-blue-400 transition-colors"
                           >
                             <ArrowRight className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          onClick={() => initiateDeleteProject(project.id)}
-                          title="Delete Project"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {userRole === 'ADMIN' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-red-400 transition-colors"
+                            onClick={() => initiateDeleteProject(project.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -260,35 +270,49 @@ const ProjectsPage = () => {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-card p-8 rounded-lg shadow-lg w-1/3">
-            <h2 className="text-2xl font-bold mb-4">Add New Project</h2>
-            <Input
-              type="text"
-              placeholder="Project Name"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              className="mb-4"
-            />
-            <Textarea
-              placeholder="Project Description"
-              value={newProjectDescription}
-              onChange={(e) => setNewProjectDescription(e.target.value)}
-              className="mb-4"
-            />
-            <Input
-              type="date"
-              placeholder="Start Date"
-              value={newProjectStartDate}
-              onChange={(e) => setNewProjectStartDate(e.target.value)}
-              className="mb-4"
-            />
-
-            <div className="flex justify-end gap-4">
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-white/10 p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-white tracking-tight">Add New Project</h2>
+              <p className="text-slate-400 mt-2">Fill in the details for the new project.</p>
+            </div>
+            <div className="space-y-4">
+              <Input
+                placeholder="Project Name"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
+              />
+              <Textarea
+                placeholder="Description"
+                value={newProjectDescription}
+                onChange={(e) => setNewProjectDescription(e.target.value)}
+                className="bg-white/5 border-white/10 text-white rounded-xl py-4 min-h-[120px] focus:border-blue-500/50"
+              />
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Start Date</label>
+                <Input
+                  type="date"
+                  value={newProjectStartDate}
+                  onChange={(e) => setNewProjectStartDate(e.target.value)}
+                  className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50 block dark:[color-scheme:dark]"
+                />
+              </div>
+            </div>
+            <div className="flex gap-4 mt-10">
+              <Button
+                variant="ghost"
+                className="flex-1 rounded-xl py-6 text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10"
+                onClick={() => setIsModalOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleAddProject}>Add Project</Button>
+              <Button
+                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl py-6 font-bold shadow-lg shadow-blue-500/20"
+                onClick={handleAddProject}
+              >
+                Add Project
+              </Button>
             </div>
           </div>
         </div>
@@ -299,7 +323,7 @@ const ProjectsPage = () => {
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={confirmDeleteProject}
         title="Delete Project"
-        description="Are you sure you want to delete this project? This will permanently remove all tasks and data associated with it."
+        description="Are you sure you want to delete this project? This action cannot be undone."
         confirmText="Delete Project"
         variant="destructive"
       />
@@ -308,3 +332,8 @@ const ProjectsPage = () => {
 };
 
 export default ProjectsPage;
+
+
+
+
+

@@ -10,10 +10,11 @@ const createTask = async (req, res, next) => {
     description: Joi.string().required(),
     status: Joi.string().valid('pending', 'in-progress', 'completed').default('pending'),
     assignedTo: Joi.string().optional().allow('').empty(''),
-    points: Joi.number().integer().min(1).required(),
+    points: Joi.number().min(0).required(),
     projectId: Joi.string().required(),
     priority: Joi.string().valid('LOW', 'MEDIUM', 'HIGH').default('MEDIUM'),
-    dueDate: Joi.date().optional().allow(null)
+    dueDate: Joi.date().optional().allow(null),
+    parentId: Joi.string().optional().allow(null)
   });
 
   const { error } = schema.validate(req.body);
@@ -32,10 +33,10 @@ const createTask = async (req, res, next) => {
     if (projectCheck.rowCount === 0) return next(new NotFoundError('Project not found'));
 
     const result = await pool.query(
-      `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate")
-             VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8)
-             RETURNING id, description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate"`,
-      [description, status, createdBy, assignedTo, points, projectId, priority, dueDate]
+      `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "parentId")
+             VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9)
+             RETURNING id, description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "parentId"`,
+      [description, status, createdBy, assignedTo, points, projectId, priority, dueDate, req.body.parentId]
     );
 
     res.status(201).json(result.rows[0]);
@@ -100,14 +101,31 @@ const getTask = async (req, res, next) => {
   const organiationId = req.user.organization_uuid;
 
   try {
-    const result = await pool.query(
-      `SELECT t.* FROM task t
+    try {
+      // Fetch the main task
+      const taskResult = await pool.query(
+        `SELECT t.* FROM task t
              JOIN projects p ON t."projectId" = p.id
              WHERE t.id = $1 AND p."organiationId" = $2`,
-      [id, organiationId]
-    );
-    if (result.rowCount === 0) return next(new NotFoundError('Task not found'));
-    res.json(result.rows[0]);
+        [id, organiationId]
+      );
+      if (taskResult.rowCount === 0) return next(new NotFoundError('Task not found'));
+
+      const task = taskResult.rows[0];
+
+      // Fetch subtasks for this task
+      const subResult = await pool.query(
+        `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
+         FROM task t
+         LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+         WHERE t."parentId" = $1
+         ORDER BY t."order" ASC, t."createdAt" ASC`,
+        [id]
+      );
+      task.subtasks = subResult.rows;
+
+      res.json(task);
+    } catch (error) { next(error); }
   } catch (error) { next(error); }
 };
 
@@ -143,6 +161,9 @@ const getTaskByEmployee = async (req, res, next) => {
 
     // 2. Apply Context Filters (Project, User, Date) - These affect Stats AND Table
     let paramIdx = contextParams.length + 1;
+
+    // Filter to only show root tasks (parentId IS NULL) in the main list
+    contextWhere += ` AND t."parentId" IS NULL`;
 
     if (projectId && projectId !== 'all') {
       contextWhere += ` AND t."projectId" = $${paramIdx}`;
@@ -228,8 +249,28 @@ const getTaskByEmployee = async (req, res, next) => {
       pagingParams
     );
 
+    const tasks = result.rows;
+
+    if (tasks.length > 0) {
+      const taskIds = tasks.map(t => t.id);
+      const subtasksResult = await pool.query(
+        `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
+         FROM task t
+         LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+         WHERE t."parentId" = ANY($1::uuid[])
+         ORDER BY t."order" ASC, t."createdAt" ASC`,
+        [taskIds]
+      );
+
+      const subtasks = subtasksResult.rows;
+
+      tasks.forEach(task => {
+        task.subtasks = subtasks.filter(st => st.parentId === task.id);
+      });
+    }
+
     res.json({
-      tasks: result.rows,
+      tasks: tasks,
       pagination: {
         total: totalCount,
         page,
@@ -318,6 +359,28 @@ const deleteTask = async (req, res, next) => {
          AND t.id = $1 
          AND t."projectId" = p.id 
          AND p."organiationId" = $2`,
+      [id, organiationId]
+    );
+
+    // Unlink subtasks (or delete them? Let's delete them for now to avoid orphans)
+    // First delete comments of subtasks
+    await pool.query(
+      `DELETE FROM comment c
+       USING task t, projects p
+       WHERE c."taskId" = t.id
+       AND t."parentId" = $1
+       AND t."projectId" = p.id
+       AND p."organiationId" = $2`,
+      [id, organiationId]
+    );
+
+    // Delete subtasks
+    await pool.query(
+      `DELETE FROM task t
+       USING projects p
+       WHERE t."parentId" = $1
+       AND t."projectId" = p.id
+       AND p."organiationId" = $2`,
       [id, organiationId]
     );
 
