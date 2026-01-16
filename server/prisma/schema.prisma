@@ -19,21 +19,22 @@ model organiation {
 }
 
 model employee {
-  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   firstName     String
   lastName      String
-  email         String      @unique
+  email         String         @unique
   position      String
   role          role
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime?   @updatedAt
-  is_archived   Boolean     @default(false)
-  organiationId String      @db.Uuid
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime?      @updatedAt
+  is_archived   Boolean        @default(false)
+  organiationId String         @db.Uuid
   password      String
   lastDeviceId  String?
   TimeLog       TimeLog[]
   comments      comment[]
-  organiation   organiation @relation(fields: [organiationId], references: [id])
+  organiation   organiation    @relation(fields: [organiationId], references: [id])
+  taskAssignees TaskAssignee[]
 }
 
 model projects {
@@ -72,11 +73,31 @@ model task {
   parentId String? @db.Uuid
   subtasks task[]  @relation("SubTasks")
 
+  type      TaskType       @default(SINGLE)
+  assignees TaskAssignee[]
+
   @@index([projectId, status], map: "idx_task_project_status")
   @@index([assignedTo, status, updatedAt(sort: Desc)], map: "idx_task_assigned_status")
   @@index([projectId], map: "idx_task_project")
   @@index([projectId, order, createdAt(sort: Desc)], map: "idx_task_project_order")
   @@index([parentId], map: "idx_task_parent")
+}
+
+model TaskAssignee {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId      String    @db.Uuid
+  employeeId  String    @db.Uuid
+  order       Int? // For sequential tasks
+  isCompleted Boolean   @default(false)
+  assignedAt  DateTime? @default(now())
+  completedAt DateTime?
+
+  task     task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  employee employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, employeeId])
+  @@index([taskId])
+  @@index([employeeId])
 }
 
 model comment {
@@ -140,4 +161,10 @@ enum LogType {
   PERSONAL_EMERGENCY
   HOME
   OTHER
+}
+
+enum TaskType {
+  SINGLE
+  SHARED
+  SEQUENTIAL
 }

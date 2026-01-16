@@ -14,15 +14,28 @@ const createTask = async (req, res, next) => {
     projectId: Joi.string().required(),
     priority: Joi.string().valid('LOW', 'MEDIUM', 'HIGH').default('MEDIUM'),
     dueDate: Joi.date().optional().allow(null),
-    parentId: Joi.string().optional().allow(null)
+    parentId: Joi.string().optional().allow(null),
+    type: Joi.string().valid('SINGLE', 'SHARED', 'SEQUENTIAL').default('SINGLE'),
+    assignees: Joi.array().items(Joi.string().uuid()).optional()
   });
 
   const { error } = schema.validate(req.body);
   if (error) return next(new BadRequestError(error.details[0].message));
 
-  const { description, status, assignedTo, points, projectId, priority, dueDate } = req.body;
+  const { description, status, assignedTo, points, projectId, priority, dueDate, type, assignees, parentId } = req.body;
   const createdBy = req.user.user_uuid;
   const organiationId = req.user.organization_uuid;
+
+  // Auto-assign to self if creator is a regular USER and no assignee specified (Legacy behavior for SINGLE)
+  let finalAssignedTo = assignedTo;
+  if (req.user.role === 'USER' && !assignedTo && (!assignees || assignees.length === 0)) {
+    finalAssignedTo = createdBy;
+  }
+
+  // For Sequential, valid initial assignee is the first one in the list
+  if (type === 'SEQUENTIAL' && assignees && assignees.length > 0) {
+    finalAssignedTo = assignees[0];
+  }
 
   try {
     // Verify project belongs to organization
@@ -32,15 +45,44 @@ const createTask = async (req, res, next) => {
     );
     if (projectCheck.rowCount === 0) return next(new NotFoundError('Project not found'));
 
-    const result = await pool.query(
-      `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "parentId")
-             VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9)
-             RETURNING id, description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "parentId"`,
-      [description, status, createdBy, assignedTo, points, projectId, priority, dueDate, req.body.parentId]
-    );
+    // Start Transaction
+    await pool.query('BEGIN');
 
-    res.status(201).json(result.rows[0]);
-  } catch (error) { next(error); }
+    const result = await pool.query(
+      `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "parentId", "type")
+             VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10)
+             RETURNING *`,
+      [description, status, createdBy, finalAssignedTo, points, projectId, priority, dueDate, parentId, type]
+    );
+    const task = result.rows[0];
+
+    // Create TaskAssignee records if applicable
+    if ((type === 'SHARED' || type === 'SEQUENTIAL') && assignees && assignees.length > 0) {
+      let order = 1;
+      for (const assigneeId of assignees) {
+        await pool.query(
+          `INSERT INTO "TaskAssignee" ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+                 VALUES ($1, $2, $3, $4, NOW())`,
+          [task.id, assigneeId, type === 'SEQUENTIAL' ? order++ : null, false]
+        );
+      }
+    } else if (finalAssignedTo) {
+      // Even for Single task, let's try to populate TaskAssignee for consistency if we want, 
+      // OR just leave it as is for legacy. 
+      // Let's populate it to enable future migration/consistency.
+      await pool.query(
+        `INSERT INTO "TaskAssignee" ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+             VALUES ($1, $2, $3, $4, NOW())`,
+        [task.id, finalAssignedTo, 1, false]
+      );
+    }
+
+    await pool.query('COMMIT');
+    res.status(201).json(task);
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    next(error);
+  }
 };
 
 // Export Tasks
@@ -124,6 +166,19 @@ const getTask = async (req, res, next) => {
       );
       task.subtasks = subResult.rows;
 
+      task.subtasks = subResult.rows;
+
+      // Fetch assignees for this task
+      const assigneeResult = await pool.query(
+        `SELECT ta.*, e."firstName", e."lastName", e.email
+         FROM "TaskAssignee" ta
+         JOIN employee e ON ta."employeeId" = e.id
+         WHERE ta."taskId" = $1
+         ORDER BY ta."order" ASC`,
+        [id]
+      );
+      task.assignees = assigneeResult.rows;
+
       res.json(task);
     } catch (error) { next(error); }
   } catch (error) { next(error); }
@@ -155,7 +210,9 @@ const getTaskByEmployee = async (req, res, next) => {
       contextWhere = 'WHERE p."organiationId" = $1';
       contextParams = [organiationId];
     } else {
-      contextWhere = 'WHERE t."assignedTo" = $1 AND p."organiationId" = $2';
+      // Show if assigned directly (Sequential current) OR if in assignees for Shared/Sequential
+      // Shared: all show up. Sequential: all show up (but only active one can act).
+      contextWhere = `WHERE (t."assignedTo" = $1 OR ((t.type = 'SHARED' OR t.type = 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid))) AND p."organiationId" = $2`;
       contextParams = [employeeId, organiationId];
     }
 
@@ -174,7 +231,7 @@ const getTaskByEmployee = async (req, res, next) => {
     // Allow filtering by user (For Admin, or strictly speaking for anyone but User role is already limited. 
     // If User tries to filter by 'me' it works. If 'other', it returns 0. Consistent.)
     if (assignedTo && assignedTo !== 'all') {
-      contextWhere += ` AND t."assignedTo" = $${paramIdx}`;
+      contextWhere += ` AND (t."assignedTo" = $${paramIdx} OR EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = $${paramIdx}::uuid))`;
       contextParams.push(assignedTo);
       paramIdx++;
     }
@@ -199,7 +256,14 @@ const getTaskByEmployee = async (req, res, next) => {
          COUNT(*) FILTER (WHERE t.status = 'completed') as "completedCount",
          COUNT(*) FILTER (WHERE t.status = 'pending') as "pendingCount",
          COUNT(*) FILTER (WHERE t.status = 'in-progress') as "inProgressCount",
-         COALESCE(SUM(t.points) FILTER (WHERE t.status = 'completed' AND t."updatedAt"::date = CURRENT_DATE), 0) as "pointsToday"
+         COALESCE(SUM(
+           CASE 
+             WHEN t.type = 'SHARED' THEN 
+               t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+             ELSE 
+               t.points 
+           END
+         ) FILTER (WHERE t.status = 'completed' AND t."updatedAt"::date = CURRENT_DATE), 0) as "pointsToday"
        FROM task t
        JOIN projects p ON t."projectId" = p.id
        ${contextWhere}`,
@@ -264,8 +328,27 @@ const getTaskByEmployee = async (req, res, next) => {
 
       const subtasks = subtasksResult.rows;
 
+      // Fetch assignees for the list of tasks
+      const assigneesResult = await pool.query(
+        `SELECT ta.*, e."firstName", e."lastName", e.email
+           FROM "TaskAssignee" ta
+           JOIN employee e ON ta."employeeId" = e.id
+           WHERE ta."taskId" = ANY($1::uuid[])
+           ORDER BY ta."order" ASC`,
+        [taskIds]
+      );
+      const allAssignees = assigneesResult.rows;
+
       tasks.forEach(task => {
         task.subtasks = subtasks.filter(st => st.parentId === task.id);
+        task.assignees = allAssignees.filter(a => a.taskId === task.id);
+
+        // Adjust points for SHARED tasks (Divide by assignee count)
+        // Only if we are filtering by a specific user (showing "My Share")
+        // User request: "When doing filter and the task is shared then show the points as well by dividing"
+        if (assignedTo && assignedTo !== 'all' && task.type === 'SHARED' && task.assignees.length > 0) {
+          task.points = parseFloat((task.points / task.assignees.length).toFixed(2));
+        }
       });
     }
 
@@ -316,6 +399,59 @@ const updateTask = async (req, res, next) => {
   const organiationId = req.user.organization_uuid;
 
   try {
+    // Check Task Type first
+    const taskCheck = await pool.query(
+      `SELECT type, "assignedTo" FROM task WHERE id = $1`,
+      [id]
+    );
+
+    if (taskCheck.rowCount === 0) return next(new NotFoundError('Task not found'));
+
+    const taskType = taskCheck.rows[0].type;
+    const currentAssignedTo = taskCheck.rows[0].assignedTo;
+
+    // Sequential Task Completion Logic
+    if (taskType === 'SEQUENTIAL' && (status === 'completed' || status === 'done')) {
+      // Find assignees
+      const assigneesRes = await pool.query(
+        `SELECT * FROM "TaskAssignee" WHERE "taskId" = $1 ORDER BY "order" ASC`,
+        [id]
+      );
+      const assignees = assigneesRes.rows;
+
+      // Find current assignee index
+      const currentIndex = assignees.findIndex(a => a.employeeId === currentAssignedTo);
+
+      // Mark current/active assignee as completed
+      if (currentIndex !== -1) {
+        await pool.query(
+          `UPDATE "TaskAssignee" SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
+          [assignees[currentIndex].id]
+        );
+      }
+
+      // Check for next assignee
+      if (currentIndex !== -1 && currentIndex < assignees.length - 1) {
+        const nextAssignee = assignees[currentIndex + 1];
+
+        // Move to next assignee
+        const result = await pool.query(
+          `UPDATE task t SET
+                 "assignedTo" = $1,
+                 "assigned_at" = NOW(),
+                 "status" = 'pending', -- Reset status to pending for next user
+                 "updatedAt" = NOW()
+                 FROM projects p
+                 WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
+                 RETURNING t.*`,
+          [nextAssignee.employeeId, id, organiationId]
+        );
+        return res.json(result.rows[0]);
+      }
+      // If no next assignee, proceed to standard completion (final completion)
+    }
+
+    // Standard Update
     const result = await pool.query(
       `UPDATE task t SET
              description = COALESCE($1, t.description),
@@ -440,12 +576,15 @@ const getCommentsByTask = async (req, res, next) => {
          c.id, 
          c.content, 
          c."createdAt",
-         e."firstName" || ' ' || e."lastName" AS "userName"
+         e."firstName" || ' ' || e."lastName" AS "userName",
+         t.id as "taskId",
+         t.description as "taskDescription",
+         CASE WHEN t.id = $1 THEN 'Main Task' ELSE 'Subtask' END as "source"
        FROM comment c
        JOIN task t ON c."taskId" = t.id
        JOIN projects p ON t."projectId" = p.id
        JOIN employee e ON c."authorId" = e.id
-       WHERE t.id = $1 AND p."organiationId" = $2
+       WHERE (t.id = $1 OR t."parentId" = $1) AND p."organiationId" = $2
        ORDER BY c."createdAt" DESC`,
       [taskId, organiationId]
     );
@@ -460,7 +599,63 @@ const changeTaskStatus = async (req, res, next) => {
   const { id } = req.params;
   const { status } = req.body;
   const organiationId = req.user.organization_uuid;
+
   try {
+    // Check Task Type first
+    const taskCheck = await pool.query(
+      `SELECT type, "assignedTo" FROM task WHERE id = $1`,
+      [id]
+    );
+
+    if (taskCheck.rowCount === 0) return next(new NotFoundError('Task not found'));
+
+    const taskType = taskCheck.rows[0].type;
+    const currentAssignedTo = taskCheck.rows[0].assignedTo;
+
+    // Sequential Task Completion Logic
+    if (taskType === 'SEQUENTIAL' && (status === 'completed' || status === 'done')) {
+      // Find assignees
+      const assigneesRes = await pool.query(
+        `SELECT * FROM "TaskAssignee" WHERE "taskId" = $1 ORDER BY "order" ASC`,
+        [id]
+      );
+      const assignees = assigneesRes.rows;
+
+      // Find current assignee index
+      const currentIndex = assignees.findIndex(a => a.employeeId == currentAssignedTo);
+      console.log('Sequential Debug: Current Assignee:', currentAssignedTo, 'Found Index:', currentIndex);
+
+      // Mark current/active assignee as completed
+      if (currentIndex !== -1) {
+        await pool.query(
+          `UPDATE "TaskAssignee" SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
+          [assignees[currentIndex].id]
+        );
+      }
+
+      // Check for next assignee
+      if (currentIndex !== -1 && currentIndex < assignees.length - 1) {
+        const nextAssignee = assignees[currentIndex + 1];
+        console.log('Sequential Debug: Moving to next assignee:', nextAssignee.employeeId);
+
+        // Move to next assignee
+        const result = await pool.query(
+          `UPDATE task t SET
+                 "assignedTo" = $1,
+                 "assigned_at" = NOW(),
+                 "status" = 'in-progress', -- BUFFER STATE: Keep in-progress
+                 "updatedAt" = NOW()
+                 FROM projects p
+                 WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
+                 RETURNING t.*`,
+          [nextAssignee.employeeId, id, organiationId]
+        );
+        return res.json(result.rows[0]);
+      }
+      console.log('Sequential Debug: Logic Completed. Finishing Task.');
+      // If no next assignee, proceed to standard completion (final completion)
+    }
+
     const result = await pool.query(
       `UPDATE task t SET
                 status = $1,

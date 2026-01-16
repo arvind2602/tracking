@@ -1,4 +1,6 @@
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Task, User, Project } from "@/lib/types";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
@@ -11,8 +13,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { formatDateTimeIST, formatDateIST, cn } from "@/lib/utils";
-import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight } from "lucide-react";
+import { formatDateTimeIST, formatDateIST, formatDateLongIST, cn } from "@/lib/utils";
+import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import React from 'react';
@@ -55,6 +57,13 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [parentTaskForSubtask, setParentTaskForSubtask] = useState<Task | null>(null);
   const [loadingAddSubtaskId, setLoadingAddSubtaskId] = useState<string | null>(null);
 
+
+  // Completion Modal State
+  const [completionModalOpen, setCompletionModalOpen] = useState(false);
+  const [taskToComplete, setTaskToComplete] = useState<string | null>(null);
+  const [completionComment, setCompletionComment] = useState("");
+  const [isCompleting, setIsCompleting] = useState(false);
+
   const toggleExpand = (taskId: string) => {
     const newExpanded = new Set(expandedTasks);
     if (newExpanded.has(taskId)) {
@@ -80,7 +89,8 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       try {
         const payload: any = jwtDecode(token);
         setUserRole(payload.user.role);
-        setCurrentUserId(payload.user.id);
+        // Correct field name is uuid based on jwtGenerator.js
+        setCurrentUserId(payload.user.uuid || payload.user.id);
       } catch (error) {
         console.error('Invalid token', error);
       }
@@ -153,19 +163,49 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     }
   };
 
-  const handleMarkAsCompleted = async (taskId: string) => {
-    setLoadingTaskId(taskId);
-    const toastId = toast.loading("Marking as completed...");
+  const handleMarkAsCompleted = (taskId: string) => {
+    setTaskToComplete(taskId);
+    setCompletionComment("");
+    setCompletionModalOpen(true);
+  };
+
+  const confirmCompletion = async () => {
+    if (!taskToComplete) return;
+    if (!completionComment.trim()) {
+      toast.error("Please add a comment to complete the task.");
+      return;
+    }
+
+    setIsCompleting(true);
+    setLoadingTaskId(taskToComplete);
     try {
-      const response = await axios.put(`/tasks/${taskId}/status`, { status: 'completed' });
-      setTasks((prev) =>
-        prev.map((task) => (task.id === taskId ? response.data : task))
-      );
-      toast.success("Task marked as completed", { id: toastId });
-    } catch {
-      toast.error("Failed to mark task as completed", { id: toastId });
+      // 1. Add Comment
+      await axios.post(`/tasks/comments/${taskToComplete}`, { content: completionComment });
+
+      // 2. Mark as Completed
+      const response = await axios.put(`/tasks/${taskToComplete}/status`, { status: 'completed' });
+
+      setTasks(prev => prev.map(t => {
+        if (t.id === taskToComplete) {
+          // Use the response data to handle status updates (e.g. Sequential -> in-progress)
+          return { ...t, ...response.data };
+        }
+        if (t.subtasks) {
+          // Update subtasks if the completed task was a subtask
+          const updatedSubtasks = t.subtasks.map(s => s.id === taskToComplete ? { ...s, ...response.data } : s);
+          return { ...t, subtasks: updatedSubtasks };
+        }
+        return t;
+      }));
+      toast.success("Task completed successfully!");
+      setCompletionModalOpen(false);
+    } catch (error) {
+      console.error("Error completing task:", error);
+      toast.error("Failed to complete task.");
     } finally {
+      setIsCompleting(false);
       setLoadingTaskId(null);
+      setTaskToComplete(null);
     }
   };
 
@@ -175,14 +215,10 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   };
 
 
-  const dateFormatter = useMemo(() => new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }), []);
-
+  /* 
+  Removed Intl in favor of date-fns helper:
+  const dateFormatter = useMemo(...) 
+  */
 
   const groupedTasks = useMemo(() => {
     const groups: Record<string, Task[]> = {};
@@ -196,14 +232,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       const dateStr = task.assigned_at || (task as any).startDate || task.createdAt;
 
       if (dateStr) {
-        try {
-          const d = new Date(dateStr);
-          if (!isNaN(d.getTime())) {
-            dateKey = dateFormatter.format(d);
-          }
-        } catch (e) {
-          // Fallback
-        }
+        dateKey = formatDateLongIST(dateStr);
       }
 
       if (!groups[dateKey]) {
@@ -217,7 +246,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     });
 
     return groups;
-  }, [tasks, dateFormatter]);
+  }, [tasks]);
 
   const sortedDateKeys = useMemo(() => {
     return Object.keys(groupedTasks).sort((a, b) => {
@@ -414,15 +443,39 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                             </Button>
 
                             {task.status !== "completed" && (
-                              <Button
-                                onClick={() => handleMarkAsCompleted(task.id)}
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-slate-400 hover:text-emerald-400"
-                                disabled={loadingTaskId === task.id}
-                              >
-                                {loadingTaskId === task.id ? <Loader className="animate-spin h-4 w-4" /> : <Check className="h-4 w-4" />}
-                              </Button>
+                              task.type === 'SEQUENTIAL' && task.assignedTo !== currentUserId ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="inline-block">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-slate-600 cursor-not-allowed opacity-50"
+                                          disabled
+                                        >
+                                          <Clock className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-slate-900 border-slate-700">
+                                      <p className="text-xs text-slate-300">
+                                        Waiting for {users.find(u => u.id === task.assignedTo)?.firstName}
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
+                                <Button
+                                  onClick={() => handleMarkAsCompleted(task.id)}
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-slate-400 hover:text-emerald-400"
+                                  disabled={loadingTaskId === task.id}
+                                >
+                                  {loadingTaskId === task.id ? <Loader className="animate-spin h-4 w-4" /> : <Check className="h-4 w-4" />}
+                                </Button>
+                              )
                             )}
                             {userRole === "ADMIN" && (
                               <Button
@@ -501,7 +554,47 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                         </td>
 
                         <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/20 text-xs">
-                          {assignedUser ? (
+                          {task.assignees && task.assignees.length > 1 ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex flex-col gap-1 cursor-help">
+                                    <div className="flex items-center gap-1.5 ">
+                                      <span className={cn(
+                                        "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border leading-none",
+                                        task.type === 'SHARED' ? "border-blue-500/50 text-blue-400 bg-blue-500/10" : "border-purple-500/50 text-purple-400 bg-purple-500/10"
+                                      )}>
+                                        {task.type === 'SHARED' ? 'Shared' : 'Seq'}
+                                      </span>
+                                      <span className="text-slate-300 text-xs">
+                                        {task.assignees.length} users
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] text-slate-500 leading-none">
+                                      {task.assignees.slice(0, 2).map(a => a.firstName).join(', ')} {task.assignees.length > 2 && `+${task.assignees.length - 2}`}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-900 border-slate-700">
+                                  <div className="flex flex-col gap-1">
+                                    <span className="font-bold text-xs text-white mb-1 border-b border-white/10 pb-1">
+                                      {task.type === 'SHARED' ? 'Shared with:' : 'Sequential Order:'}
+                                    </span>
+                                    {task.assignees.map((a: any, i) => (
+                                      <div key={a.id} className="text-xs flex justify-between gap-4">
+                                        <span className={cn(
+                                          task.type === 'SEQUENTIAL' && task.assignedTo === a.id ? "text-emerald-400 font-bold" : "text-slate-300"
+                                        )}>
+                                          {i + 1}. {a.firstName} {a.lastName}
+                                        </span>
+                                        {a.isCompleted && <Check className="h-3 w-3 text-emerald-500" />}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : assignedUser ? (
                             <span className="text-slate-300">{assignedUser.firstName} {assignedUser.lastName[0]}.</span>
                           ) : (
                             <span className="text-slate-600 italic">Unassigned</span>
@@ -670,6 +763,39 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
         confirmText="Delete Task"
         variant="destructive"
       />
+
+      {/* Completion Comment Modal */}
+      <Dialog open={completionModalOpen} onOpenChange={setCompletionModalOpen}>
+        <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-700 text-slate-100">
+          <DialogHeader>
+            <DialogTitle>Complete Task</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Please add a comment to mark this task as completed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="comment" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-200">Comment</label>
+              <Textarea
+                id="comment"
+                placeholder="Work done details..."
+                value={completionComment}
+                onChange={(e) => setCompletionComment(e.target.value)}
+                className="bg-slate-800 border-slate-700 text-slate-100 min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCompletionModalOpen(false)} disabled={isCompleting} className="text-slate-400 hover:text-white hover:bg-white/10">
+              Cancel
+            </Button>
+            <Button onClick={confirmCompletion} disabled={isCompleting || !completionComment.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {isCompleting ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+              Complete Task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div >
   );
 }

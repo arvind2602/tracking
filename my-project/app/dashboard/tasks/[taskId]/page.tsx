@@ -1,5 +1,6 @@
 "use client";
 import { Task, User, Project, Comment } from "@/lib/types";
+import { formatDateIST, formatDateOnlyIST, formatTimeIST } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
@@ -20,7 +21,8 @@ import {
   AlignLeft,
   ChevronsRight,
   Send,
-  Flag
+  Flag,
+  Check
 } from "lucide-react";
 
 export default function TaskDetailPage() {
@@ -137,7 +139,7 @@ export default function TaskDetailPage() {
           <div className="space-y-2">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">{task.title}</h1>
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Created {new Date(task.createdAt).toLocaleDateString()}</span>
+              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> Created {formatDateOnlyIST(task.createdAt)}</span>
               {task.parentId && (
                 <>
                   <span>•</span>
@@ -203,11 +205,13 @@ export default function TaskDetailPage() {
               <Calendar className="w-3.5 h-3.5" /> Due Date
             </span>
             <div className="text-sm font-semibold">
-              {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No Due Date'}
+              {task.dueDate ? formatDateOnlyIST(task.dueDate) : 'No Due Date'}
             </div>
           </div>
         </div>
       </div>
+
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
@@ -247,13 +251,18 @@ export default function TaskDetailPage() {
                           {getInitials(comment.userName || 'U')}
                         </div>
                         <div className="flex-1 space-y-1">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm">{comment.userName}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{new Date(comment.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}</span>
+                            {comment.source === 'Subtask' && (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1 bg-blue-500/10 text-blue-500 border-blue-500/20">
+                                Subtask: {comment.taskDescription?.slice(0, 15)}...
+                              </Badge>
+                            )}
                           </div>
-                          <div className="text-sm bg-muted/30 p-3 rounded-2xl rounded-tl-none text-foreground/90 leading-relaxed border border-border/50 hover:bg-muted/40 transition-colors">
-                            {comment.content}
-                          </div>
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{formatDateIST(comment.createdAt)}</span>
+                        </div>
+                        <div className="text-sm bg-muted/30 p-3 rounded-2xl rounded-tl-none text-foreground/90 leading-relaxed border border-border/50 hover:bg-muted/40 transition-colors">
+                          {comment.content}
                         </div>
                       </div>
                     ))}
@@ -279,9 +288,7 @@ export default function TaskDetailPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        <div className="space-y-8">
           {/* Subtasks */}
           {task.subtasks && task.subtasks.length > 0 && (
             <Card className="bg-card/50 backdrop-blur-sm border-accent/20 shadow-sm">
@@ -306,8 +313,78 @@ export default function TaskDetailPage() {
             </Card>
           )}
         </div>
+
+        <div className="space-y-8">
+          <div className="sticky top-6 space-y-8">
+            {/* Sequential Task Timeline (Vertical) */}
+            {task.type === 'SEQUENTIAL' && task.assignees && task.assignees.length > 0 && (
+              <Card className="bg-card/50 backdrop-blur-sm border-accent/20 shadow-sm">
+                <CardHeader className="pb-3 border-b border-border/50 bg-accent/5">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-500">
+                      <ChevronsRight className="w-5 h-5" />
+                    </div>
+                    Sequential Progress
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 relative">
+                  {/* Vertical Connector Line */}
+                  <div className="absolute left-[31px] top-6 bottom-6 w-0.5 bg-slate-800 -z-0"></div>
+
+                  <div className="space-y-6 relative z-10">
+                    {task.assignees.map((assignee, index) => {
+                      const isCompleted = assignee.isCompleted;
+                      const isCurrent = task.assignedTo === assignee.employeeId && !isCompleted && task.status !== 'completed';
+
+                      return (
+                        <div key={assignee.id} className="flex items-start gap-4 group">
+                          {/* Step Indicator */}
+                          <div className={`
+                            w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-md shrink-0
+                            ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' :
+                              isCurrent ? 'bg-blue-600 border-blue-400 text-white ring-4 ring-blue-500/20' :
+                                'bg-slate-900 border-slate-700 text-slate-500'}
+                          `}>
+                            {isCompleted ? <Check className="w-4 h-4" /> :
+                              isCurrent ? <Clock className="w-4 h-4 animate-pulse" /> :
+                                <span className="text-xs font-bold">{index + 1}</span>}
+                          </div>
+
+                          {/* Info */}
+                          <div className={`
+                            flex-1 p-3 rounded-lg border transition-all duration-300
+                            ${isCurrent ? 'bg-blue-500/10 border-blue-500/30 shadow-md' :
+                              isCompleted ? 'bg-emerald-500/5 border-emerald-500/20 opacity-80' :
+                                'bg-card/50 border-border/30 opacity-60'}
+                          `}>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-semibold text-sm text-foreground/90">{assignee.firstName} {assignee.lastName}</div>
+                                <div className="text-[10px] uppercase tracking-wider font-medium mt-0.5">
+                                  {isCompleted ? <span className="text-emerald-500">Completed</span> :
+                                    isCurrent ? <span className="text-blue-400 animate-pulse">In Progress</span> :
+                                      <span className="text-muted-foreground">Pending</span>}
+                                </div>
+                              </div>
+                              {(isCompleted && assignee.completedAt) && (
+                                <div className="text-[10px] text-muted-foreground bg-background/50 px-2 py-1 rounded border border-border/20">
+                                  {formatDateOnlyIST(assignee.completedAt)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+          </div>
+        </div>
       </div>
-    </div>
+    </div >
   );
 }
 

@@ -9,6 +9,21 @@ export interface Comment {
   userName: string;
   content: string;
   createdAt: Date;
+  source?: string;
+  taskDescription?: string;
+}
+
+export interface TaskAssignee {
+  id: string; // TaskAssignee ID
+  taskId: string;
+  employeeId: string;
+  order?: number;
+  isCompleted: boolean;
+  assignedAt: string;
+  completedAt?: string;
+  firstName: string;
+  lastName: string;
+  email: string;
 }
 
 export interface Task {
@@ -32,6 +47,8 @@ export interface Task {
   assigned_at?: string;
   parentId?: string;
   subtasks?: Task[];
+  type?: 'SINGLE' | 'SHARED' | 'SEQUENTIAL';
+  assignees?: TaskAssignee[];
 }
 
 export interface Employee {
