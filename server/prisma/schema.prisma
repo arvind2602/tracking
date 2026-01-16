@@ -38,17 +38,18 @@ model employee {
 }
 
 model projects {
-  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String
-  description   String
-  startDate     DateTime
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime?   @updatedAt
-  organiationId String      @db.Uuid
-  is_archived   Boolean     @default(false)
-  endDate       DateTime?
-  organiation   organiation @relation(fields: [organiationId], references: [id])
-  task          task[]
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String
+  startDate      DateTime
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime?   @updatedAt
+  organiationId  String      @db.Uuid
+  is_archived    Boolean     @default(false)
+  endDate        DateTime?
+  priority_order Int?        @default(0)
+  organiation    organiation @relation(fields: [organiationId], references: [id])
+  task           task[]
 }
 
 model task {

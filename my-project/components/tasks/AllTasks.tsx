@@ -242,11 +242,43 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     });
 
     Object.keys(groups).forEach((key) => {
-      groups[key].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      groups[key].sort((a, b) => {
+        // First, sort by project priority_order (lower number = higher priority)
+        const projectA = projects.find(p => p.id === a.projectId);
+        const projectB = projects.find(p => p.id === b.projectId);
+
+        const projectPriorityA = projectA?.priority_order ?? 999;
+        const projectPriorityB = projectB?.priority_order ?? 999;
+
+        if (projectPriorityA !== projectPriorityB) {
+          return projectPriorityA - projectPriorityB; // Lower priority_order comes first
+        }
+
+
+        // 2. Sort by task priority (HIGH > MEDIUM > LOW)
+        const taskPriorityMap: Record<string, number> = { HIGH: 1, MEDIUM: 2, LOW: 3 };
+        const taskPriorityA = taskPriorityMap[a.priority || 'LOW'] || 3;
+        const taskPriorityB = taskPriorityMap[b.priority || 'LOW'] || 3;
+
+        if (taskPriorityA !== taskPriorityB) {
+          return taskPriorityA - taskPriorityB;
+        }
+
+        // 3. Sort by due date (earlier dates first, null dates last)
+        const dueDateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const dueDateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+
+        if (dueDateA !== dueDateB) {
+          return dueDateA - dueDateB;
+        }
+
+        // 4. Sort by createdAt (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     });
 
     return groups;
-  }, [tasks]);
+  }, [tasks, projects]);
 
   const sortedDateKeys = useMemo(() => {
     return Object.keys(groupedTasks).sort((a, b) => {
@@ -754,15 +786,18 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       {typeof document !== 'undefined' && ReactDOM.createPortal(modalContent, document.getElementById('modal-root') as HTMLElement)}
       {typeof document !== 'undefined' && ReactDOM.createPortal(subtaskModalContent, document.getElementById('modal-root') as HTMLElement)}
 
-      <ConfirmationModal
-        isOpen={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        onConfirm={confirmDeleteTask}
-        title="Delete Task"
-        description="Are you sure you want to delete this task? This action cannot be undone."
-        confirmText="Delete Task"
-        variant="destructive"
-      />
+      {typeof document !== 'undefined' && ReactDOM.createPortal(
+        <ConfirmationModal
+          isOpen={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          onConfirm={confirmDeleteTask}
+          title="Delete Task"
+          description="Are you sure you want to delete this task? This action cannot be undone."
+          confirmText="Delete Task"
+          variant="destructive"
+        />,
+        document.getElementById('modal-root') as HTMLElement
+      )}
 
       {/* Completion Comment Modal */}
       <Dialog open={completionModalOpen} onOpenChange={setCompletionModalOpen}>
@@ -799,3 +834,5 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     </div >
   );
 }
+
+

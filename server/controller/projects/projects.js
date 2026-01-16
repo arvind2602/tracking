@@ -118,6 +118,7 @@ const getProjects = async (req, res, next) => {
          p.description, 
          p."startDate", 
          p."createdAt",
+          p.priority_order,
          ps."totalPoints",
          ps."yesterdayPoints",
          COALESCE((
@@ -128,7 +129,7 @@ const getProjects = async (req, res, next) => {
        FROM projects p
        JOIN ProjectStats ps ON p.id = ps.id
        WHERE p."organiationId" = $1 AND p.is_archived = false
-       ORDER BY ps."totalPoints" DESC, p."createdAt" DESC`,
+       ORDER BY p.priority_order ASC NULLS LAST, ps."totalPoints" DESC, p."createdAt" DESC`,
       [organiationId]
     );
     res.json(result.rows);
@@ -305,6 +306,62 @@ const exportProjectTasks = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// Update Projects Priority Order
+const updateProjectsPriority = async (req, res, next) => {
+  const schema = Joi.object({
+    projectPriorities: Joi.array().items(
+      Joi.object({
+        id: Joi.string().uuid().required(),
+        priority_order: Joi.number().integer().required()
+      })
+    ).required()
+  });
+
+  const { error } = schema.validate(req.body);
+  if (error) return next(new BadRequestError(error.details[0].message));
+
+  const { projectPriorities } = req.body;
+  const organiationId = req.user.organization_uuid;
+
+  try {
+    // Start transaction - pool is the module, pool.pool is the actual Pool instance
+    const client = await pool.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Verify all projects belong to the organization
+      const projectIds = projectPriorities.map(p => p.id);
+      const verifyResult = await client.query(
+        `SELECT id FROM projects WHERE id = ANY($1::uuid[]) AND "organiationId" = $2::uuid`,
+        [projectIds, organiationId]
+      );
+
+      if (verifyResult.rowCount !== projectIds.length) {
+        await client.query('ROLLBACK');
+        return next(new BadRequestError('One or more projects not found or unauthorized'));
+      }
+
+      // Update priorities
+      for (const { id, priority_order } of projectPriorities) {
+        await client.query(
+          `UPDATE projects SET priority_order = $1, "updatedAt" = NOW() WHERE id = $2::uuid`,
+          [priority_order, id]
+        );
+      }
+
+      await client.query('COMMIT');
+      res.json({ message: 'Project priorities updated successfully' });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createProject,
   getProject,
@@ -312,5 +369,6 @@ module.exports = {
   updateProject,
   deleteProject,
   exportProjects,
-  exportProjectTasks
+  exportProjectTasks,
+  updateProjectsPriority
 };

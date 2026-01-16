@@ -63,6 +63,7 @@ export interface Project {
   id: string;
   name: string;
   organizationId: string;
+  priority_order?: number | null;
 }
 
 export interface Organization {

@@ -9,10 +9,27 @@ import Link from 'next/link';
 import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
-import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download } from 'lucide-react';
+import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download, GripVertical, List, BarChart3 } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { jwtDecode } from 'jwt-decode';
 import { cn } from '@/lib/utils';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 
 const ProjectsPage = () => {
@@ -23,6 +40,7 @@ const ProjectsPage = () => {
     startDate: string;
     totalPoints: number;
     yesterdayPoints: number;
+    priority_order?: number | null;
     topPerformers: { name: string; initial: string; points: number }[];
   }
 
@@ -38,6 +56,7 @@ const ProjectsPage = () => {
   const [newProjectEndDate, setNewProjectEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'priority'>('overview');
 
   useEffect(() => {
     fetchProjects();
@@ -137,6 +156,108 @@ const ProjectsPage = () => {
     }
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setProjects((items) => {
+        const oldIndex = items.findIndex((item) => item.id.toString() === active.id);
+        const newIndex = items.findIndex((item) => item.id.toString() === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const handleSavePriority = async () => {
+    const toastId = toast.loading('Saving priority order...');
+    try {
+      const projectPriorities = projects.map((project, index) => ({
+        id: project.id,
+        priority_order: index
+      }));
+
+      await axios.put('/projects/priority/update', { projectPriorities });
+      toast.success('Priority order saved successfully', { id: toastId });
+      fetchProjects(); // Refresh to get updated data
+    } catch (error) {
+      toast.error('Failed to save priority order', { id: toastId });
+    }
+  };
+
+  interface SortableProjectItemProps {
+    project: Project;
+    index: number;
+  }
+
+  const SortableProjectItem: React.FC<SortableProjectItemProps> = ({ project, index }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: project.id.toString() });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "group backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl p-6 flex items-center gap-6 transition-all duration-300",
+          isDragging && "shadow-2xl shadow-blue-500/20 scale-105 z-50"
+        )}
+      >
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-blue-400 transition-colors"
+        >
+          <GripVertical className="h-6 w-6" />
+        </div>
+
+        <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 font-bold text-blue-400">
+          {index + 1}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-white text-lg truncate">{project.name}</h3>
+          <p className="text-slate-400 text-sm truncate">{project.description}</p>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Points</p>
+            <p className="font-mono text-lg font-bold text-white">{project.totalPoints || 0}</p>
+          </div>
+
+          <Link href={`/dashboard/projects/${project.id}`}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
+            >
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  };
+
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/dashboard' },
     { label: 'Projects', href: '/dashboard/projects' },
@@ -183,6 +304,34 @@ const ProjectsPage = () => {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex space-x-8 border-b border-white/10">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={cn(
+            "pb-4 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
+            activeTab === 'overview'
+              ? "border-blue-500 text-blue-400"
+              : "border-transparent text-slate-500 hover:text-slate-300"
+          )}
+        >
+          <BarChart3 className="h-4 w-4" />
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('priority')}
+          className={cn(
+            "pb-4 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
+            activeTab === 'priority'
+              ? "border-purple-500 text-purple-400"
+              : "border-transparent text-slate-500 hover:text-slate-300"
+          )}
+        >
+          <List className="h-4 w-4" />
+          Priority
+        </button>
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <div className="relative">
@@ -190,7 +339,7 @@ const ProjectsPage = () => {
             <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full animate-pulse"></div>
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'overview' ? (
         <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -266,6 +415,41 @@ const ProjectsPage = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Project Priority</h2>
+              <p className="text-slate-400 mt-1">Drag and drop to reorder projects by priority</p>
+            </div>
+            {userRole === 'ADMIN' && (
+              <Button
+                onClick={handleSavePriority}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-none rounded-xl px-8 py-6 shadow-lg shadow-purple-500/20 transition-all duration-300 gap-2 font-semibold"
+              >
+                <Plus className="h-4 w-4" />
+                Save Priority
+              </Button>
+            )}
+          </div>
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={projects.map(p => p.id.toString())}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {projects.map((project, index) => (
+                  <SortableProjectItem key={project.id} project={project} index={index} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 
