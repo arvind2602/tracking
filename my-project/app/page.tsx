@@ -3,9 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import { Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
+import { jwtDecode } from 'jwt-decode';
 
 export default function Home() {
   const router = useRouter();
@@ -14,6 +15,42 @@ export default function Home() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Check if user is already authenticated on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        setIsCheckingAuth(false);
+        return;
+      }
+
+      try {
+        // Decode the JWT token to check expiration
+        const decoded: any = jwtDecode(token);
+        const currentTime = Date.now() / 1000; // Convert to seconds
+
+        // Check if token is expired
+        if (decoded.exp && decoded.exp > currentTime) {
+          // Token is valid and not expired, redirect to dashboard/tasks
+          router.push('/dashboard/tasks');
+        } else {
+          // Token is expired, remove it
+          localStorage.removeItem('token');
+          setIsCheckingAuth(false);
+        }
+      } catch (error) {
+        // Token is invalid, remove it
+        console.error('Invalid token:', error);
+        localStorage.removeItem('token');
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   const handleLogin = async () => {
     setError('');
@@ -25,7 +62,7 @@ export default function Home() {
         datetime: new Date().toISOString(),
       });
       localStorage.setItem('token', response.data.token);
-      router.push('/dashboard');
+      router.push('/dashboard/tasks');
     } catch (error) {
       setError('Invalid email or password');
     } finally {
@@ -38,6 +75,18 @@ export default function Home() {
       handleLogin();
     }
   };
+
+  // Show loading state while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+          <p className="text-slate-400 text-sm">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 font-mono p-4">
