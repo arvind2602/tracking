@@ -33,6 +33,11 @@ const getProject = async (req, res, next) => {
   const { id } = req.params;
   const organiationId = req.user.organization_uuid;
 
+  // Pagination parameters
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+
   try {
     const projectResult = await pool.query(
       `SELECT 
@@ -51,6 +56,14 @@ const getProject = async (req, res, next) => {
       return next(new NotFoundError('Project not found'));
     }
 
+    // Get total count of tasks
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total FROM task WHERE "projectId" = $1::uuid`,
+      [id]
+    );
+    const totalTasks = parseInt(countResult.rows[0].total);
+
+    // Get paginated tasks
     const tasksResult = await pool.query(
       `SELECT 
          t.id,
@@ -63,13 +76,24 @@ const getProject = async (req, res, next) => {
        FROM task t
        LEFT JOIN employee e ON t."assignedTo"::uuid = e.id
        WHERE t."projectId" = $1::uuid
-       ORDER BY t."createdAt" DESC`,
-      [id]
+       ORDER BY t."createdAt" DESC
+       LIMIT $2 OFFSET $3`,
+      [id, limit, offset]
     );
+
+    const totalPages = Math.ceil(totalTasks / limit);
 
     res.json({
       ...projectResult.rows[0],
       tasks: tasksResult.rows,
+      pagination: {
+        totalTasks,
+        currentPage: page,
+        pageSize: limit,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
     });
   } catch (error) {
     next(error);

@@ -175,15 +175,15 @@ export default function Users() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-200 to-purple-200">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Users Management
           </h1>
-          <p className="text-slate-400 mt-2 font-medium">Manage and monitor organizational members.</p>
+          <p className="text-muted-foreground mt-2 font-medium">Manage and monitor organizational members.</p>
         </div>
         <div className="flex flex-wrap gap-4">
           <Button
             onClick={handleExportUsers}
-            className="bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-xl px-6 py-5 transition-all duration-300 gap-2"
+            className="bg-secondary hover:bg-secondary/80 text-foreground border border-border rounded-xl px-6 py-5 transition-all duration-300 gap-2"
           >
             <Download className="h-4 w-4" />
             Export Users
@@ -201,7 +201,7 @@ export default function Users() {
       <div className="flex flex-col md:flex-row gap-4">
         {userRole === 'ADMIN' && (
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-full md:w-1/4 bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+            <SelectTrigger className="w-full md:w-1/4 bg-card border-border text-foreground rounded-xl py-6">
               <SelectValue placeholder="Filter by role" />
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -213,7 +213,7 @@ export default function Users() {
         )}
         {userRole === 'ADMIN' && (
           <Select value={positionFilter} onValueChange={setPositionFilter}>
-            <SelectTrigger className="w-full md:w-1/4 bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+            <SelectTrigger className="w-full md:w-1/4 bg-card border-border text-foreground rounded-xl py-6">
               <SelectValue placeholder="Filter by position" />
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -236,11 +236,11 @@ export default function Users() {
           </div>
         </div>
       ) : (
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-white/10 bg-white/5">
+                <tr className="border-b border-border bg-secondary">
                   <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">S.No</th>
                   <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Name</th>
                   <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Email</th>
@@ -252,19 +252,19 @@ export default function Users() {
               <tbody className="divide-y divide-white/5">
                 {Object.entries(groupedUsers).sort((a, b) => a[0].localeCompare(b[0])).map(([position, users]) => (
                   <React.Fragment key={`group-${position}`}>
-                    <tr className="bg-white/5/50">
+                    <tr className="bg-secondary/50">
                       <td colSpan={6} className="px-4 py-2 font-bold text-blue-400/80 bg-blue-500/5 text-xs uppercase tracking-widest">
                         {position} ({users.length})
                       </td>
                     </tr>
                     {users.map((u, index) => (
-                      <tr key={u.id} className="group hover:bg-white/5 transition-all duration-300">
+                      <tr key={u.id} className="group hover:bg-secondary transition-all duration-300">
                         <td className="px-4 py-3 text-slate-500 font-mono text-xs">
                           {String(index + 1).padStart(2, '0')}
                         </td>
                         <td className="px-4 py-3">
                           <button
-                            className="font-semibold text-white hover:text-blue-400 transition-colors"
+                            className="font-semibold text-foreground hover:text-blue-400 transition-colors"
                             onClick={() => router.push(`/dashboard/users/${u.id}/tasks`)}
                           >
                             {u.firstName} {u.lastName}
@@ -282,7 +282,7 @@ export default function Users() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className="font-mono text-white font-bold">
+                          <span className="font-mono text-foreground font-bold">
                             {u.weeklyPoints || 0}
                           </span>
                         </td>
@@ -307,11 +307,11 @@ export default function Users() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-white/10 p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white tracking-tight">Add New User</h2>
-              <p className="text-slate-400 mt-2">Create a new member for your organization.</p>
+              <h2 className="text-3xl font-bold text-foreground tracking-tight">Add New User</h2>
+              <p className="text-muted-foreground mt-2">Create a new member for your organization.</p>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -319,13 +319,13 @@ export default function Users() {
                   placeholder="First Name"
                   value={form.firstName}
                   onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                  className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
+                  className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
                 />
                 <Input
                   placeholder="Last Name"
                   value={form.lastName}
                   onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                  className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
+                  className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
                 />
               </div>
               <Input
@@ -333,19 +333,19 @@ export default function Users() {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
+                className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
               />
               <Input
                 placeholder="Position (e.g. Developer, Designer)"
                 value={form.position}
                 onChange={(e) => setForm({ ...form, position: e.target.value })}
-                className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
+                className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
               />
               <Select
                 value={form.role}
                 onValueChange={(val: "USER" | "ADMIN") => setForm({ ...form, role: val })}
               >
-                <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl py-6">
+                <SelectTrigger className="bg-card border-border text-foreground rounded-xl py-6">
                   <SelectValue placeholder="Select Role" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -358,13 +358,13 @@ export default function Users() {
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
+                className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
               />
             </div>
             <div className="flex gap-4 mt-10">
               <Button
                 variant="ghost"
-                className="flex-1 rounded-xl py-6 text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10"
+                className="flex-1 rounded-xl py-6 text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border"
                 onClick={() => setIsModalOpen(false)}
               >
                 Cancel

@@ -179,10 +179,10 @@ export default function Tasks() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-200 to-purple-200">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Tasks
           </h1>
-          <p className="text-slate-400 mt-2 font-medium">Manage and monitor organizational tasks.</p>
+          <p className="text-muted-foreground mt-2 font-medium">Manage and monitor organizational tasks.</p>
         </div>
         <Button
           className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-8 py-6 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
@@ -244,7 +244,7 @@ export default function Tasks() {
       <div className="flex flex-wrap gap-4">
         {userRole === 'ADMIN' && (
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+            <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-6">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -257,7 +257,7 @@ export default function Tasks() {
         )}
         {userRole === 'ADMIN' && (
           <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+            <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-6">
               <SelectValue placeholder="Project" />
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -286,7 +286,7 @@ export default function Tasks() {
           </Select>
         )}
         <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+          <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-6">
             <SelectValue placeholder="Date" />
           </SelectTrigger>
           <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -298,12 +298,12 @@ export default function Tasks() {
         </Select>
       </div>
 
-      <div className="flex space-x-8 border-b border-white/10">
+      <div className="flex space-x-8 border-b border-border">
         <button
           onClick={() => setActiveTab("All Tasks")}
           className={`pb-4 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest ${activeTab === "All Tasks"
             ? "border-blue-500 text-blue-400"
-            : "border-transparent text-slate-500 hover:text-slate-300"
+            : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
         >
           <List className="h-4 w-4" />
@@ -319,7 +319,7 @@ export default function Tasks() {
           </div>
         </div>
       ) : (
-        <div className="min-h-[500px] backdrop-blur-xl bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden">
+        <div className="min-h-[500px] bg-card border border-border rounded-[2rem] overflow-hidden">
           {activeTab === "All Tasks" && (
             <AllTasks
               tasks={tasks}
@@ -336,19 +336,19 @@ export default function Tasks() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
           <div
             ref={modalRef}
-            className="bg-slate-900 border border-white/10 p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300"
+            className="bg-card border border-border p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-8">
-              <h2 className="text-3xl font-bold text-white tracking-tight">
+              <h2 className="text-3xl font-bold text-foreground tracking-tight">
                 Add New Task
               </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-500 hover:text-white transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Plus className="h-8 w-8 rotate-45" />
               </button>

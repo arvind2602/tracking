@@ -217,7 +217,7 @@ const ProjectsPage = () => {
         ref={setNodeRef}
         style={style}
         className={cn(
-          "group backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl p-6 flex items-center gap-6 transition-all duration-300",
+          "group bg-card border border-border rounded-2xl p-6 flex items-center gap-6 transition-all duration-300",
           isDragging && "shadow-2xl shadow-blue-500/20 scale-105 z-50"
         )}
       >
@@ -234,14 +234,14 @@ const ProjectsPage = () => {
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-white text-lg truncate">{project.name}</h3>
+          <h3 className="font-bold text-foreground text-lg truncate">{project.name}</h3>
           <p className="text-slate-400 text-sm truncate">{project.description}</p>
         </div>
 
         <div className="flex items-center gap-6">
           <div className="text-right">
             <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Points</p>
-            <p className="font-mono text-lg font-bold text-white">{project.totalPoints || 0}</p>
+            <p className="font-mono text-lg font-bold text-foreground">{project.totalPoints || 0}</p>
           </div>
 
           <Link href={`/dashboard/projects/${project.id}`}>
@@ -269,10 +269,10 @@ const ProjectsPage = () => {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-200 to-purple-200">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Projects
           </h1>
-          <p className="text-slate-400 mt-2 font-medium">Manage and monitor organizational projects.</p>
+          <p className="text-muted-foreground mt-2 font-medium">Manage and monitor organizational projects.</p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative group">
@@ -281,13 +281,13 @@ const ProjectsPage = () => {
               placeholder="Search projects..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full md:w-64 bg-white/5 border-white/10 text-white rounded-xl py-6 pl-4 focus:border-blue-500/50 transition-all duration-300"
+              className="w-full md:w-64 bg-card border-border text-foreground rounded-xl py-6 pl-4 focus:border-ring transition-all duration-300"
             />
             <div className="absolute inset-0 rounded-xl bg-blue-500/5 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300"></div>
           </div>
           <Button
             onClick={handleExportProjects}
-            className="bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 rounded-xl px-6 py-6 transition-all duration-300 gap-2"
+            className="bg-secondary hover:bg-secondary/80 text-foreground border border-border rounded-xl px-6 py-6 transition-all duration-300 gap-2"
           >
             <Download className="h-4 w-4" />
             Export
@@ -305,14 +305,14 @@ const ProjectsPage = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-8 border-b border-white/10">
+      <div className="flex space-x-8 border-b border-border">
         <button
           onClick={() => setActiveTab('overview')}
           className={cn(
             "pb-4 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
             activeTab === 'overview'
               ? "border-blue-500 text-blue-400"
-              : "border-transparent text-slate-500 hover:text-slate-300"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
           <BarChart3 className="h-4 w-4" />
@@ -324,7 +324,7 @@ const ProjectsPage = () => {
             "pb-4 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
             activeTab === 'priority'
               ? "border-purple-500 text-purple-400"
-              : "border-transparent text-slate-500 hover:text-slate-300"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
           <List className="h-4 w-4" />
@@ -340,11 +340,11 @@ const ProjectsPage = () => {
           </div>
         </div>
       ) : activeTab === 'overview' ? (
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-white/10 bg-white/5">
+                <tr className="border-b border-border bg-secondary">
                   <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Project</th>
                   <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Description</th>
                   <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Top Performer</th>
@@ -355,9 +355,9 @@ const ProjectsPage = () => {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {filteredProjects.map((project) => (
-                  <tr key={project.id} className="group hover:bg-white/5 transition-all duration-300">
+                  <tr key={project.id} className="group hover:bg-secondary transition-all duration-300">
                     <td className="px-4 py-4 align-top">
-                      <span className="font-bold text-white block">
+                      <span className="font-bold text-foreground block">
                         {project.name}
                       </span>
                     </td>
@@ -369,7 +369,7 @@ const ProjectsPage = () => {
                     <td className="px-4 py-4 align-top">
                       {project.topPerformers && project.topPerformers.length > 0 ? (
                         <div className="flex flex-col gap-1">
-                          <span className="font-medium text-white text-sm">{project.topPerformers[0].name} {project.topPerformers[0].initial}.</span>
+                          <span className="font-medium text-foreground text-sm">{project.topPerformers[0].name} {project.topPerformers[0].initial}.</span>
                           <span className="text-[10px] text-blue-400 font-mono">{project.topPerformers[0].points} pts</span>
                         </div>
                       ) : (
@@ -377,7 +377,7 @@ const ProjectsPage = () => {
                       )}
                     </td>
                     <td className="px-4 py-4 text-center align-top">
-                      <span className="font-mono text-sm font-bold text-white">{project.totalPoints || 0}</span>
+                      <span className="font-mono text-sm font-bold text-foreground">{project.totalPoints || 0}</span>
                     </td>
                     <td className="px-4 py-4 text-center align-top">
                       <span className={cn(
@@ -420,8 +420,8 @@ const ProjectsPage = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold text-white">Project Priority</h2>
-              <p className="text-slate-400 mt-1">Drag and drop to reorder projects by priority</p>
+              <h2 className="text-2xl font-bold text-foreground">Project Priority</h2>
+              <p className="text-muted-foreground mt-1">Drag and drop to reorder projects by priority</p>
             </div>
             {userRole === 'ADMIN' && (
               <Button
@@ -454,18 +454,18 @@ const ProjectsPage = () => {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-white/10 p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300">
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white tracking-tight">Add New Project</h2>
-              <p className="text-slate-400 mt-2">Fill in the details for the new project.</p>
+              <h2 className="text-3xl font-bold text-foreground tracking-tight">Add New Project</h2>
+              <p className="text-muted-foreground mt-2">Fill in the details for the new project.</p>
             </div>
             <div className="space-y-4">
               <Input
                 placeholder="Project Name"
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}
-                className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50"
+                className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring block dark:[color-scheme:dark]"
               />
               <Textarea
                 placeholder="Description"
@@ -486,7 +486,7 @@ const ProjectsPage = () => {
             <div className="flex gap-4 mt-10">
               <Button
                 variant="ghost"
-                className="flex-1 rounded-xl py-6 text-slate-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10"
+                className="flex-1 rounded-xl py-6 text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border"
                 onClick={() => setIsModalOpen(false)}
               >
                 Cancel

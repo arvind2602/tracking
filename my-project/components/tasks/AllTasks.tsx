@@ -13,7 +13,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { formatDateTimeIST, formatDateIST, formatDateLongIST, cn } from "@/lib/utils";
+import { formatDateTimeIST, formatDateIST, formatDateLongIST, formatDateOnlyIST, cn } from "@/lib/utils";
 import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -335,7 +335,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const modalContent = isAssignModalOpen && selectedTask && (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999]">
       <div className="bg-card/80 backdrop-blur-lg p-8 rounded-2xl shadow-xl w-full max-w-md border border-accent/20 z-[10000] relative">
-        <h2 className="text-2xl font-bold text-white mb-4">
+        <h2 className="text-2xl font-bold text-foreground mb-4">
           Assign Task: {selectedTask.description}
         </h2>
         <Command className="border border-accent/20 rounded-lg">
@@ -378,14 +378,14 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
   const subtaskModalContent = subtaskModalOpen && parentTaskForSubtask && (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999]">
-      <div className="bg-slate-900 border border-white/10 p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300 relative z-[10000]">
+      <div className="bg-card border border-border p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300 relative z-[10000]">
         <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-white tracking-tight">
+          <h2 className="text-3xl font-bold text-foreground tracking-tight">
             Add Subtask
           </h2>
           <button
             onClick={() => setSubtaskModalOpen(false)}
-            className="text-slate-500 hover:text-white transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <Plus className="h-8 w-8 rotate-45" />
           </button>
@@ -416,28 +416,28 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
 
   return (
-    <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-2xl transition-all duration-300">
+    <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm border-collapse border border-slate-700/50">
           <thead>
-            <tr className="bg-slate-800/80 text-white">
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs w-[120px]">Actions</th>
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs w-[50px] text-center">#</th>
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs">Description</th>
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs w-[100px]">Status</th>
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs w-[80px]">Priority</th>
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs w-[120px]">Assigned To</th>
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs w-[120px]">Assigned By</th>
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs w-[120px]">Assigned Date</th>
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs w-[120px]">Due Date</th>
-              <th className="px-2 py-1.5 font-semibold border border-slate-600/50 text-xs w-[50px] text-center">Pts</th>
+            <tr className="bg-secondary text-foreground">
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Actions</th>
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[50px] text-center">#</th>
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs">Description</th>
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[100px]">Status</th>
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[80px]">Priority</th>
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Assigned To</th>
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Assigned By</th>
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Assigned Date</th>
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Due Date</th>
+              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[50px] text-center">Pts</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-border">
             {sortedDateKeys.map((dateKey) => (
               <React.Fragment key={dateKey}>
-                <tr className="bg-white/5/50">
-                  <td colSpan={10} className="px-2 py-1.5 font-bold bg-slate-700/30 text-xs border border-slate-600/50">
+                <tr className="bg-secondary/50">
+                  <td colSpan={10} className="px-2 py-1.5 font-bold bg-secondary text-xs border border-border">
                     <div className="flex items-center justify-between text-blue-300">
                       <span>{dateKey} ({groupedTasks[dateKey].length})</span>
                       <button
@@ -457,11 +457,11 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                     <React.Fragment key={task.id}>
                       <tr
                         className={cn(
-                          "group hover:bg-white/5 transition-colors",
+                          "group hover:bg-secondary transition-colors",
                           isOverdue && "bg-rose-500/5"
                         )}
                       >
-                        <td className="px-2 py-1 border border-slate-700/50 w-[120px] bg-slate-900/40">
+                        <td className="px-2 py-1 border border-border w-[120px] bg-secondary">
                           <div className="flex items-center justify-start gap-1">
                             <Button
                               onClick={() => handleAddSubtask(task)}
@@ -534,22 +534,22 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-1 text-center text-slate-400 font-mono text-xs border border-slate-700/50 bg-slate-900/20">
+                        <td className="px-2 py-1 text-center text-muted-foreground font-mono text-xs border border-border bg-background">
                           {String(index + 1)}
                         </td>
 
-                        <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/20 max-w-[300px]">
+                        <td className="px-2 py-1 border border-border bg-background max-w-[300px]">
                           <div className="flex items-center gap-2">
                             {task.subtasks && task.subtasks.length > 0 && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); toggleExpand(task.id); }}
-                                className="p-0.5 rounded hover:bg-white/10 text-slate-400 transition-colors"
+                                className="p-0.5 rounded hover:bg-white/10 text-muted-foreground transition-colors"
                               >
                                 {expandedTasks.has(task.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                               </button>
                             )}
                             <div
-                              className="font-medium text-white cursor-pointer hover:underline truncate"
+                              className="font-medium text-foreground cursor-pointer hover:underline truncate"
                               onClick={() => handleOpenTaskDetail(task)}
                             >
                               {task.description}
@@ -562,20 +562,20 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                           </div>
                         </td>
 
-                        <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/20">
+                        <td className="px-2 py-1 border border-border bg-background">
                           <div className={cn(
                             "px-1.5 py-0.5 text-xs text-center border rounded-sm w-full font-medium",
                             task.status === "completed"
-                              ? "bg-emerald-950/30 text-emerald-400 border-emerald-900/50"
+                              ? "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50"
                               : task.status === "in-progress"
-                                ? "bg-blue-950/30 text-blue-400 border-blue-900/50"
-                                : "bg-slate-800/50 text-slate-400 border-slate-700"
+                                ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/50"
+                                : "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/50 dark:text-muted-foreground dark:border-slate-700"
                           )}>
                             {task.status}
                           </div>
                         </td>
 
-                        <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/20 font-medium text-xs text-center">
+                        <td className="px-2 py-1 border border-border bg-background font-medium text-xs text-center">
                           <span className={cn(
                             "text-[10px] font-bold",
                             task.priority === "HIGH" ? "text-rose-400" :
@@ -585,7 +585,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                           </span>
                         </td>
 
-                        <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/20 text-xs">
+                        <td className="px-2 py-1 border border-border bg-background text-xs">
                           {task.assignees && task.assignees.length > 1 ? (
                             <TooltipProvider>
                               <Tooltip>
@@ -627,25 +627,25 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                               </Tooltip>
                             </TooltipProvider>
                           ) : assignedUser ? (
-                            <span className="text-slate-300">{assignedUser.firstName} {assignedUser.lastName[0]}.</span>
+                            <span className="text-foreground">{assignedUser.firstName} {assignedUser.lastName[0]}.</span>
                           ) : (
                             <span className="text-slate-600 italic">Unassigned</span>
                           )}
                         </td>
 
-                        <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/20 text-xs text-slate-400">
+                        <td className="px-2 py-1 border border-border bg-background text-xs text-muted-foreground">
                           {task.creatorFirstName ? `${task.creatorFirstName} ${task.creatorLastName || ''}` : '-'}
                         </td>
 
-                        <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/20 text-xs text-slate-400">
-                          {task.assigned_at ? formatDateIST(task.assigned_at) : '-'}
+                        <td className="px-2 py-1 border border-border bg-background text-xs text-muted-foreground">
+                          {task.assigned_at ? formatDateOnlyIST(task.assigned_at) : '-'}
                         </td>
 
-                        <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/20 text-xs text-slate-400">
-                          {task.dueDate ? formatDateIST(task.dueDate) : '-'}
+                        <td className="px-2 py-1 border border-border bg-background text-xs text-muted-foreground">
+                          {task.dueDate ? formatDateOnlyIST(task.dueDate) : '-'}
                         </td>
 
-                        <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/20 text-center font-mono text-slate-300 font-medium text-xs">
+                        <td className="px-2 py-1 border border-border bg-background text-center font-mono text-slate-300 font-medium text-xs">
                           {task.points || "0"}
                         </td>
 
@@ -655,8 +655,8 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                         expandedTasks.has(task.id) && task.subtasks && task.subtasks.map((subtask, stIndex) => {
                           const stAssignedUser = users.find((u) => u.id === subtask.assignedTo);
                           return (
-                            <tr key={subtask.id} className="bg-white/5 relative">
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30">
+                            <tr key={subtask.id} className="bg-secondary/50 relative">
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary">
                                 <div className="flex items-center justify-start gap-1 scale-90 origin-left">
                                   {subtask.status !== "completed" && (
                                     <Button
@@ -691,28 +691,28 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                   )}
                                 </div>
                               </td>
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30"></td> {/* Spacer for S.No */}
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30 relative">
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary"></td> {/* Spacer for S.No */}
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary relative">
                                 <div className="flex items-center gap-2 pl-4">
                                   <CornerDownRight className="h-3 w-3 text-slate-500" />
                                   <span
-                                    className="text-sm text-slate-400 hover:underline cursor-pointer truncate"
+                                    className="text-sm text-muted-foreground hover:underline cursor-pointer truncate"
                                     onClick={() => handleOpenTaskDetail(subtask)}
                                   >
                                     {subtask.description}
                                   </span>
                                 </div>
                               </td>
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30">
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary">
                                 <div className={cn(
                                   "text-[10px] text-center border rounded-sm w-full",
-                                  subtask.status === "completed" ? "text-emerald-500 border-emerald-900/30 bg-emerald-950/20" :
-                                    subtask.status === "in-progress" ? "text-blue-500 border-blue-900/30 bg-blue-950/20" : "text-slate-500 border-slate-800 bg-slate-900"
+                                  subtask.status === "completed" ? "text-emerald-700 border-emerald-300 bg-emerald-100 dark:text-emerald-500 dark:border-emerald-900/30 dark:bg-emerald-950/20" :
+                                    subtask.status === "in-progress" ? "text-blue-700 border-blue-300 bg-blue-100 dark:text-blue-500 dark:border-blue-900/30 dark:bg-blue-950/20" : "text-slate-700 border-slate-300 bg-slate-100 dark:text-slate-500 dark:border-slate-800 dark:bg-slate-900"
                                 )}>
                                   {subtask.status}
                                 </div>
                               </td>
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30 font-medium text-xs text-center">
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary font-medium text-xs text-center">
                                 <span className={cn(
                                   "text-[10px]",
                                   subtask.priority === "HIGH" ? "text-rose-400" :
@@ -721,26 +721,26 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                   {subtask.priority}
                                 </span>
                               </td>
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30">
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary">
                                 {stAssignedUser ? (
-                                  <span className="text-slate-400 text-xs">{stAssignedUser.firstName} {stAssignedUser.lastName[0]}.</span>
+                                  <span className="text-muted-foreground text-xs">{stAssignedUser.firstName} {stAssignedUser.lastName[0]}.</span>
                                 ) : (
                                   <span className="text-slate-700 text-[10px] italic">Unassigned</span>
                                 )}
                               </td>
 
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30 text-[10px] text-slate-500">
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary text-[10px] text-muted-foreground">
                                 {subtask.creatorFirstName ? `${subtask.creatorFirstName} ${subtask.creatorLastName || ''}` : '-'}
                               </td>
 
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30 text-[10px] text-slate-500">
-                                {subtask.assigned_at ? formatDateIST(subtask.assigned_at) : '-'}
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary text-[10px] text-muted-foreground">
+                                {subtask.assigned_at ? formatDateOnlyIST(subtask.assigned_at) : '-'}
                               </td>
 
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30 text-[10px] text-slate-500">
-                                {subtask.dueDate ? formatDateIST(subtask.dueDate) : '-'}
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary text-[10px] text-muted-foreground">
+                                {subtask.dueDate ? formatDateOnlyIST(subtask.dueDate) : '-'}
                               </td>
-                              <td className="px-2 py-1 border border-slate-700/50 bg-slate-900/30 text-center text-slate-500 text-xs font-mono">
+                              <td className="px-2 py-1 border border-slate-700/50 bg-secondary text-center text-muted-foreground text-xs font-mono">
                                 {subtask.points || "0"}
                               </td>
 
@@ -761,7 +761,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
         currentPage && totalPages && totalPages > 1 && onPageChange && (
           <div className="flex items-center justify-between p-6 bg-white/5 border-t border-white/10">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-              Page <span className="text-white">{currentPage}</span> of {totalPages}
+              Page <span className="text-foreground">{currentPage}</span> of {totalPages}
             </p>
             <div className="flex gap-4">
               <Button

@@ -79,22 +79,22 @@ export default function Home() {
   // Show loading state while checking authentication
   if (isCheckingAuth) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-          <p className="text-slate-400 text-sm">Checking authentication...</p>
+          <p className="text-muted-foreground text-sm">Checking authentication...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 font-mono p-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background font-mono p-4">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 dark:bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500/20 dark:bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 dark:bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
       </div>
 
       {/* Grid Pattern Overlay */}
@@ -109,15 +109,15 @@ export default function Home() {
           <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-2">
             Welcome Back
           </h1>
-          <p className="text-sm text-slate-400">Sign in to access your dashboard</p>
+          <p className="text-sm text-muted-foreground">Sign in to access your dashboard</p>
         </div>
 
         {/* Login Card */}
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl shadow-2xl shadow-black/50 p-8 transition-all duration-300 hover:shadow-blue-500/20">
+        <div className="bg-card border border-border rounded-3xl shadow-2xl p-8 transition-all duration-300 hover:shadow-lg">
           <div className="space-y-6">
             {/* Email Input */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
                 <Mail className="w-4 h-4" />
                 Email Address
               </label>
@@ -128,7 +128,7 @@ export default function Home() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-500/50 transition-all duration-300 hover:border-white/20"
+                  className="w-full px-4 py-3 rounded-xl bg-input border-input text-foreground placeholder:text-muted-foreground focus:border-ring transition-all duration-300"
                   disabled={isLoading}
                 />
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
@@ -137,7 +137,7 @@ export default function Home() {
 
             {/* Password Input */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
                 <Lock className="w-4 h-4" />
                 Password
               </label>
@@ -148,13 +148,13 @@ export default function Home() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-blue-500/50 transition-all duration-300 hover:border-white/20"
+                  className="w-full px-4 py-3 pr-12 rounded-xl bg-input border-input text-foreground placeholder:text-muted-foreground focus:border-ring transition-all duration-300"
                   disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors duration-200"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors duration-200"
                   disabled={isLoading}
                 >
                   {showPassword ? (
@@ -192,7 +192,7 @@ export default function Home() {
 
             {/* Additional Links */}
             <div className="text-center pt-2">
-              <a href="#" className="text-sm text-slate-400 hover:text-white transition-colors duration-200">
+              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
                 Forgot your password?
               </a>
             </div>
@@ -200,7 +200,7 @@ export default function Home() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-slate-500 mt-6">
+        <p className="text-center text-sm text-muted-foreground mt-6">
           Secure Project management system
         </p>
       </main>

@@ -32,10 +32,10 @@ export default function ReportsPage() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-200 to-purple-200">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Reports
           </h1>
-          <p className="text-slate-400 mt-2 font-medium">View organizational reports and analytics.</p>
+          <p className="text-muted-foreground mt-2 font-medium">View organizational reports and analytics.</p>
         </div>
         <Button
           onClick={handleExport}
@@ -47,19 +47,19 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-[2rem] p-8 shadow-2xl hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-[2rem] p-8 shadow-lg hover:border-primary/50 transition-all duration-300 lg:col-span-3">
           <EmployeeCountPerOrg />
         </div>
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-[2rem] p-8 shadow-2xl hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-[2rem] p-8 shadow-lg hover:border-primary/50 transition-all duration-300 lg:col-span-3">
           <ActiveVsArchivedEmployees />
         </div>
         <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-[2rem] p-8 shadow-2xl hover:bg-white/10 transition-all duration-300 lg:col-span-3">
           <ProjectsPerOrg />
         </div>
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-[2rem] p-8 shadow-2xl hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-[2rem] p-8 shadow-lg hover:border-primary/50 transition-all duration-300 lg:col-span-3">
           <TasksByStatus />
         </div>
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-[2rem] p-8 shadow-2xl hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-[2rem] p-8 shadow-lg hover:border-primary/50 transition-all duration-300 lg:col-span-3">
           <RoleDistribution />
         </div>
         <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-[2rem] p-8 shadow-2xl hover:bg-white/10 transition-all duration-300 lg:col-span-3">

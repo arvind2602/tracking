@@ -90,10 +90,10 @@ export default function DashboardPage() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-200 to-purple-200">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Welcome, {userName}!
           </h1>
-          <p className="text-slate-400 mt-2 font-medium flex items-center gap-2">
+          <p className="text-muted-foreground mt-2 font-medium flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
             Here is your organization's performance overview.
           </p>
@@ -123,11 +123,11 @@ export default function DashboardPage() {
           <ProjectsPerOrg />
         ].map((child, idx) => (
           <div key={idx} className={cn(
-            "backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300 group",
+            "bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 group",
             idx === 2 ? "md:col-span-2" : ""
           )}>
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 group-hover:text-blue-400 transition-colors">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground group-hover:text-primary transition-colors">
                 {idx === 0 ? "Employee Distribution" : idx === 1 ? "Employee Status" : "Active Projects"}
               </h3>
             </div>
@@ -138,10 +138,10 @@ export default function DashboardPage() {
 
       {/* Advanced Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
           <ProjectsAtRisk />
         </div>
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
           <TaskInsights />
         </div>
       </div>
@@ -153,42 +153,42 @@ export default function DashboardPage() {
 
       {/* Performance Trends */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300 lg:col-span-2">
+        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 lg:col-span-2">
           <ProductivityTrend />
         </div>
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
           <TaskCompletionRate />
         </div>
       </div>
 
       {/* Task & Role Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
           <TasksByStatus />
         </div>
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
           <RoleDistribution />
         </div>
       </div>
 
       {/* Detailed Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
           <PointsLeaderboard />
         </div>
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
           <TaskPoints />
         </div>
       </div>
 
       {/* Full Employee Task List */}
-      <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+      <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
         <TasksPerEmployee />
       </div>
 
       {/* Recent Activity Feed */}
-      <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-3 text-white">
+      <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-3 text-foreground">
           <Activity className="w-5 h-5 text-blue-400" />
           Recent Activity Feed
         </h3>

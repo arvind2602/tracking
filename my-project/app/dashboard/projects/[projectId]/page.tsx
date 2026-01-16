@@ -22,12 +22,22 @@ interface Task {
   updatedAt: string;
 }
 
+interface Pagination {
+  totalTasks: number;
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 interface Project {
   id: string;
   name: string;
   description: string;
   startDate: string;
   tasks: Task[];
+  pagination?: Pagination;
 }
 
 const ProjectDetailsPage = () => {
@@ -35,12 +45,16 @@ const ProjectDetailsPage = () => {
   const { projectId } = params;
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(10);
 
   useEffect(() => {
     const fetchProject = async () => {
       setIsLoading(true);
       try {
-        const response = await axios.get(`/projects/${projectId}`);
+        const response = await axios.get(`/projects/${projectId}`, {
+          params: { page: currentPage, limit: pageSize }
+        });
         setProject(response.data);
       } catch (error) {
         toast.error('Failed to fetch project details');
@@ -52,7 +66,7 @@ const ProjectDetailsPage = () => {
     if (projectId) {
       fetchProject();
     }
-  }, [projectId]);
+  }, [projectId, currentPage, pageSize]);
 
   const handleExportTasks = async () => {
     const toastId = toast.loading('Exporting tasks...');
@@ -130,7 +144,7 @@ const ProjectDetailsPage = () => {
         <CardHeader className="border-b bg-muted/40 px-6 py-4 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
             Tasks
-            <Badge variant="secondary" className="rounded-full px-2 text-xs">{project.tasks?.length || 0}</Badge>
+            <Badge variant="secondary" className="rounded-full px-2 text-xs">{project.pagination?.totalTasks || project.tasks?.length || 0}</Badge>
           </CardTitle>
           <Button onClick={handleExportTasks} variant="outline" size="sm" className="gap-2 h-8">
             <Download className="h-3.5 w-3.5" />
@@ -152,7 +166,7 @@ const ProjectDetailsPage = () => {
             <div className="divide-y divide-border">
               {project.tasks.map((task, i) => (
                 <div key={task.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-accent/5 transition-colors group">
-                  <div className="col-span-1 text-muted-foreground font-mono text-xs">{i + 1}</div>
+                  <div className="col-span-1 text-muted-foreground font-mono text-xs">{(currentPage - 1) * pageSize + i + 1}</div>
                   <div className="col-span-11 md:col-span-6 font-medium text-sm text-foreground pr-4">
                     <Link href={`/dashboard/tasks/${task.id}`} className="hover:underline decoration-primary/50 underline-offset-4 line-clamp-2">
                       {task.description}
@@ -176,6 +190,38 @@ const ProjectDetailsPage = () => {
           ) : (
             <div className="p-12 text-center text-muted-foreground">
               <p>No tasks found in this project.</p>
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {project.pagination && project.pagination.totalPages > 1 && (
+            <div className="px-6 py-4 border-t bg-muted/20 flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, project.pagination.totalTasks)} of {project.pagination.totalTasks} tasks
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={!project.pagination.hasPrevPage}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  Previous
+                </Button>
+                <span className="text-sm font-medium px-3">
+                  Page {currentPage} of {project.pagination.totalPages}
+                </span>
+                <Button
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  disabled={!project.pagination.hasNextPage}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
@@ -204,13 +250,24 @@ function StatusBadge({ status }: { status: string }) {
     'completed': 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
     'done': 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800',
     'in-progress': 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
+    'in_progress': 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
     'todo': 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
     'pending': 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700',
   };
   const style = styles[normalizedStatus as keyof typeof styles] || styles['todo'];
+
+  // Format text to Title Case (e.g. IN_PROGRESS -> In Progress)
+  const formatStatus = (str: string) => {
+    return str
+      .toLowerCase()
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
-    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${style}`}>
-      {status.replace('_', ' ')}
+    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${style} whitespace-nowrap`}>
+      {formatStatus(status)}
     </span>
   );
 }
