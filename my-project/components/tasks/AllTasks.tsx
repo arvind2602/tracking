@@ -14,7 +14,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { formatDateTimeIST, formatDateIST, formatDateLongIST, formatDateOnlyIST, cn } from "@/lib/utils";
-import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock } from "lucide-react";
+import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock, CalendarClock } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import React from 'react';
@@ -39,9 +39,12 @@ interface AllTasksProps {
   totalPages?: number;
   onPageChange?: (page: number) => void;
   itemsPerPage?: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+  onSort?: (column: string) => void;
 }
 
-export default function AllTasks({ tasks, users, projects, setTasks, currentPage, totalPages, onPageChange, itemsPerPage }: AllTasksProps) {
+export default function AllTasks({ tasks, users, projects, setTasks, currentPage, totalPages, onPageChange, itemsPerPage, sortBy, sortOrder, onSort }: AllTasksProps) {
   const router = useRouter();
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -56,6 +59,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [subtaskModalOpen, setSubtaskModalOpen] = useState(false);
   const [parentTaskForSubtask, setParentTaskForSubtask] = useState<Task | null>(null);
   const [loadingAddSubtaskId, setLoadingAddSubtaskId] = useState<string | null>(null);
+  const [groupingType, setGroupingType] = useState<'assignedDate' | 'dueDate'>('assignedDate');
 
 
   // Completion Modal State
@@ -227,9 +231,12 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     const safeTasks = tasks.filter(t => t && typeof t === 'object');
 
     safeTasks.forEach((task) => {
-      let dateKey = "Unassigned Date";
-      // Fallback to createdAt if assigned_at is missing, common in older tasks
-      const dateStr = task.assigned_at || (task as any).startDate || task.createdAt;
+      let dateKey = groupingType === 'assignedDate' ? "Unassigned Date" : "No Due Date";
+
+      // Group by assigned date or due date based on groupingType
+      const dateStr = groupingType === 'assignedDate'
+        ? (task.assigned_at || (task as any).startDate || task.createdAt)
+        : task.dueDate;
 
       if (dateStr) {
         dateKey = formatDateLongIST(dateStr);
@@ -241,52 +248,59 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       groups[dateKey].push(task);
     });
 
-    Object.keys(groups).forEach((key) => {
-      groups[key].sort((a, b) => {
-        // First, sort by project priority_order (lower number = higher priority)
-        const projectA = projects.find(p => p.id === a.projectId);
-        const projectB = projects.find(p => p.id === b.projectId);
+    // Apply client-side sorting only when user hasn't actively sorted by clicking column headers
+    // Skip if sortBy is set to user-selected columns (description, status, priority, dueDate, points)
+    const userActivelySorting = sortBy && !['createdAt', 'order'].includes(sortBy);
 
-        const projectPriorityA = projectA?.priority_order ?? 999;
-        const projectPriorityB = projectB?.priority_order ?? 999;
+    if (!userActivelySorting) {
+      Object.keys(groups).forEach((key) => {
+        groups[key].sort((a, b) => {
+          // First, sort by project priority_order (lower number = higher priority)
+          const projectA = projects.find(p => p.id === a.projectId);
+          const projectB = projects.find(p => p.id === b.projectId);
 
-        if (projectPriorityA !== projectPriorityB) {
-          return projectPriorityA - projectPriorityB; // Lower priority_order comes first
-        }
+          const projectPriorityA = projectA?.priority_order ?? 999;
+          const projectPriorityB = projectB?.priority_order ?? 999;
+
+          if (projectPriorityA !== projectPriorityB) {
+            return projectPriorityA - projectPriorityB; // Lower priority_order comes first
+          }
 
 
-        // 2. Sort by task priority (HIGH > MEDIUM > LOW)
-        const taskPriorityMap: Record<string, number> = { HIGH: 1, MEDIUM: 2, LOW: 3 };
-        const taskPriorityA = taskPriorityMap[a.priority || 'LOW'] || 3;
-        const taskPriorityB = taskPriorityMap[b.priority || 'LOW'] || 3;
+          // 2. Sort by task priority (HIGH > MEDIUM > LOW)
+          const taskPriorityMap: Record<string, number> = { HIGH: 1, MEDIUM: 2, LOW: 3 };
+          const taskPriorityA = taskPriorityMap[a.priority || 'LOW'] || 3;
+          const taskPriorityB = taskPriorityMap[b.priority || 'LOW'] || 3;
 
-        if (taskPriorityA !== taskPriorityB) {
-          return taskPriorityA - taskPriorityB;
-        }
+          if (taskPriorityA !== taskPriorityB) {
+            return taskPriorityA - taskPriorityB;
+          }
 
-        // 3. Sort by due date (earlier dates first, null dates last)
-        const dueDateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-        const dueDateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+          // 3. Sort by due date (earlier dates first, null dates last)
+          const dueDateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+          const dueDateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
 
-        if (dueDateA !== dueDateB) {
-          return dueDateA - dueDateB;
-        }
+          if (dueDateA !== dueDateB) {
+            return dueDateA - dueDateB;
+          }
 
-        // 4. Sort by createdAt (newest first)
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          // 4. Sort by createdAt (newest first)
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
       });
-    });
+    }
 
     return groups;
-  }, [tasks, projects]);
+  }, [tasks, projects, sortBy, groupingType]);
 
   const sortedDateKeys = useMemo(() => {
+    const unassignedKey = groupingType === 'assignedDate' ? "Unassigned Date" : "No Due Date";
     return Object.keys(groupedTasks).sort((a, b) => {
-      if (a === "Unassigned Date") return 1;
-      if (b === "Unassigned Date") return -1;
+      if (a === unassignedKey) return 1;
+      if (b === unassignedKey) return -1;
       return new Date(b).getTime() - new Date(a).getTime();
     });
-  }, [groupedTasks]);
+  }, [groupedTasks, groupingType]);
 
   const copyTaskSummary = (dateKey: string) => {
     const tasksForDate = groupedTasks[dateKey];
@@ -417,20 +431,95 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
+      {/* Grouping Toggle */}
+      <div className="px-4 py-3 bg-secondary/30 border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-foreground">Group By:</span>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={groupingType === 'assignedDate' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setGroupingType('assignedDate')}
+            className="text-xs"
+          >
+            Assigned Date
+          </Button>
+          <Button
+            variant={groupingType === 'dueDate' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setGroupingType('dueDate')}
+            className="text-xs"
+          >
+            Due Date
+          </Button>
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm border-collapse border border-slate-700/50">
           <thead>
             <tr className="bg-secondary text-foreground">
               <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Actions</th>
               <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[50px] text-center">#</th>
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs">Description</th>
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[100px]">Status</th>
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[80px]">Priority</th>
+              <th
+                className="px-2 py-1.5 font-semibold border border-border text-xs cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                onClick={() => onSort?.('description')}
+              >
+                <div className="flex items-center gap-1">
+                  Description
+                  {sortBy === 'description' && (
+                    <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-2 py-1.5 font-semibold border border-border text-xs w-[100px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                onClick={() => onSort?.('status')}
+              >
+                <div className="flex items-center gap-1">
+                  Status
+                  {sortBy === 'status' && (
+                    <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-2 py-1.5 font-semibold border border-border text-xs w-[80px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                onClick={() => onSort?.('priority')}
+              >
+                <div className="flex items-center gap-1">
+                  Priority
+                  {sortBy === 'priority' && (
+                    <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
               <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Assigned To</th>
               <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Assigned By</th>
               <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Assigned Date</th>
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Due Date</th>
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[50px] text-center">Pts</th>
+              <th
+                className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                onClick={() => onSort?.('dueDate')}
+              >
+                <div className="flex items-center gap-1">
+                  Due Date
+                  {sortBy === 'dueDate' && (
+                    <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-2 py-1.5 font-semibold border border-border text-xs w-[50px] text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                onClick={() => onSort?.('points')}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Pts
+                  {sortBy === 'points' && (
+                    <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -564,12 +653,12 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
                         <td className="px-2 py-1 border border-border bg-background">
                           <div className={cn(
-                            "px-1.5 py-0.5 text-xs text-center border rounded-sm w-full font-medium",
+                            "px-2 py-1 text-xs text-center border rounded-md w-full font-bold uppercase",
                             task.status === "completed"
-                              ? "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50"
+                              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50"
                               : task.status === "in-progress"
-                                ? "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/50"
-                                : "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/50 dark:text-muted-foreground dark:border-slate-700"
+                                ? "bg-blue-500/10 text-blue-700 border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50"
+                                : "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
                           )}>
                             {task.status}
                           </div>
@@ -705,9 +794,9 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                               </td>
                               <td className="px-2 py-1 border border-slate-700/50 bg-secondary">
                                 <div className={cn(
-                                  "text-[10px] text-center border rounded-sm w-full",
-                                  subtask.status === "completed" ? "text-emerald-700 border-emerald-300 bg-emerald-100 dark:text-emerald-500 dark:border-emerald-900/30 dark:bg-emerald-950/20" :
-                                    subtask.status === "in-progress" ? "text-blue-700 border-blue-300 bg-blue-100 dark:text-blue-500 dark:border-blue-900/30 dark:bg-blue-950/20" : "text-slate-700 border-slate-300 bg-slate-100 dark:text-slate-500 dark:border-slate-800 dark:bg-slate-900"
+                                  "px-2 py-0.5 text-[10px] text-center border rounded-md w-full font-bold uppercase",
+                                  subtask.status === "completed" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50" :
+                                    subtask.status === "in-progress" ? "bg-blue-500/10 text-blue-700 border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50" : "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
                                 )}>
                                   {subtask.status}
                                 </div>

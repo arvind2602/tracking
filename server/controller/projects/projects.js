@@ -103,6 +103,36 @@ const getProject = async (req, res, next) => {
 // Get All Projects in Organization
 const getProjects = async (req, res, next) => {
   const organiationId = req.user.organization_uuid;
+  const { sortBy, sortOrder } = req.query;
+
+  // Build ORDER BY clause
+  const validSortColumns = {
+    'name': 'p.name',
+    'createdAt': 'p."createdAt"',
+    'startDate': 'p."startDate"',
+    'totalPoints': 'ps."totalPoints"',
+    'yesterdayPoints': 'ps."yesterdayPoints"',
+    'priority_order': 'p.priority_order'
+  };
+
+  let orderByClause = 'ORDER BY p.priority_order ASC NULLS LAST, ps."totalPoints" DESC, p."createdAt" DESC'; // default
+  if (sortBy && validSortColumns[sortBy]) {
+    const direction = sortOrder && sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    if (sortBy === 'priority_order') {
+      // Special handling for priority_order to put nulls last when descending
+      orderByClause = direction === 'ASC'
+        ? `ORDER BY ${validSortColumns[sortBy]} ${direction} NULLS FIRST`
+        : `ORDER BY ${validSortColumns[sortBy]} ${direction} NULLS LAST`;
+    } else {
+      orderByClause = `ORDER BY ${validSortColumns[sortBy]} ${direction}`;
+    }
+
+    // Add secondary sort for consistency
+    if (sortBy !== 'createdAt') {
+      orderByClause += `, p."createdAt" DESC`;
+    }
+  }
 
   try {
     const result = await pool.query(
@@ -153,7 +183,7 @@ const getProjects = async (req, res, next) => {
        FROM projects p
        JOIN ProjectStats ps ON p.id = ps.id
        WHERE p."organiationId" = $1 AND p.is_archived = false
-       ORDER BY p.priority_order ASC NULLS LAST, ps."totalPoints" DESC, p."createdAt" DESC`,
+       ${orderByClause}`,
       [organiationId]
     );
     res.json(result.rows);

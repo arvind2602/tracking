@@ -13,15 +13,12 @@ import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
 // Analytics Components
-import { TaskCompletionRate } from "@/components/performance/TaskCompletionRate";
-import { PointsLeaderboard } from "@/components/performance/PointsLeaderboard";
+import { EmployeePerformanceTable } from "@/components/performance/EmployeePerformanceTable";
 import { ProductivityTrend } from "@/components/performance/ProductivityTrend";
+import { MonthlyProductivityTrend } from "@/components/performance/MonthlyProductivityTrend";
 import { EmployeeCountPerOrg } from "@/components/reports/EmployeeCountPerOrg";
 import { ActiveVsArchivedEmployees } from "@/components/reports/ActiveVsArchivedEmployees";
-import { ProjectsPerOrg } from "@/components/reports/ProjectsPerOrg";
 import { TasksByStatus } from "@/components/reports/TasksByStatus";
-import { TasksPerEmployee } from "@/components/reports/TasksPerEmployee";
-import { TaskPoints } from "@/components/reports/TaskPoints";
 import { RoleDistribution } from "@/components/reports/RoleDistribution";
 import { ProjectsAtRisk } from "@/components/analytics/ProjectsAtRisk";
 import { TaskInsights } from "@/components/analytics/TaskInsights";
@@ -86,21 +83,21 @@ export default function DashboardPage() {
     : 0;
 
   return (
-    <div className="p-4 md:p-8 space-y-10">
+    <div className="p-4 md:p-6 space-y-4">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Welcome, {userName}!
           </h1>
-          <p className="text-muted-foreground mt-2 font-medium flex items-center gap-2">
+          <p className="text-muted-foreground mt-1 font-medium text-sm flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
             Here is your organization's performance overview.
           </p>
         </div>
         <Button
           onClick={handleExport}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-5 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
         >
           <Download className="h-5 w-5" />
           Export Report
@@ -108,7 +105,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <SummaryCard title="Total Employees" value={data?.totalEmployees ?? 0} icon={<Users className="h-5 w-5 text-blue-400" />} />
         <SummaryCard title="Total Projects" value={data?.totalProjects ?? 0} icon={<Briefcase className="h-5 w-5 text-purple-400" />} />
         <SummaryCard title="Tasks Pending" value={tasksTodo} icon={<ListChecks className="h-5 w-5 text-cyan-400" />} />
@@ -116,19 +113,17 @@ export default function DashboardPage() {
       </div>
 
       {/* Key Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[
           <EmployeeCountPerOrg />,
-          <ActiveVsArchivedEmployees />,
-          <ProjectsPerOrg />
+          <ActiveVsArchivedEmployees />
         ].map((child, idx) => (
           <div key={idx} className={cn(
-            "bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 group",
-            idx === 2 ? "md:col-span-2" : ""
+            "bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300 group"
           )}>
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground group-hover:text-primary transition-colors">
-                {idx === 0 ? "Employee Distribution" : idx === 1 ? "Employee Status" : "Active Projects"}
+                {idx === 0 ? "Employee Distribution" : "Employee Status"}
               </h3>
             </div>
             {child}
@@ -137,58 +132,48 @@ export default function DashboardPage() {
       </div>
 
       {/* Advanced Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300">
           <ProjectsAtRisk />
         </div>
-        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
+        <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300">
           <TaskInsights />
         </div>
       </div>
 
       {/* Employee Deep Dive */}
-      <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 hover:bg-white/10 transition-all duration-300">
+      <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-6 hover:bg-white/10 transition-all duration-300">
         <EmployeePerformance />
       </div>
 
       {/* Performance Trends */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 lg:col-span-2">
-          <ProductivityTrend />
-        </div>
-        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
-          <TaskCompletionRate />
-        </div>
+      <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300">
+        <ProductivityTrend />
+      </div>
+
+      {/* Monthly Productivity Trend */}
+      <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300">
+        <MonthlyProductivityTrend />
       </div>
 
       {/* Task & Role Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300">
           <TasksByStatus />
         </div>
-        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
+        <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300">
           <RoleDistribution />
         </div>
       </div>
 
-      {/* Detailed Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
-          <PointsLeaderboard />
-        </div>
-        <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
-          <TaskPoints />
-        </div>
-      </div>
-
-      {/* Full Employee Task List */}
-      <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
-        <TasksPerEmployee />
+      {/* Employee Performance Overview */}
+      <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300">
+        <EmployeePerformanceTable />
       </div>
 
       {/* Recent Activity Feed */}
-      <div className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300">
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-3 text-foreground">
+      <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-3 text-foreground">
           <Activity className="w-5 h-5 text-blue-400" />
           Recent Activity Feed
         </h3>

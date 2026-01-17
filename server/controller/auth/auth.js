@@ -105,7 +105,32 @@ const getEmployee = async (req, res, next) => {
 // View all in organization with ranking
 const getEmployeesByOrg = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
+    const { sortBy, sortOrder } = req.query;
+
     console.log('Fetching employees for organization:', organizationId);
+
+    // Build ORDER BY clause
+    const validSortColumns = {
+        'firstName': 'e."firstName"',
+        'lastName': 'e."lastName"',
+        'email': 'e.email',
+        'position': 'e.position',
+        'role': 'e.role',
+        'weeklyPoints': 'ws."weeklyPoints"',
+        'rank': 'rank'
+    };
+
+    let orderByClause = 'ORDER BY ws."weeklyPoints" DESC, e."firstName" ASC'; // default
+    if (sortBy && validSortColumns[sortBy]) {
+        const direction = sortOrder && sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+        orderByClause = `ORDER BY ${validSortColumns[sortBy]} ${direction}`;
+
+        // Add secondary sort for consistency
+        if (sortBy !== 'firstName') {
+            orderByClause += `, e."firstName" ASC`;
+        }
+    }
+
     try {
         const result = await pool.query(
             `WITH WeeklyStats AS (
@@ -131,7 +156,7 @@ const getEmployeesByOrg = async (req, res, next) => {
              FROM employee e
              JOIN WeeklyStats ws ON e.id = ws.id
              WHERE e."organiationId" = $1 AND e.is_archived = false
-             ORDER BY ws."weeklyPoints" DESC, e."firstName" ASC`,
+             ${orderByClause}`,
             [organizationId]
         );
         res.json(result.rows);

@@ -14,6 +14,7 @@ performance.get('/dashboard-all', dashboardConsolidated.getDashboardAll);
 performance.get('/average-task-completion-time', performanceController.getAverageTaskCompletionTime);
 performance.get('/points-leaderboard', performanceController.getPointsLeaderboard);
 performance.get('/productivity-trend', performanceController.getProductivityTrend);
+performance.get('/monthly-productivity-trend', performanceController.getMonthlyProductivityTrend);
 performance.get('/task-completion-rate', performanceController.getTaskCompletionRate);
 performance.get('/recent-activity', performanceController.getRecentActivity);
 performance.get('/dashboard-summary', performanceController.getDashboardSummary);

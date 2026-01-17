@@ -57,10 +57,12 @@ const ProjectsPage = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'priority'>('overview');
+  const [sortBy, setSortBy] = useState<string>('priority_order');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [sortBy, sortOrder]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -87,7 +89,11 @@ const ProjectsPage = () => {
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get('/projects');
+      const params = new URLSearchParams();
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+
+      const response = await axios.get(`/projects?${params.toString()}`);
       setProjects(response.data);
     } catch (error) {
       toast.error('Failed to fetch projects');
@@ -264,15 +270,15 @@ const ProjectsPage = () => {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <Breadcrumbs items={breadcrumbItems} />
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Projects
           </h1>
-          <p className="text-muted-foreground mt-2 font-medium">Manage and monitor organizational projects.</p>
+          <p className="text-muted-foreground mt-1 font-medium text-sm">Manage and monitor organizational projects.</p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative group">
@@ -281,13 +287,13 @@ const ProjectsPage = () => {
               placeholder="Search projects..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full md:w-64 bg-card border-border text-foreground rounded-xl py-6 pl-4 focus:border-ring transition-all duration-300"
+              className="w-full md:w-64 bg-card border-border text-foreground rounded-xl py-4 pl-4 focus:border-ring transition-all duration-300"
             />
             <div className="absolute inset-0 rounded-xl bg-blue-500/5 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-300"></div>
           </div>
           <Button
             onClick={handleExportProjects}
-            className="bg-secondary hover:bg-secondary/80 text-foreground border border-border rounded-xl px-6 py-6 transition-all duration-300 gap-2"
+            className="bg-secondary hover:bg-secondary/80 text-foreground border border-border rounded-xl px-6 py-4 transition-all duration-300 gap-2"
           >
             <Download className="h-4 w-4" />
             Export
@@ -295,7 +301,7 @@ const ProjectsPage = () => {
           {userRole === 'ADMIN' && (
             <Button
               onClick={() => setIsModalOpen(true)}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-6 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
             >
               <Plus className="h-4 w-4" />
               New Project
@@ -309,7 +315,7 @@ const ProjectsPage = () => {
         <button
           onClick={() => setActiveTab('overview')}
           className={cn(
-            "pb-4 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
+            "pb-2 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
             activeTab === 'overview'
               ? "border-blue-500 text-blue-400"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -321,7 +327,7 @@ const ProjectsPage = () => {
         <button
           onClick={() => setActiveTab('priority')}
           className={cn(
-            "pb-4 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
+            "pb-2 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
             activeTab === 'priority'
               ? "border-purple-500 text-purple-400"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -345,11 +351,62 @@ const ProjectsPage = () => {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary">
-                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Project</th>
+                  <th
+                    className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                    onClick={() => {
+                      if (sortBy === 'name') {
+                        setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
+                      } else {
+                        setSortBy('name');
+                        setSortOrder('DESC');
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-1">
+                      Project
+                      {sortBy === 'name' && (
+                        <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
                   <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Description</th>
                   <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">Top Performer</th>
-                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-center">Points</th>
-                  <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-center">Yesterday</th>
+                  <th
+                    className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                    onClick={() => {
+                      if (sortBy === 'totalPoints') {
+                        setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
+                      } else {
+                        setSortBy('totalPoints');
+                        setSortOrder('DESC');
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      Points
+                      {sortBy === 'totalPoints' && (
+                        <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                    onClick={() => {
+                      if (sortBy === 'yesterdayPoints') {
+                        setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
+                      } else {
+                        setSortBy('yesterdayPoints');
+                        setSortOrder('DESC');
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      Yesterday
+                      {sortBy === 'yesterdayPoints' && (
+                        <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                      )}
+                    </div>
+                  </th>
                   <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
@@ -426,7 +483,7 @@ const ProjectsPage = () => {
             {userRole === 'ADMIN' && (
               <Button
                 onClick={handleSavePriority}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-none rounded-xl px-8 py-6 shadow-lg shadow-purple-500/20 transition-all duration-300 gap-2 font-semibold"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-purple-500/20 transition-all duration-300 gap-2 font-semibold"
               >
                 <Plus className="h-4 w-4" />
                 Save Priority
@@ -443,7 +500,7 @@ const ProjectsPage = () => {
               items={projects.map(p => p.id.toString())}
               strategy={verticalListSortingStrategy}
             >
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {projects.map((project, index) => (
                   <SortableProjectItem key={project.id} project={project} index={index} />
                 ))}

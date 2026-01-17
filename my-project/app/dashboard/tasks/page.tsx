@@ -48,6 +48,8 @@ export default function Tasks() {
   const [userFilter, setUserFilter] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+  const [sortBy, setSortBy] = useState<string>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,7 +115,7 @@ export default function Tasks() {
   useEffect(() => {
     // Re-fetch tasks when filters change or tab changes, resetting to page 1
     fetchAllTasks(1);
-  }, [statusFilter, projectFilter, userFilter, dateFilter, activeTab]);
+  }, [statusFilter, projectFilter, userFilter, dateFilter, activeTab, sortBy, sortOrder]);
 
   // ... existing initial data effect
 
@@ -135,6 +137,8 @@ export default function Tasks() {
       if (projectFilter && projectFilter !== 'all') params.append('projectId', projectFilter);
       if (userFilter && userFilter !== 'all') params.append('assignedTo', userFilter);
       if (dateFilter && dateFilter !== 'all') params.append('date', dateFilter);
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
 
       const response = await axios.get(`/tasks/employees/tasks?${params.toString()}`);
 
@@ -174,18 +178,18 @@ export default function Tasks() {
   ];
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-4">
       <Breadcrumbs items={breadcrumbItems} />
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mt-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Tasks
           </h1>
-          <p className="text-muted-foreground mt-2 font-medium">Manage and monitor organizational tasks.</p>
+          <p className="text-muted-foreground mt-1 font-medium text-sm">Manage and monitor organizational tasks.</p>
         </div>
         <Button
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-8 py-6 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
           onClick={() => setIsModalOpen(true)}
         >
           <Plus className="h-5 w-5" />
@@ -193,7 +197,7 @@ export default function Tasks() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
         <SummaryCard
           title="All Tasks"
           value={dashboardStats.totalTasks}
@@ -241,10 +245,10 @@ export default function Tasks() {
         />
       </div>
 
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-wrap gap-3">
         {userRole === 'ADMIN' && (
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-6">
+            <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-4">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -257,7 +261,7 @@ export default function Tasks() {
         )}
         {userRole === 'ADMIN' && (
           <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-6">
+            <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-4">
               <SelectValue placeholder="Project" />
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -272,7 +276,7 @@ export default function Tasks() {
         )}
         {userRole === 'ADMIN' && (
           <Select value={userFilter} onValueChange={setUserFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-6">
+            <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-4">
               <SelectValue placeholder="Assigned To" />
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -286,7 +290,7 @@ export default function Tasks() {
           </Select>
         )}
         <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-6">
+          <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-4">
             <SelectValue placeholder="Date" />
           </SelectTrigger>
           <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
@@ -298,10 +302,10 @@ export default function Tasks() {
         </Select>
       </div>
 
-      <div className="flex space-x-8 border-b border-border">
+      <div className="flex space-x-6 border-b border-border">
         <button
           onClick={() => setActiveTab("All Tasks")}
-          className={`pb-4 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest ${activeTab === "All Tasks"
+          className={`pb-2 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest ${activeTab === "All Tasks"
             ? "border-blue-500 text-blue-400"
             : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
@@ -330,6 +334,16 @@ export default function Tasks() {
               totalPages={totalPages}
               onPageChange={handlePageChange}
               itemsPerPage={itemsPerPage}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={(column) => {
+                if (sortBy === column) {
+                  setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
+                } else {
+                  setSortBy(column);
+                  setSortOrder('DESC');
+                }
+              }}
             />
           )}
         </div>

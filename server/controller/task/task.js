@@ -196,7 +196,7 @@ const getTaskByEmployee = async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    const { status, projectId, assignedTo, date } = req.query;
+    const { status, projectId, assignedTo, date, sortBy, sortOrder } = req.query;
 
     let result;
     let totalCount;
@@ -295,6 +295,28 @@ const getTaskByEmployee = async (req, res, next) => {
       paramIdx++;
     }
 
+    // 6. Build ORDER BY clause
+    const validSortColumns = {
+      'createdAt': 't."createdAt"',
+      'dueDate': 't."dueDate"',
+      'status': 't.status',
+      'points': 't.points',
+      'priority': 't.priority',
+      'description': 't.description',
+      'order': 't."order"'
+    };
+
+    let orderByClause = 'ORDER BY t."order" ASC, t."createdAt" DESC'; // default
+    if (sortBy && validSortColumns[sortBy]) {
+      const direction = sortOrder && sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      orderByClause = `ORDER BY ${validSortColumns[sortBy]} ${direction}`;
+
+      // Add secondary sort for consistency
+      if (sortBy !== 'createdAt') {
+        orderByClause += `, t."createdAt" DESC`;
+      }
+    }
+
     const pagingParams = [...mainParams, limit, offset];
     // paramIdx is now mainParams.length + 1
 
@@ -308,7 +330,7 @@ const getTaskByEmployee = async (req, res, next) => {
        JOIN projects p ON t."projectId" = p.id
        LEFT JOIN employee e ON t."createdBy"::uuid = e.id
        ${mainWhere}
-       ORDER BY t."order" ASC, t."createdAt" DESC
+       ${orderByClause}
        LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
       pagingParams
     );

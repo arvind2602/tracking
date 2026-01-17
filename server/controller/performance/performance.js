@@ -128,6 +128,7 @@ const getPointsLeaderboard = async (req, res, next) => {
 };
 
 
+// Weekly Productivity Trend (Points per Week)
 const getProductivityTrend = async (req, res, next) => {
   try {
     const result = await pool.query(`
@@ -144,6 +145,62 @@ const getProductivityTrend = async (req, res, next) => {
     `, [req.user.organization_uuid]);
 
     res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Monthly Productivity Trend (Points per Month) - Last Month Analysis
+const getMonthlyProductivityTrend = async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        to_char(date_trunc('month', t."updatedAt"), 'Mon YYYY') AS name,
+        COALESCE(SUM(t.points), 0)::int AS points,
+        COUNT(t.id)::int AS "taskCount"
+      FROM task t
+      JOIN projects p ON t."projectId" = p.id
+      WHERE p."organiationId" = $1::uuid 
+        AND t.status = 'completed'
+        AND t."updatedAt" >= NOW() - INTERVAL '12 months'
+      GROUP BY date_trunc('month', t."updatedAt")
+      ORDER BY date_trunc('month', t."updatedAt")
+    `, [req.user.organization_uuid]);
+
+    // Calculate analysis metrics
+    const data = result.rows;
+    let analysis = null;
+
+    if (data.length > 0) {
+      const totalPoints = data.reduce((sum, row) => sum + row.points, 0);
+      const avgPoints = Math.round(totalPoints / data.length);
+
+      // Find best and worst months
+      const bestMonth = data.reduce((max, row) => row.points > max.points ? row : max, data[0]);
+      const worstMonth = data.reduce((min, row) => row.points < min.points ? row : min, data[0]);
+
+      // Calculate trend (comparing last month to first month)
+      let trend = 0;
+      if (data.length >= 2 && data[0].points > 0) {
+        trend = Math.round(((data[data.length - 1].points - data[0].points) / data[0].points) * 100);
+      }
+
+      analysis = {
+        avgPoints,
+        trend,
+        bestMonth: {
+          name: bestMonth.name,
+          points: bestMonth.points
+        },
+        worstMonth: {
+          name: worstMonth.name,
+          points: worstMonth.points
+        },
+        totalTasks: data.reduce((sum, row) => sum + row.taskCount, 0)
+      };
+    }
+
+    res.json({ data, analysis });
   } catch (error) {
     next(error);
   }
@@ -181,6 +238,7 @@ module.exports = {
   getAverageTaskCompletionTime,
   getPointsLeaderboard,
   getProductivityTrend,
+  getMonthlyProductivityTrend,
   getTaskCompletionRate,
   getRecentActivity,
   getDashboardSummary
