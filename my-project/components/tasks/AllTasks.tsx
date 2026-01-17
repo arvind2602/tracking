@@ -460,21 +460,21 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
         <table className="w-full text-left text-sm border-collapse border border-slate-700/50">
           <thead>
             <tr className="bg-secondary text-foreground">
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Actions</th>
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[50px] text-center">#</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[120px]">Actions</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[50px] text-center">#</th>
               <th
-                className="px-2 py-1.5 font-semibold border border-border text-xs cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('description')}
               >
-                <div className="flex items-center gap-1">
-                  Description
+                <div className="flex items-center gap-1 text-center">
+                  Desc
                   {sortBy === 'description' && (
                     <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
                   )}
                 </div>
               </th>
               <th
-                className="px-2 py-1.5 font-semibold border border-border text-xs w-[100px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[80px] md:w-[100px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('status')}
               >
                 <div className="flex items-center gap-1">
@@ -485,32 +485,32 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                 </div>
               </th>
               <th
-                className="px-2 py-1.5 font-semibold border border-border text-xs w-[80px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[60px] md:w-[80px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('priority')}
               >
                 <div className="flex items-center gap-1">
-                  Priority
+                  Pri
                   {sortBy === 'priority' && (
                     <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
                   )}
                 </div>
               </th>
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Assigned To</th>
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Assigned By</th>
-              <th className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px]">Assigned Date</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[100px] md:w-[120px]">Assigned</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[100px] md:w-[120px] hidden md:table-cell">By</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[100px] md:w-[120px] hidden md:table-cell">Date</th>
               <th
-                className="px-2 py-1.5 font-semibold border border-border text-xs w-[120px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[80px] md:w-[120px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('dueDate')}
               >
                 <div className="flex items-center gap-1">
-                  Due Date
+                  Due
                   {sortBy === 'dueDate' && (
                     <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
                   )}
                 </div>
               </th>
               <th
-                className="px-2 py-1.5 font-semibold border border-border text-xs w-[50px] text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[40px] md:w-[50px] text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('points')}
               >
                 <div className="flex items-center justify-center gap-1">
@@ -550,17 +550,17 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                           isOverdue && "bg-rose-500/5"
                         )}
                       >
-                        <td className="px-2 py-1 border border-border w-[120px] bg-secondary">
-                          <div className="flex items-center justify-start gap-1">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border w-[100px] md:w-[120px] bg-secondary">
+                          <div className="flex items-center justify-start gap-0.5 md:gap-1 scale-90 md:scale-100 origin-left">
                             <Button
                               onClick={() => handleAddSubtask(task)}
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-slate-400 hover:text-white"
+                              className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-white"
                               title="Add Subtask"
                               disabled={loadingAddSubtaskId === task.id}
                             >
-                              {loadingAddSubtaskId === task.id ? <Loader className="animate-spin h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                              {loadingAddSubtaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />}
                             </Button>
 
                             {task.status !== "completed" && (
@@ -572,15 +572,15 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-7 w-7 text-slate-600 cursor-not-allowed opacity-50"
+                                          className="h-6 w-6 md:h-7 md:w-7 text-slate-600 cursor-not-allowed opacity-50"
                                           disabled
                                         >
-                                          <Clock className="h-4 w-4" />
+                                          <Clock className="h-3.5 w-3.5 md:h-4 md:w-4" />
                                         </Button>
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent className="bg-slate-900 border-slate-700">
-                                      <p className="text-xs text-slate-300">
+                                      <p className="text-[10px] md:text-xs text-slate-300">
                                         Waiting for {users.find(u => u.id === task.assignedTo)?.firstName}
                                       </p>
                                     </TooltipContent>
@@ -591,10 +591,10 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                   onClick={() => handleMarkAsCompleted(task.id)}
                                   variant="ghost"
                                   size="icon"
-                                  className="h-7 w-7 text-slate-400 hover:text-emerald-400"
+                                  className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-emerald-400"
                                   disabled={loadingTaskId === task.id}
                                 >
-                                  {loadingTaskId === task.id ? <Loader className="animate-spin h-4 w-4" /> : <Check className="h-4 w-4" />}
+                                  {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Check className="h-3.5 w-3.5 md:h-4 md:w-4" />}
                                 </Button>
                               )
                             )}
@@ -603,11 +603,11 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                 onClick={() => handleAssignClick(task)}
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-slate-400 hover:text-blue-400"
+                                className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-blue-400"
                                 title="Assign User"
                                 disabled={loadingTaskId === task.id}
                               >
-                                {loadingTaskId === task.id ? <Loader className="animate-spin h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
+                                {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <UserIcon className="h-3.5 w-3.5 md:h-4 md:w-4" />}
                               </Button>
                             )}
                             {userRole === "ADMIN" && (
@@ -615,45 +615,40 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                 onClick={() => initiateDeleteTask(task.id)}
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-slate-400 hover:text-rose-400"
+                                className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-rose-400"
                                 disabled={loadingTaskId === task.id}
                               >
-                                {loadingTaskId === task.id ? <Loader className="animate-spin h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+                                {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />}
                               </Button>
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-1 text-center text-muted-foreground font-mono text-xs border border-border bg-background">
+                        <td className="px-1 py-1 md:px-2 md:py-1 text-center text-muted-foreground font-mono text-[10px] md:text-xs border border-border bg-background">
                           {String(index + 1)}
                         </td>
 
-                        <td className="px-2 py-1 border border-border bg-background max-w-[300px]">
-                          <div className="flex items-center gap-2">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background max-w-[200px] md:max-w-[300px]">
+                          <div className="flex items-center gap-1 md:gap-2">
                             {task.subtasks && task.subtasks.length > 0 && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); toggleExpand(task.id); }}
                                 className="p-0.5 rounded hover:bg-white/10 text-muted-foreground transition-colors"
                               >
-                                {expandedTasks.has(task.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                {expandedTasks.has(task.id) ? <ChevronDown className="h-3 w-3 md:h-4 md:w-4" /> : <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />}
                               </button>
                             )}
                             <div
-                              className="font-medium text-foreground cursor-pointer hover:underline truncate"
+                              className="font-medium text-foreground cursor-pointer hover:underline truncate text-[10px] md:text-sm"
                               onClick={() => handleOpenTaskDetail(task)}
                             >
                               {task.description}
                             </div>
-                            {task.subtasks && task.subtasks.length > 0 && (
-                              <span className="text-[10px] text-slate-500 bg-white/5 px-1.5 py-0.5 rounded-full">
-                                {task.subtasks.length} sub
-                              </span>
-                            )}
                           </div>
                         </td>
 
-                        <td className="px-2 py-1 border border-border bg-background">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background">
                           <div className={cn(
-                            "px-2 py-1 text-xs text-center border rounded-md w-full font-bold uppercase",
+                            "px-1 py-0.5 md:px-2 md:py-1 text-[9px] md:text-xs text-center border rounded-md w-full font-bold uppercase",
                             task.status === "completed"
                               ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50"
                               : task.status === "in-progress"
@@ -664,36 +659,33 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                           </div>
                         </td>
 
-                        <td className="px-2 py-1 border border-border bg-background font-medium text-xs text-center">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background font-medium text-[10px] md:text-xs text-center">
                           <span className={cn(
-                            "text-[10px] font-bold",
+                            "text-[9px] md:text-[10px] font-bold",
                             task.priority === "HIGH" ? "text-rose-400" :
                               task.priority === "MEDIUM" ? "text-amber-400" : "text-slate-500"
                           )}>
-                            {task.priority}
+                            {task.priority || 'MED'}
                           </span>
                         </td>
 
-                        <td className="px-2 py-1 border border-border bg-background text-xs">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-[10px] md:text-xs">
                           {task.assignees && task.assignees.length > 1 ? (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex flex-col gap-1 cursor-help">
-                                    <div className="flex items-center gap-1.5 ">
+                                  <div className="flex flex-col gap-0.5 md:gap-1 cursor-help">
+                                    <div className="flex items-center gap-1 ">
                                       <span className={cn(
-                                        "text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border leading-none",
+                                        "text-[8px] md:text-[10px] uppercase font-bold px-1 py-0.5 rounded border leading-none",
                                         task.type === 'SHARED' ? "border-blue-500/50 text-blue-400 bg-blue-500/10" : "border-purple-500/50 text-purple-400 bg-purple-500/10"
                                       )}>
-                                        {task.type === 'SHARED' ? 'Shared' : 'Seq'}
+                                        {task.type === 'SHARED' ? 'Shr' : 'Seq'}
                                       </span>
-                                      <span className="text-slate-300 text-xs">
-                                        {task.assignees.length} users
+                                      <span className="text-slate-300 text-[9px] md:text-xs">
+                                        {task.assignees.length}
                                       </span>
                                     </div>
-                                    <span className="text-[10px] text-slate-500 leading-none">
-                                      {task.assignees.slice(0, 2).map(a => a.firstName).join(', ')} {task.assignees.length > 2 && `+${task.assignees.length - 2}`}
-                                    </span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent className="bg-slate-900 border-slate-700">
@@ -718,23 +710,23 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                           ) : assignedUser ? (
                             <span className="text-foreground">{assignedUser.firstName} {assignedUser.lastName[0]}.</span>
                           ) : (
-                            <span className="text-slate-600 italic">Unassigned</span>
+                            <span className="text-slate-600 italic">None</span>
                           )}
                         </td>
 
-                        <td className="px-2 py-1 border border-border bg-background text-xs text-muted-foreground">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-[10px] md:text-xs text-muted-foreground hidden md:table-cell">
                           {task.creatorFirstName ? `${task.creatorFirstName} ${task.creatorLastName || ''}` : '-'}
                         </td>
 
-                        <td className="px-2 py-1 border border-border bg-background text-xs text-muted-foreground">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-[10px] md:text-xs text-muted-foreground hidden md:table-cell">
                           {task.assigned_at ? formatDateOnlyIST(task.assigned_at) : '-'}
                         </td>
 
-                        <td className="px-2 py-1 border border-border bg-background text-xs text-muted-foreground">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-[10px] md:text-xs text-muted-foreground">
                           {task.dueDate ? formatDateOnlyIST(task.dueDate) : '-'}
                         </td>
 
-                        <td className="px-2 py-1 border border-border bg-background text-center font-mono text-slate-300 font-medium text-xs">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-center font-mono text-slate-300 font-medium text-[10px] md:text-xs">
                           {task.points || "0"}
                         </td>
 

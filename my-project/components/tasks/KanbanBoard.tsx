@@ -285,42 +285,42 @@ function TaskCard({ task, users, isOverlay }: { task: Task; users: User[]; isOve
     return (
         <div
             className={`
-                group bg-card p-3 rounded-md border shadow-sm transition-all 
+                group bg-card p-2 md:p-3 rounded-md border shadow-sm transition-all 
                 hover:shadow-md hover:border-primary/40
                 ${isOverlay ? 'cursor-grabbing shadow-xl scale-105 ring-2 ring-primary/20 rotate-2' : 'cursor-grab'}
                 ${config.border}
             `}
         >
-            <div className="flex justify-between items-start gap-2 mb-2">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${config.color} border border-transparent`}>
+            <div className="flex justify-between items-start gap-1 md:gap-2 mb-1.5 md:mb-2 text-[8px] md:text-[10px]">
+                <span className={`px-1 md:px-1.5 py-0.5 rounded font-medium ${config.color} border border-transparent uppercase`}>
                     {task.priority || 'MEDIUM'}
                 </span>
                 {task.points !== null && (
-                    <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                    <span className="font-mono text-muted-foreground bg-muted px-1 md:px-1.5 py-0.5 rounded">
                         {task.points} pts
                     </span>
                 )}
             </div>
 
-            <p className="text-sm font-medium text-foreground mb-3 line-clamp-3 leading-snug">
+            <p className="text-xs md:text-sm font-medium text-foreground mb-2 md:mb-3 line-clamp-2 md:line-clamp-3 leading-tight md:leading-snug">
                 {task.description}
             </p>
 
-            <div className="flex justify-between items-center pt-2 border-t border-border/40 mt-auto">
-                <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex justify-between items-center pt-1.5 md:pt-2 border-t border-border/40 mt-auto">
+                <div className="flex items-center gap-1 md:gap-1.5 min-w-0">
                     {assignedUser ? (
-                        <div className="flex items-center gap-1.5" title={`${assignedUser.firstName} ${assignedUser.lastName}`}>
-                            <div className="h-5 w-5 rounded bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold ring-1 ring-background">
+                        <div className="flex items-center gap-1 md:gap-1.5" title={`${assignedUser.firstName} ${assignedUser.lastName}`}>
+                            <div className="h-4 w-4 md:h-5 md:w-5 rounded bg-primary/10 text-primary flex items-center justify-center text-[8px] md:text-[9px] font-bold ring-1 ring-background">
                                 {assignedUser.firstName.charAt(0)}{assignedUser.lastName.charAt(0)}
                             </div>
-                            <span className="text-xs text-muted-foreground truncate max-w-[60px]">
+                            <span className="text-[10px] md:text-xs text-muted-foreground truncate max-w-[50px] md:max-w-[60px]">
                                 {assignedUser.firstName}
                             </span>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <UserIcon className="h-3.5 w-3.5" />
-                            <span className="text-xs">Unassigned</span>
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                            <UserIcon className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                            <span className="text-[10px] md:text-xs">None</span>
                         </div>
                     )}
                 </div>
@@ -330,14 +330,14 @@ function TaskCard({ task, users, isOverlay }: { task: Task; users: User[]; isOve
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <div
-                                    className={`flex items-center gap-1 text-[10px] cursor-help w-fit ${isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}
+                                    className={`flex items-center gap-0.5 md:gap-1 text-[8px] md:text-[10px] cursor-help w-fit ${isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}
                                 >
-                                    <CalendarIcon className="h-3 w-3" />
+                                    <CalendarIcon className="h-2.5 w-2.5 md:h-3 md:w-3" />
                                     <span>{formatDateIST(task.dueDate)}</span>
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>{formatDateTimeIST(task.dueDate)}</p>
+                                <p className="text-[10px]">{formatDateTimeIST(task.dueDate)}</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -346,3 +346,4 @@ function TaskCard({ task, users, isOverlay }: { task: Task; users: User[]; isOve
         </div>
     );
 }
+

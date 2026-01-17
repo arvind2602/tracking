@@ -266,9 +266,9 @@ export default function Users() {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary">
-                      <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider">S.No</th>
+                      <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px] md:text-sm">S.No</th>
                       <th
-                        className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                        className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-[10px] md:text-sm"
                         onClick={() => {
                           if (sortBy === 'firstName') {
                             setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -286,7 +286,7 @@ export default function Users() {
                         </div>
                       </th>
                       <th
-                        className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                        className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-[10px] md:text-sm"
                         onClick={() => {
                           if (sortBy === 'email') {
                             setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -304,7 +304,7 @@ export default function Users() {
                         </div>
                       </th>
                       <th
-                        className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                        className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-[10px] md:text-sm"
                         onClick={() => {
                           if (sortBy === 'role') {
                             setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -322,7 +322,7 @@ export default function Users() {
                         </div>
                       </th>
                       <th
-                        className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                        className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-[10px] md:text-sm"
                         onClick={() => {
                           if (sortBy === 'weeklyPoints') {
                             setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -333,13 +333,13 @@ export default function Users() {
                         }}
                       >
                         <div className="flex items-center justify-center gap-1">
-                          Weekly Pts
+                          Pts
                           {sortBy === 'weeklyPoints' && (
                             <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
                           )}
                         </div>
                       </th>
-                      <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                      <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-right text-[10px] md:text-sm">Act</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
@@ -352,41 +352,41 @@ export default function Users() {
                         </tr>
                         {users.map((u, index) => (
                           <tr key={u.id} className="group hover:bg-secondary transition-all duration-300">
-                            <td className="px-4 py-3 text-slate-500 font-mono text-xs">
+                            <td className="px-2 py-2 md:px-4 md:py-3 text-slate-500 font-mono text-[10px] md:text-xs text-center md:text-left">
                               {String(index + 1).padStart(2, '0')}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 py-2 md:px-4 md:py-3">
                               <button
-                                className="font-semibold text-foreground hover:text-blue-400 transition-colors"
+                                className="font-semibold text-foreground hover:text-blue-400 transition-colors text-[10px] md:text-sm"
                                 onClick={() => router.push(`/dashboard/users/${u.id}/tasks`)}
                               >
                                 {u.firstName} {u.lastName}
                               </button>
                             </td>
-                            <td className="px-4 py-3 text-slate-400">{u.email}</td>
-                            <td className="px-4 py-3">
+                            <td className="px-2 py-2 md:px-4 md:py-3 text-slate-400 text-[10px] md:text-sm truncate max-w-[100px] md:max-w-none">{u.email}</td>
+                            <td className="px-2 py-2 md:px-4 md:py-3">
                               <span className={cn(
-                                "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border",
+                                "text-[8px] md:text-[10px] font-bold uppercase tracking-widest px-1 md:px-2 py-0.5 rounded border",
                                 u.role === 'ADMIN'
                                   ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
                                   : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                               )}>
-                                {u.role}
+                                {u.role === 'ADMIN' ? 'Admin' : 'User'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="font-mono text-foreground font-bold">
+                            <td className="px-2 py-2 md:px-4 md:py-3 text-center">
+                              <span className="font-mono text-foreground font-bold text-[10px] md:text-sm">
                                 {u.weeklyPoints || 0}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-right">
+                            <td className="px-2 py-2 md:px-4 md:py-3 text-right">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-slate-400 hover:text-red-400 transition-colors"
+                                className="h-6 w-6 md:h-8 md:w-8 text-slate-400 hover:text-red-400 transition-colors"
                                 onClick={() => initiateDeleteUser(u.id)}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
                               </Button>
                             </td>
                           </tr>

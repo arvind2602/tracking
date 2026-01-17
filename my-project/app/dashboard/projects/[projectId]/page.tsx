@@ -131,12 +131,12 @@ const ProjectDetailsPage = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard title="Total Tasks" value={project.tasks?.length || 0} icon={Circle} className="bg-primary/5 border-primary/20" />
-        <StatCard title="Completed" value={project.tasks?.filter((t) => t.status === 'completed' || t.status === 'DONE').length || 0} icon={CheckCircle2} className="bg-green-500/5 border-green-500/20 text-green-700 dark:text-green-400" />
-        <StatCard title="In Progress" value={project.tasks?.filter((t) => t.status === 'in-progress' || t.status === 'IN_PROGRESS').length || 0} icon={Clock} className="bg-blue-500/5 border-blue-500/20 text-blue-700 dark:text-blue-400" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-4">
+        <StatCard title="Total" value={project.tasks?.length || 0} icon={Circle} className="bg-primary/5 border-primary/20" />
+        <StatCard title="Done" value={project.tasks?.filter((t) => t.status === 'completed' || t.status === 'DONE').length || 0} icon={CheckCircle2} className="bg-green-500/5 border-green-500/20 text-green-700 dark:text-green-400" />
+        <StatCard title="Active" value={project.tasks?.filter((t) => t.status === 'in-progress' || t.status === 'IN_PROGRESS').length || 0} icon={Clock} className="bg-blue-500/5 border-blue-500/20 text-blue-700 dark:text-blue-400" />
         <StatCard title="Pending" value={project.tasks?.filter((t) => t.status === 'pending' || t.status === 'TODO').length || 0} icon={Circle} className="bg-orange-500/5 border-orange-500/20 text-orange-700 dark:text-orange-400" />
-        <StatCard title="Total Points" value={totalPoints} icon={Target} className="bg-purple-500/5 border-purple-500/20 text-purple-700 dark:text-purple-400" />
+        <StatCard title="Points" value={totalPoints} icon={Target} className="bg-purple-500/5 border-purple-500/20 text-purple-700 dark:text-purple-400" />
       </div>
 
       {/* Tasks Table/List */}
@@ -153,25 +153,25 @@ const ProjectDetailsPage = () => {
         </CardHeader>
         <CardContent className="p-0">
           {/* Table Header */}
-          <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-muted/20 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b">
+          <div className="grid grid-cols-12 gap-2 md:gap-4 px-3 py-2 md:px-6 md:py-3 bg-muted/20 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b">
             <div className="col-span-1">#</div>
-            <div className="col-span-11 md:col-span-6">Description</div>
+            <div className="col-span-11 md:col-span-6">Desc</div>
             <div className="hidden md:block col-span-2">Assigned To</div>
             <div className="hidden md:block col-span-2">Status</div>
-            <div className="hidden md:block col-span-1 text-right">Points</div>
+            <div className="hidden md:block col-span-1 text-right">Pts</div>
           </div>
 
           {/* List */}
           {project.tasks?.length > 0 ? (
             <div className="divide-y divide-border">
               {project.tasks.map((task, i) => (
-                <div key={task.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-accent/5 transition-colors group">
-                  <div className="col-span-1 text-muted-foreground font-mono text-xs">{(currentPage - 1) * pageSize + i + 1}</div>
-                  <div className="col-span-11 md:col-span-6 font-medium text-sm text-foreground pr-4">
-                    <Link href={`/dashboard/tasks/${task.id}`} className="hover:underline decoration-primary/50 underline-offset-4 line-clamp-2">
+                <div key={task.id} className="grid grid-cols-12 gap-2 md:gap-4 px-3 py-2 md:px-6 md:py-4 items-center hover:bg-accent/5 transition-colors group">
+                  <div className="col-span-1 text-muted-foreground font-mono text-[10px] md:text-xs">{(currentPage - 1) * pageSize + i + 1}</div>
+                  <div className="col-span-11 md:col-span-6 font-medium text-[11px] md:text-sm text-foreground pr-4">
+                    <Link href={`/dashboard/tasks/${task.id}`} className="hover:underline decoration-primary/50 underline-offset-4 line-clamp-1 md:line-clamp-2">
                       {task.description}
                     </Link>
-                    <div className="md:hidden mt-2 flex gap-2 items-center text-xs text-muted-foreground">
+                    <div className="md:hidden mt-1 flex gap-2 items-center text-[9px] text-muted-foreground">
                       <span>{task.assignedToName}</span> • <StatusBadge status={task.status} />
                     </div>
                   </div>
@@ -233,12 +233,12 @@ const ProjectDetailsPage = () => {
 function StatCard({ title, value, icon: Icon, className }: any) {
   return (
     <Card className={`shadow-sm ${className}`}>
-      <CardContent className="p-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
-          <p className="text-2xl font-bold mt-1">{value}</p>
+      <CardContent className="p-2 md:p-4 flex items-center justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{title}</p>
+          <p className="text-base md:text-2xl font-bold mt-0.5 md:mt-1">{value}</p>
         </div>
-        {Icon && <Icon className="h-5 w-5 opacity-50" />}
+        {Icon && <Icon className="h-4 w-4 md:h-5 md:w-5 opacity-50 shrink-0" />}
       </CardContent>
     </Card>
   )
