@@ -240,14 +240,14 @@ const ProjectsPage = () => {
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-foreground text-sm md:text-lg truncate">{project.name}</h3>
-          <p className="text-slate-400 text-[10px] md:text-sm truncate">{project.description}</p>
+          <h3 className="font-bold text-foreground text-base md:text-lg truncate">{project.name}</h3>
+          <p className="text-slate-400 text-xs md:text-sm truncate">{project.description}</p>
         </div>
 
         <div className="flex items-center gap-3 md:gap-6">
           <div className="text-right">
-            <p className="text-[8px] md:text-xs text-slate-500 uppercase tracking-wider mb-0.5 md:mb-1">Pts</p>
-            <p className="font-mono text-xs md:text-lg font-bold text-foreground">{project.totalPoints || 0}</p>
+            <p className="text-[10px] md:text-xs text-slate-500 uppercase tracking-wider mb-0.5 md:mb-1">Pts</p>
+            <p className="font-mono text-sm md:text-lg font-bold text-foreground">{project.totalPoints || 0}</p>
           </div>
 
           <Link href={`/dashboard/projects/${project.id}`}>
@@ -352,7 +352,7 @@ const ProjectsPage = () => {
               <thead>
                 <tr className="border-b border-border bg-secondary">
                   <th
-                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-[10px] md:text-sm"
+                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                     onClick={() => {
                       if (sortBy === 'name') {
                         setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -369,10 +369,10 @@ const ProjectsPage = () => {
                       )}
                     </div>
                   </th>
-                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px] md:text-sm">Desc</th>
-                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-[10px] md:text-sm">Top</th>
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Desc</th>
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Top</th>
                   <th
-                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-[10px] md:text-sm"
+                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                     onClick={() => {
                       if (sortBy === 'totalPoints') {
                         setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -390,7 +390,7 @@ const ProjectsPage = () => {
                     </div>
                   </th>
                   <th
-                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-[10px] md:text-sm"
+                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                     onClick={() => {
                       if (sortBy === 'yesterdayPoints') {
                         setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -407,38 +407,38 @@ const ProjectsPage = () => {
                       )}
                     </div>
                   </th>
-                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-right text-[10px] md:text-sm">Act</th>
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-right text-xs md:text-sm">Act</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {filteredProjects.map((project) => (
                   <tr key={project.id} className="group hover:bg-secondary transition-all duration-300">
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
-                      <span className="font-bold text-foreground block text-[10px] md:text-sm">
+                      <span className="font-bold text-foreground block text-xs md:text-sm">
                         {project.name}
                       </span>
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
-                      <p className="line-clamp-1 md:line-clamp-2 text-slate-400 text-[10px] md:text-sm" title={project.description}>
+                      <p className="line-clamp-1 md:line-clamp-2 text-slate-400 text-xs md:text-sm" title={project.description}>
                         {project.description}
                       </p>
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
                       {project.topPerformers && project.topPerformers.length > 0 ? (
                         <div className="flex flex-col gap-0.5 md:gap-1">
-                          <span className="font-medium text-foreground text-[10px] md:text-sm truncate max-w-[60px] md:max-w-none">{project.topPerformers[0].name} {project.topPerformers[0].initial}.</span>
-                          <span className="text-[8px] md:text-[10px] text-blue-400 font-mono">{project.topPerformers[0].points} pts</span>
+                          <span className="font-medium text-foreground text-xs md:text-sm truncate max-w-[60px] md:max-w-none">{project.topPerformers[0].name} {project.topPerformers[0].initial}.</span>
+                          <span className="text-[10px] md:text-xs text-blue-400 font-mono">{project.topPerformers[0].points} pts</span>
                         </div>
                       ) : (
-                        <span className="text-[10px] text-slate-500 italic">None</span>
+                        <span className="text-xs text-slate-500 italic">None</span>
                       )}
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 text-center align-top">
-                      <span className="font-mono text-[10px] md:text-sm font-bold text-foreground">{project.totalPoints || 0}</span>
+                      <span className="font-mono text-xs md:text-sm font-bold text-foreground">{project.totalPoints || 0}</span>
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 text-center align-top">
                       <span className={cn(
-                        "px-1 md:px-2 py-0.5 rounded text-[8px] md:text-[10px] font-bold border",
+                        "px-1 md:px-2 py-0.5 rounded text-[10px] md:text-xs font-bold border",
                         project.yesterdayPoints > 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-slate-500/10 text-slate-400 border-white/5"
                       )}>
                         {project.yesterdayPoints > 0 ? `+${project.yesterdayPoints}` : project.yesterdayPoints || 0}

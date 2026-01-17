@@ -460,10 +460,10 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
         <table className="w-full text-left text-sm border-collapse border border-slate-700/50">
           <thead>
             <tr className="bg-secondary text-foreground">
-              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[120px]">Actions</th>
-              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[50px] text-center">#</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs w-[120px]">Actions</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs w-[50px] text-center">#</th>
               <th
-                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('description')}
               >
                 <div className="flex items-center gap-1 text-center">
@@ -474,7 +474,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                 </div>
               </th>
               <th
-                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[80px] md:w-[100px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs w-[80px] md:w-[100px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('status')}
               >
                 <div className="flex items-center gap-1">
@@ -485,7 +485,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                 </div>
               </th>
               <th
-                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[60px] md:w-[80px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs w-[60px] md:w-[80px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('priority')}
               >
                 <div className="flex items-center gap-1">
@@ -495,11 +495,11 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                   )}
                 </div>
               </th>
-              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[100px] md:w-[120px]">Assigned</th>
-              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[100px] md:w-[120px] hidden md:table-cell">By</th>
-              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[100px] md:w-[120px] hidden md:table-cell">Date</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs w-[100px] md:w-[120px]">Assigned</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs w-[100px] md:w-[120px] hidden md:table-cell">By</th>
+              <th className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs w-[100px] md:w-[120px] hidden md:table-cell">Date</th>
               <th
-                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[80px] md:w-[120px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs w-[80px] md:w-[120px] cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('dueDate')}
               >
                 <div className="flex items-center gap-1">
@@ -510,7 +510,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                 </div>
               </th>
               <th
-                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-[10px] md:text-xs w-[40px] md:w-[50px] text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none"
+                className="px-1 py-1 md:px-2 md:py-1.5 font-semibold border border-border text-xs w-[40px] md:w-[50px] text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none"
                 onClick={() => onSort?.('points')}
               >
                 <div className="flex items-center justify-center gap-1">
@@ -623,7 +623,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                             )}
                           </div>
                         </td>
-                        <td className="px-1 py-1 md:px-2 md:py-1 text-center text-muted-foreground font-mono text-[10px] md:text-xs border border-border bg-background">
+                        <td className="px-1 py-1 md:px-2 md:py-1 text-center text-muted-foreground font-mono text-xs border border-border bg-background">
                           {String(index + 1)}
                         </td>
 
@@ -638,7 +638,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                               </button>
                             )}
                             <div
-                              className="font-medium text-foreground cursor-pointer hover:underline truncate text-[10px] md:text-sm"
+                              className="font-medium text-foreground cursor-pointer hover:underline truncate text-xs md:text-sm"
                               onClick={() => handleOpenTaskDetail(task)}
                             >
                               {task.description}
@@ -648,7 +648,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
                         <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background">
                           <div className={cn(
-                            "px-1 py-0.5 md:px-2 md:py-1 text-[9px] md:text-xs text-center border rounded-md w-full font-bold uppercase",
+                            "px-1 py-0.5 md:px-2 md:py-1 text-[11px] md:text-xs text-center border rounded-md w-full font-bold uppercase",
                             task.status === "completed"
                               ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50"
                               : task.status === "in-progress"
@@ -659,9 +659,9 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                           </div>
                         </td>
 
-                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background font-medium text-[10px] md:text-xs text-center">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background font-medium text-xs text-center">
                           <span className={cn(
-                            "text-[9px] md:text-[10px] font-bold",
+                            "text-[11px] md:text-xs font-bold",
                             task.priority === "HIGH" ? "text-rose-400" :
                               task.priority === "MEDIUM" ? "text-amber-400" : "text-slate-500"
                           )}>
@@ -669,7 +669,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                           </span>
                         </td>
 
-                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-[10px] md:text-xs">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-xs">
                           {task.assignees && task.assignees.length > 1 ? (
                             <TooltipProvider>
                               <Tooltip>
@@ -677,7 +677,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                   <div className="flex flex-col gap-0.5 md:gap-1 cursor-help">
                                     <div className="flex items-center gap-1 ">
                                       <span className={cn(
-                                        "text-[8px] md:text-[10px] uppercase font-bold px-1 py-0.5 rounded border leading-none",
+                                        "text-[10px] md:text-xs uppercase font-bold px-1 py-0.5 rounded border leading-none",
                                         task.type === 'SHARED' ? "border-blue-500/50 text-blue-400 bg-blue-500/10" : "border-purple-500/50 text-purple-400 bg-purple-500/10"
                                       )}>
                                         {task.type === 'SHARED' ? 'Shr' : 'Seq'}
@@ -722,11 +722,11 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                           {task.assigned_at ? formatDateOnlyIST(task.assigned_at) : '-'}
                         </td>
 
-                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-[10px] md:text-xs text-muted-foreground">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-xs text-muted-foreground">
                           {task.dueDate ? formatDateOnlyIST(task.dueDate) : '-'}
                         </td>
 
-                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-center font-mono text-slate-300 font-medium text-[10px] md:text-xs">
+                        <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background text-center font-mono text-slate-300 font-medium text-xs">
                           {task.points || "0"}
                         </td>
 

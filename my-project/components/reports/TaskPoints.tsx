@@ -86,13 +86,13 @@ export function TaskPoints() {
             <table className="w-full border-collapse">
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 bg-muted/50 backdrop-blur-sm border-b border-r px-2 py-2 md:px-4 md:py-3 text-left text-[10px] md:text-sm font-semibold min-w-[100px] md:min-w-[150px]">
+                  <th className="sticky left-0 z-10 bg-muted/50 backdrop-blur-sm border-b border-r px-2 py-2 md:px-4 md:py-3 text-left text-xs md:text-sm font-semibold min-w-[100px] md:min-w-[150px]">
                     Employee
                   </th>
                   {projects.map((project) => (
                     <th
                       key={project.name}
-                      className="border-b px-2 py-2 md:px-4 md:py-3 text-center text-[10px] md:text-sm font-semibold min-w-[80px] md:min-w-[120px] bg-muted/30"
+                      className="border-b px-2 py-2 md:px-4 md:py-3 text-center text-xs md:text-sm font-semibold min-w-[80px] md:min-w-[120px] bg-muted/30"
                     >
                       <div className="truncate" title={project.name}>
                         {project.name}
@@ -104,7 +104,7 @@ export function TaskPoints() {
               <tbody>
                 {employees.map((employee, empIndex) => (
                   <tr key={employee} className="hover:bg-muted/20 transition-colors">
-                    <td className="sticky left-0 z-10 bg-card backdrop-blur-sm border-r px-2 py-2 md:px-4 md:py-3 text-[10px] md:text-sm font-medium">
+                    <td className="sticky left-0 z-10 bg-card backdrop-blur-sm border-r px-2 py-2 md:px-4 md:py-3 text-xs md:text-sm font-medium">
                       <div className="truncate" title={employee}>
                         {employee}
                       </div>
@@ -122,7 +122,7 @@ export function TaskPoints() {
                           onMouseLeave={() => setHoveredCell(null)}
                         >
                           <div
-                            className="px-2 py-2 md:px-4 md:py-3 text-center text-[10px] md:text-sm font-semibold"
+                            className="px-2 py-2 md:px-4 md:py-3 text-center text-xs md:text-sm font-semibold"
                             style={{ color: getTextColor(points) }}
                           >
                             {points > 0 ? points : '-'}

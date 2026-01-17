@@ -220,7 +220,7 @@ export function KanbanBoard({ tasks, users, onTaskUpdate }: KanbanBoardProps) {
                         <div className="flex items-center justify-between mb-3 px-1">
                             <h3 className="font-semibold text-sm text-foreground tracking-tight flex items-center gap-2">
                                 {col.title}
-                                <span className="bg-background text-muted-foreground text-[10px] font-mono px-1.5 py-0.5 rounded border border-border">
+                                <span className="bg-background text-muted-foreground text-xs font-mono px-1.5 py-0.5 rounded border border-border">
                                     {items[col.id]?.length || 0}
                                 </span>
                             </h3>
@@ -291,7 +291,7 @@ function TaskCard({ task, users, isOverlay }: { task: Task; users: User[]; isOve
                 ${config.border}
             `}
         >
-            <div className="flex justify-between items-start gap-1 md:gap-2 mb-1.5 md:mb-2 text-[8px] md:text-[10px]">
+            <div className="flex justify-between items-start gap-1 md:gap-2 mb-1.5 md:mb-2 text-[10px] md:text-xs">
                 <span className={`px-1 md:px-1.5 py-0.5 rounded font-medium ${config.color} border border-transparent uppercase`}>
                     {task.priority || 'MEDIUM'}
                 </span>
@@ -310,17 +310,17 @@ function TaskCard({ task, users, isOverlay }: { task: Task; users: User[]; isOve
                 <div className="flex items-center gap-1 md:gap-1.5 min-w-0">
                     {assignedUser ? (
                         <div className="flex items-center gap-1 md:gap-1.5" title={`${assignedUser.firstName} ${assignedUser.lastName}`}>
-                            <div className="h-4 w-4 md:h-5 md:w-5 rounded bg-primary/10 text-primary flex items-center justify-center text-[8px] md:text-[9px] font-bold ring-1 ring-background">
+                            <div className="h-4 w-4 md:h-5 md:w-5 rounded bg-primary/10 text-primary flex items-center justify-center text-[10px] md:text-[11px] font-bold ring-1 ring-background">
                                 {assignedUser.firstName.charAt(0)}{assignedUser.lastName.charAt(0)}
                             </div>
-                            <span className="text-[10px] md:text-xs text-muted-foreground truncate max-w-[50px] md:max-w-[60px]">
+                            <span className="text-xs md:text-sm text-muted-foreground truncate max-w-[50px] md:max-w-[60px]">
                                 {assignedUser.firstName}
                             </span>
                         </div>
                     ) : (
                         <div className="flex items-center gap-1 text-muted-foreground">
                             <UserIcon className="h-3 w-3 md:h-3.5 md:w-3.5" />
-                            <span className="text-[10px] md:text-xs">None</span>
+                            <span className="text-xs md:text-sm">None</span>
                         </div>
                     )}
                 </div>
@@ -330,14 +330,14 @@ function TaskCard({ task, users, isOverlay }: { task: Task; users: User[]; isOve
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <div
-                                    className={`flex items-center gap-0.5 md:gap-1 text-[8px] md:text-[10px] cursor-help w-fit ${isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}
+                                    className={`flex items-center gap-0.5 md:gap-1 text-[10px] md:text-xs cursor-help w-fit ${isOverdue ? 'text-red-500 font-medium' : 'text-muted-foreground'}`}
                                 >
                                     <CalendarIcon className="h-2.5 w-2.5 md:h-3 md:w-3" />
                                     <span>{formatDateIST(task.dueDate)}</span>
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p className="text-[10px]">{formatDateTimeIST(task.dueDate)}</p>
+                                <p className="text-xs">{formatDateTimeIST(task.dueDate)}</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>

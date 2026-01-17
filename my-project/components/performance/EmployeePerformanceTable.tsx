@@ -147,11 +147,11 @@ export function EmployeePerformanceTable() {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b bg-muted/50">
-                                <th className="px-2 py-2 md:px-4 md:py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider text-[10px] md:text-xs">
+                                <th className="px-2 py-2 md:px-4 md:py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider text-xs">
                                     Rank
                                 </th>
                                 <th
-                                    className="px-2 py-2 md:px-4 md:py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors text-[10px] md:text-xs group"
+                                    className="px-2 py-2 md:px-4 md:py-3 text-left font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors text-xs group"
                                     onClick={() => handleSort('name')}
                                 >
                                     <div className="flex items-center gap-1">
@@ -163,7 +163,7 @@ export function EmployeePerformanceTable() {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-2 py-2 md:px-4 md:py-3 text-center font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors text-[10px] md:text-xs group"
+                                    className="px-2 py-2 md:px-4 md:py-3 text-center font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors text-xs group"
                                     onClick={() => handleSort('taskCount')}
                                 >
                                     <div className="flex items-center justify-center gap-1">
@@ -176,7 +176,7 @@ export function EmployeePerformanceTable() {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-2 py-2 md:px-4 md:py-3 text-center font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors text-[10px] md:text-xs group"
+                                    className="px-2 py-2 md:px-4 md:py-3 text-center font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors text-xs group"
                                     onClick={() => handleSort('completionRate')}
                                 >
                                     <div className="flex items-center justify-center gap-1">
@@ -189,7 +189,7 @@ export function EmployeePerformanceTable() {
                                     </div>
                                 </th>
                                 <th
-                                    className="px-2 py-2 md:px-4 md:py-3 text-center font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors text-[10px] md:text-xs group"
+                                    className="px-2 py-2 md:px-4 md:py-3 text-center font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/80 transition-colors text-xs group"
                                     onClick={() => handleSort('totalPoints')}
                                 >
                                     <div className="flex items-center justify-center gap-1">
@@ -215,30 +215,30 @@ export function EmployeePerformanceTable() {
                                     <td className="px-2 py-2 md:px-4 md:py-3 text-center">
                                         <div className="flex items-center justify-center">
                                             {sortField === 'totalPoints' && sortOrder === 'desc' ? (
-                                                getRankBadge(index) || <span className="text-muted-foreground text-[10px] md:text-xs font-mono">{index + 1}</span>
+                                                getRankBadge(index) || <span className="text-muted-foreground text-xs font-mono">{index + 1}</span>
                                             ) : (
-                                                <span className="text-muted-foreground text-[10px] md:text-xs font-mono">{index + 1}</span>
+                                                <span className="text-muted-foreground text-xs font-mono">{index + 1}</span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-2 py-2 md:px-4 md:py-3 font-semibold text-foreground text-[10px] md:text-sm">
+                                    <td className="px-2 py-2 md:px-4 md:py-3 font-semibold text-foreground text-xs md:text-sm">
                                         {emp.name}
                                     </td>
                                     <td className="px-2 py-2 md:px-4 md:py-3 text-center">
-                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 md:px-2 md:py-1 rounded-md bg-blue-500/10 text-blue-400 font-mono text-[10px] md:text-xs min-w-[2rem] md:min-w-[3rem]">
+                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 md:px-2 md:py-1 rounded-md bg-blue-500/10 text-blue-400 font-mono text-xs min-w-[2rem] md:min-w-[3rem]">
                                             {emp.taskCount}
                                         </span>
                                     </td>
                                     <td className="px-2 py-2 md:px-4 md:py-3 text-center">
                                         <span className={cn(
-                                            "inline-flex items-center justify-center px-1.5 py-0.5 md:px-2 md:py-1 rounded-md font-mono text-[10px] md:text-xs min-w-[2.5rem] md:min-w-[4rem]",
+                                            "inline-flex items-center justify-center px-1.5 py-0.5 md:px-2 md:py-1 rounded-md font-mono text-xs min-w-[2.5rem] md:min-w-[4rem]",
                                             getCompletionRateColor(emp.completionRate)
                                         )}>
                                             {emp.completionRate.toFixed(1)}%
                                         </span>
                                     </td>
                                     <td className="px-2 py-2 md:px-4 md:py-3 text-center">
-                                        <span className="inline-flex items-center justify-center px-2 py-0.5 md:px-3 md:py-1 rounded-md bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-400 font-bold text-[10px] md:text-xs min-w-[2.5rem] md:min-w-[4rem]">
+                                        <span className="inline-flex items-center justify-center px-2 py-0.5 md:px-3 md:py-1 rounded-md bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-400 font-bold text-xs min-w-[2.5rem] md:min-w-[4rem]">
                                             {emp.totalPoints}
                                         </span>
                                     </td>

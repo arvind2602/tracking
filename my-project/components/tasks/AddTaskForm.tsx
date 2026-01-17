@@ -275,7 +275,7 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
                 <div className="w-3 h-3 rounded-full bg-blue-400" />
                 Shared
               </div>
-              <p className="text-[10px] opacity-80">Task is shared with everyone. Points divided equally.</p>
+              <p className="text-xs opacity-80">Task is shared with everyone. Points divided equally.</p>
             </div>
 
             <div
@@ -289,7 +289,7 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
                 <div className="w-3 h-3 rounded-full bg-purple-400" />
                 Sequential
               </div>
-              <p className="text-[10px] opacity-80">Task moves from one user to next upon completion.</p>
+              <p className="text-xs opacity-80">Task moves from one user to next upon completion.</p>
             </div>
           </div>
         </div>

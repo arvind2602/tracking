@@ -168,7 +168,7 @@ export default function TaskDetailPage() {
               className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => assignedUser && router.push(`/dashboard/users/${assignedUser.id}/tasks`)}
             >
-              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold ring-2 ring-background">
+              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold ring-2 ring-background">
                 {assignedUser ? getInitials(assignedUser.firstName + ' ' + assignedUser.lastName) : '?'}
               </div>
               <span className="text-sm font-semibold truncate">
@@ -254,12 +254,12 @@ export default function TaskDetailPage() {
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm">{comment.userName}</span>
                             {comment.source === 'Subtask' && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1 bg-blue-500/10 text-blue-500 border-blue-500/20">
+                              <Badge variant="outline" className="text-xs h-auto px-1 bg-blue-500/10 text-blue-500 border-blue-500/20">
                                 Subtask: {comment.taskDescription?.slice(0, 15)}...
                               </Badge>
                             )}
                           </div>
-                          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{formatDateIST(comment.createdAt)}</span>
+                          <span className="text-xs text-muted-foreground uppercase tracking-wide">{formatDateIST(comment.createdAt)}</span>
                         </div>
                         <div className="text-sm bg-muted/30 p-3 rounded-2xl rounded-tl-none text-foreground/90 leading-relaxed border border-border/50 hover:bg-muted/40 transition-colors">
                           {comment.content}
@@ -360,14 +360,14 @@ export default function TaskDetailPage() {
                             <div className="flex justify-between items-start">
                               <div>
                                 <div className="font-semibold text-sm text-foreground/90">{assignee.firstName} {assignee.lastName}</div>
-                                <div className="text-[10px] uppercase tracking-wider font-medium mt-0.5">
+                                <div className="text-xs uppercase tracking-wider font-medium mt-0.5">
                                   {isCompleted ? <span className="text-emerald-500">Completed</span> :
                                     isCurrent ? <span className="text-blue-400 animate-pulse">In Progress</span> :
                                       <span className="text-muted-foreground">Pending</span>}
                                 </div>
                               </div>
                               {(isCompleted && assignee.completedAt) && (
-                                <div className="text-[10px] text-muted-foreground bg-background/50 px-2 py-1 rounded border border-border/20">
+                                <div className="text-xs text-muted-foreground bg-background/50 px-2 py-1 rounded border border-border/20">
                                   {formatDateOnlyIST(assignee.completedAt)}
                                 </div>
                               )}

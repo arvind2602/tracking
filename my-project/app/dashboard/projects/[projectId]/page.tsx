@@ -153,7 +153,7 @@ const ProjectDetailsPage = () => {
         </CardHeader>
         <CardContent className="p-0">
           {/* Table Header */}
-          <div className="grid grid-cols-12 gap-2 md:gap-4 px-3 py-2 md:px-6 md:py-3 bg-muted/20 text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b">
+          <div className="grid grid-cols-12 gap-2 md:gap-4 px-3 py-2 md:px-6 md:py-3 bg-muted/20 text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b">
             <div className="col-span-1">#</div>
             <div className="col-span-11 md:col-span-6">Desc</div>
             <div className="hidden md:block col-span-2">Assigned To</div>
@@ -166,12 +166,12 @@ const ProjectDetailsPage = () => {
             <div className="divide-y divide-border">
               {project.tasks.map((task, i) => (
                 <div key={task.id} className="grid grid-cols-12 gap-2 md:gap-4 px-3 py-2 md:px-6 md:py-4 items-center hover:bg-accent/5 transition-colors group">
-                  <div className="col-span-1 text-muted-foreground font-mono text-[10px] md:text-xs">{(currentPage - 1) * pageSize + i + 1}</div>
-                  <div className="col-span-11 md:col-span-6 font-medium text-[11px] md:text-sm text-foreground pr-4">
+                  <div className="col-span-1 text-muted-foreground font-mono text-xs">{(currentPage - 1) * pageSize + i + 1}</div>
+                  <div className="col-span-11 md:col-span-6 font-medium text-xs md:text-sm text-foreground pr-4">
                     <Link href={`/dashboard/tasks/${task.id}`} className="hover:underline decoration-primary/50 underline-offset-4 line-clamp-1 md:line-clamp-2">
                       {task.description}
                     </Link>
-                    <div className="md:hidden mt-1 flex gap-2 items-center text-[9px] text-muted-foreground">
+                    <div className="md:hidden mt-1 flex gap-2 items-center text-[11px] text-muted-foreground">
                       <span>{task.assignedToName}</span> • <StatusBadge status={task.status} />
                     </div>
                   </div>
@@ -235,7 +235,7 @@ function StatCard({ title, value, icon: Icon, className }: any) {
     <Card className={`shadow-sm ${className}`}>
       <CardContent className="p-2 md:p-4 flex items-center justify-between">
         <div className="min-w-0">
-          <p className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{title}</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{title}</p>
           <p className="text-base md:text-2xl font-bold mt-0.5 md:mt-1">{value}</p>
         </div>
         {Icon && <Icon className="h-4 w-4 md:h-5 md:w-5 opacity-50 shrink-0" />}
@@ -266,7 +266,7 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${style} whitespace-nowrap`}>
+    <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${style} whitespace-nowrap`}>
       {formatStatus(status)}
     </span>
   );

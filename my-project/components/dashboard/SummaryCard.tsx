@@ -27,11 +27,11 @@ export const SummaryCard = memo(function SummaryCard({ title, value, icon, onCli
         <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-secondary border border-border/50 shadow-inner">
           {icon}
         </div>
-        <div className="text-xl md:text-3xl font-bold text-foreground tracking-tight">{value}</div>
+        <div className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">{value}</div>
       </div>
 
       <div>
-        <p className="text-[10px] md:text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors uppercase tracking-wider">{title}</p>
+        <p className="text-xs md:text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors uppercase tracking-wider">{title}</p>
       </div>
 
       {/* Bottom accent line */}
