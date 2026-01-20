@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 import { TaskPoints } from "@/components/reports/TaskPoints";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 interface UserProfile {
     id: string;
@@ -37,6 +38,10 @@ export default function ProfilePage() {
     const [newResponsibility, setNewResponsibility] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
+    // Autocomplete states
+    const [availableSkills, setAvailableSkills] = useState<string[]>([]);
+    const [openSkillSearch, setOpenSkillSearch] = useState(false);
+
     useEffect(() => {
         fetchProfile();
     }, []);
@@ -57,6 +62,23 @@ export default function ProfilePage() {
             toast.error("Failed to load profile");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchAvailableSkills = async (search: string = "") => {
+        if (!search.trim()) {
+            setAvailableSkills([]);
+            return;
+        }
+        try {
+            console.log("Fetching skills with search:", search);
+            const response = await axios.get("/auth/skills", {
+                params: { search }
+            });
+            console.log("Available skills fetched:", response.data);
+            setAvailableSkills(response.data || []);
+        } catch (error) {
+            console.error("Failed to fetch skills:", error);
         }
     };
 
@@ -88,27 +110,38 @@ export default function ProfilePage() {
         }
     };
 
-    const addSkill = () => {
-        if (newSkill.trim()) {
-            setEditedSkills([...editedSkills, newSkill.trim()]);
+    const handleAddSkill = (skillToAdd: string) => {
+        if (skillToAdd.trim() && !editedSkills.includes(skillToAdd.trim())) {
+            setEditedSkills([...editedSkills, skillToAdd.trim()]);
             setNewSkill("");
+            toast.success("Skill added");
         }
     };
 
     const removeSkill = (index: number) => {
         setEditedSkills(editedSkills.filter((_, i) => i !== index));
+        toast.success("Skill removed");
     };
 
     const addResponsibility = () => {
         if (newResponsibility.trim()) {
             setEditedResponsibilities([...editedResponsibilities, newResponsibility.trim()]);
             setNewResponsibility("");
+            toast.success("Responsibility added");
         }
     };
 
     const removeResponsibility = (index: number) => {
         setEditedResponsibilities(editedResponsibilities.filter((_, i) => i !== index));
+        toast.success("Responsibility removed");
     };
+
+    // Filter skills that are not yet added and match current input
+    const filteredAvailableSkills = newSkill.trim() === "" ? [] : availableSkills.filter(
+        skill => !editedSkills.includes(skill) &&
+            skill.toLowerCase().includes(newSkill.toLowerCase())
+    );
+
 
     if (loading) {
         return (
@@ -242,7 +275,7 @@ export default function ProfilePage() {
                     </Card>
 
                     {/* Skills Section */}
-                    <Card className="border-none shadow-lg bg-sidebar/30 backdrop-blur-md">
+                    <Card className="border-none shadow-lg bg-sidebar/30 backdrop-blur-md relative z-30 overflow-visible">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-xl">
                                 <BadgeCheck className="w-5 h-5 text-blue-500" />
@@ -270,17 +303,64 @@ export default function ProfilePage() {
                             </div>
 
                             {isEditing && (
-                                <div className="flex gap-2 max-w-md mt-4">
-                                    <Input
-                                        placeholder="Add a new skill..."
-                                        value={newSkill}
-                                        onChange={(e) => setNewSkill(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && addSkill()}
-                                        className="bg-background/50"
-                                    />
-                                    <Button onClick={addSkill} size="sm" variant="secondary">
-                                        <Plus className="w-4 h-4" />
-                                    </Button>
+                                <div className="relative max-w-md mt-4 z-50">
+                                    <Command shouldFilter={false} className="rounded-lg border shadow-md bg-popover overflow-visible">
+                                        <CommandInput
+                                            placeholder="Search or add skill..."
+                                            value={newSkill}
+                                            onValueChange={setNewSkill}
+                                            onFocus={() => setOpenSkillSearch(true)}
+                                            onBlur={() => setTimeout(() => setOpenSkillSearch(false), 200)}
+                                        />
+                                        {openSkillSearch && (
+                                            <div className="absolute top-full left-0 w-full bg-popover border rounded-b-lg shadow-lg mt-1 max-h-60 overflow-y-auto z-50">
+                                                <CommandList>
+                                                    {filteredAvailableSkills.length > 0 && (
+                                                        <CommandGroup heading="Suggestions">
+                                                            {filteredAvailableSkills.map(skill => (
+                                                                <CommandItem
+                                                                    key={skill}
+                                                                    onSelect={() => {
+                                                                        handleAddSkill(skill);
+                                                                    }}
+                                                                    className="cursor-pointer"
+                                                                    onMouseDown={(e) => {
+                                                                        e.preventDefault();
+                                                                        handleAddSkill(skill);
+                                                                    }}
+                                                                >
+                                                                    {skill}
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    )}
+
+                                                    {filteredAvailableSkills.length === 0 && newSkill.trim() !== "" && (
+                                                        <CommandGroup heading="Create new">
+                                                            <CommandItem
+                                                                onSelect={() => {
+                                                                    handleAddSkill(newSkill);
+                                                                }}
+                                                                className="cursor-pointer"
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    handleAddSkill(newSkill);
+                                                                }}
+                                                            >
+                                                                <Plus className="w-3 h-3 mr-2" /> Create "{newSkill}"
+                                                            </CommandItem>
+                                                        </CommandGroup>
+                                                    )}
+
+                                                    {filteredAvailableSkills.length === 0 && newSkill.trim() === "" && (
+                                                        <div className="py-6 text-center text-sm text-muted-foreground">
+                                                            Type to search or add skills...
+                                                        </div>
+                                                    )}
+                                                </CommandList>
+                                            </div>
+                                        )}
+                                    </Command>
                                 </div>
                             )}
                         </CardContent>

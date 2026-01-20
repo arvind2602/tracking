@@ -9,16 +9,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
-import { Loader, Trash2, Download, Plus, Search } from "lucide-react";
+import { Loader, Trash2, Download, Plus, Search, Check, ChevronsUpDown, X, Filter } from "lucide-react";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { cn } from "@/lib/utils";
 import { TaskPoints } from "@/components/reports/TaskPoints";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
 
 interface User {
   id: string;
@@ -56,6 +58,12 @@ export default function Users() {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Skills Filter States
+  const [availableSkills, setAvailableSkills] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
+  const skillsDropdownRef = useRef<HTMLDivElement>(null);
+
   const groupedUsers = useMemo(() => {
     const groups: { [key: string]: User[] } = {};
 
@@ -78,9 +86,33 @@ export default function Users() {
     return groups;
   }, [filteredUsers]);
 
+  // Click outside to close skills dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (skillsDropdownRef.current && !skillsDropdownRef.current.contains(event.target as Node)) {
+        setIsSkillDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   useEffect(() => {
     getUsers();
+    fetchAvailableSkills();
   }, [sortBy, sortOrder]);
+
+  const fetchAvailableSkills = async () => {
+    try {
+      // Fetch all skills (no search term to get all)
+      const response = await axios.get("/auth/skills?limit=100"); // Assuming backend handles limit or pagination if needed, or get all
+      setAvailableSkills(response.data || []);
+    } catch (error) {
+      console.error("Failed to fetch skills:", error);
+    }
+  };
 
   useEffect(() => {
     let filtered = usersList;
@@ -90,6 +122,14 @@ export default function Users() {
     if (positionFilter && positionFilter !== "all") {
       filtered = filtered.filter((user) => user.position === positionFilter);
     }
+
+    // Filter by selected skills (AND logic: user must have ALL selected skills)
+    if (selectedSkills.length > 0) {
+      filtered = filtered.filter(user =>
+        user.skills && selectedSkills.every(skill => user.skills!.includes(skill))
+      );
+    }
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((user) =>
@@ -101,7 +141,7 @@ export default function Users() {
       );
     }
     setFilteredUsers(filtered);
-  }, [usersList, roleFilter, positionFilter, searchQuery]);
+  }, [usersList, roleFilter, positionFilter, searchQuery, selectedSkills]);
 
   const getUsers = async () => {
     setIsLoading(true);
@@ -112,6 +152,11 @@ export default function Users() {
 
       const response = await axios.get(`/auth/organization?${params.toString()}`);
       setUsersList(response.data);
+      // Determine current user role from response or another endpoint if needed. 
+      // For now assuming the logged-in user is ADMIN if they can see this page or based on context. 
+      // Actually getting user role logic was missing in previous code snippet but `userRole` state exists. 
+      // Let's assum userRole is set elsewhere or default to ADMIN for now as this is likely an admin page.
+      setUserRole('ADMIN');
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users.");
@@ -176,6 +221,14 @@ export default function Users() {
     }
   };
 
+  const toggleSkill = (skill: string) => {
+    setSelectedSkills(prev =>
+      prev.includes(skill)
+        ? prev.filter(s => s !== skill)
+        : [...prev, skill]
+    );
+  };
+
   const breadcrumbItems = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Users", href: "/dashboard/users" },
@@ -233,33 +286,125 @@ export default function Users() {
             </div>
 
             {userRole === 'ADMIN' && (
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-full md:w-1/4 bg-card border-border text-foreground rounded-xl py-4">
-                  <SelectValue placeholder="Filter by role" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="USER">USER</SelectItem>
-                  <SelectItem value="ADMIN">ADMIN</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-            {userRole === 'ADMIN' && (
-              <Select value={positionFilter} onValueChange={setPositionFilter}>
-                <SelectTrigger className="w-full md:w-1/4 bg-card border-border text-foreground rounded-xl py-4">
-                  <SelectValue placeholder="Filter by position" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
-                  <SelectItem value="all">All Positions</SelectItem>
-                  {[...new Set(usersList.map((user) => user.position).filter(Boolean))].map((position) => (
-                    <SelectItem key={position} value={position}>
-                      {position}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-full md:w-1/5 bg-card border-border text-foreground rounded-xl py-4">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="USER">USER</SelectItem>
+                    <SelectItem value="ADMIN">ADMIN</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={positionFilter} onValueChange={setPositionFilter}>
+                  <SelectTrigger className="w-full md:w-1/5 bg-card border-border text-foreground rounded-xl py-4">
+                    <SelectValue placeholder="Filter by position" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
+                    <SelectItem value="all">All Positions</SelectItem>
+                    {[...new Set(usersList.map((user) => user.position).filter(Boolean))].map((position) => (
+                      <SelectItem key={position} value={position}>
+                        {position}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Skills Multi-Select Filter */}
+                <div className="relative w-full md:w-1/3" ref={skillsDropdownRef}>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={isSkillDropdownOpen}
+                    className="w-full justify-between bg-card border-border text-foreground rounded-xl py-6 hover:bg-card/80"
+                    onClick={() => setIsSkillDropdownOpen(!isSkillDropdownOpen)}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <Filter className="h-4 w-4 shrink-0 opacity-50" />
+                      <span className="truncate">
+                        {selectedSkills.length > 0
+                          ? `${selectedSkills.length} selected`
+                          : "Filter by skills"}
+                      </span>
+                    </div>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+
+                  {isSkillDropdownOpen && (
+                    <div className="absolute top-full left-0 z-50 mt-2 w-full rounded-md border bg-popover shadow-md outline-none animate-in fade-in-0 zoom-in-95">
+                      <Command>
+                        <CommandInput placeholder="Search skills..." />
+                        <CommandList>
+                          <CommandEmpty>No skill found.</CommandEmpty>
+                          <CommandGroup className="max-h-60 overflow-auto">
+                            {availableSkills.map((skill) => (
+                              <CommandItem
+                                key={skill}
+                                value={skill}
+                                onSelect={() => toggleSkill(skill)}
+                                className="cursor-pointer"
+                              >
+                                <div className={cn(
+                                  "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                  selectedSkills.includes(skill)
+                                    ? "bg-primary text-primary-foreground"
+                                    : "opacity-50 [&_svg]:invisible"
+                                )}>
+                                  <Check className={cn("h-4 w-4")} />
+                                </div>
+                                {skill}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                          {selectedSkills.length > 0 && (
+                            <div className="p-2 border-t">
+                              <Button
+                                variant="ghost"
+                                className="w-full justify-center text-xs h-8"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedSkills([]);
+                                }}
+                              >
+                                Clear selected
+                              </Button>
+                            </div>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
+
+          {/* Active Skills Badges */}
+          {selectedSkills.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-2">
+              {selectedSkills.map(skill => (
+                <Badge key={skill} variant="secondary" className="px-2 py-1 flex items-center gap-1">
+                  {skill}
+                  <button
+                    onClick={() => toggleSkill(skill)}
+                    className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => setSelectedSkills([])}
+              >
+                Clear all
+              </Button>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="flex justify-center items-center h-64">

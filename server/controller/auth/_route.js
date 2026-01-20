@@ -12,6 +12,7 @@ employee.post('/forget-password', employeeController.forgetPassword);
 employee.use(authMiddleware);
 employee.get('/organization', employeeController.getEmployeesByOrg);
 employee.get('/export', employeeController.exportUsers);
+employee.get('/skills', employeeController.getSkills);
 employee.post('/register', employeeController.register);
 employee.get('/profile', employeeController.getEmployee);
 employee.get('/:id', employeeController.getEmployeeById);

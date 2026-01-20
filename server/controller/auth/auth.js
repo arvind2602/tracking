@@ -186,6 +186,35 @@ const getEmployeesByOrg = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const getSkills = async (req, res, next) => {
+    const organizationId = req.user.organization_uuid;
+    const { search } = req.query;
+    try {
+        let query = `
+            SELECT DISTINCT skill 
+            FROM (
+                SELECT unnest(skills) as skill 
+                FROM employee 
+                WHERE "organiationId" = $1 AND is_archived = false
+            ) as distinct_skills
+        `;
+        const params = [organizationId];
+
+        if (search) {
+            query += ` WHERE skill ILIKE $2`;
+            params.push(`%${search}%`);
+        }
+
+        query += ` ORDER BY skill ASC LIMIT 50`;
+
+        const result = await pool.query(query, params);
+        res.json(result.rows.map(r => r.skill));
+    } catch (error) { next(error); }
+};
+
+// ... existing code ...
+
+
 
 
 // Forget password (send reset token)
@@ -312,5 +341,6 @@ module.exports = {
     forgetPassword,
     updateEmployee,
     deleteEmployee,
-    exportUsers
+    exportUsers,
+    getSkills
 };
