@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
+import { TaskPoints } from "@/components/reports/TaskPoints";
 
 interface UserProfile {
     id: string;
@@ -330,6 +331,22 @@ export default function ProfilePage() {
                                     </Button>
                                 </div>
                             )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Performance Heatmap */}
+                    <Card className="border-none shadow-lg bg-sidebar/30 backdrop-blur-md">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Award className="w-5 h-5 text-orange-500" />
+                                Performance Heatmap
+                            </CardTitle>
+                            <CardDescription>
+                                Task completion points across different projects.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <TaskPoints employeeName={`${profile.firstName} ${profile.lastName}`} />
                         </CardContent>
                     </Card>
                 </div>

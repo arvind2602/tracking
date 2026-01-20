@@ -28,8 +28,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
       const userRole = payload.user.role;
 
       if (userRole === 'USER') {
-        // Allow access to login and tasks routes
-        if (pathname !== '/' && !pathname.startsWith('/dashboard/tasks')) {
+        // Allow access to login, tasks, and profile routes
+        if (pathname !== '/' && !pathname.startsWith('/dashboard/tasks') && !pathname.startsWith('/dashboard/profile')) {
           router.push('/dashboard/tasks');
         }
       }
