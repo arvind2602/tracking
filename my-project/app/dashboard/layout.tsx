@@ -54,7 +54,7 @@ export default function DashboardLayout({
   ];
 
   const navItems = userRole === 'USER'
-    ? allNavItems.filter(item => item.label === 'Tasks')
+    ? allNavItems.filter(item => item.label === 'Tasks' || item.label === 'Profile')
     : allNavItems;
 
   useEffect(() => {
