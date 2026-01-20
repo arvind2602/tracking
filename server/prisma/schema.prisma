@@ -19,22 +19,24 @@ model organiation {
 }
 
 model employee {
-  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  firstName     String
-  lastName      String
-  email         String         @unique
-  position      String
-  role          role
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime?      @updatedAt
-  is_archived   Boolean        @default(false)
-  organiationId String         @db.Uuid
-  password      String
-  lastDeviceId  String?
-  TimeLog       TimeLog[]
-  comments      comment[]
-  organiation   organiation    @relation(fields: [organiationId], references: [id])
-  taskAssignees TaskAssignee[]
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName        String
+  lastName         String
+  email            String         @unique
+  position         String
+  role             role
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime?      @updatedAt
+  is_archived      Boolean        @default(false)
+  organiationId    String         @db.Uuid
+  password         String
+  lastDeviceId     String?
+  TimeLog          TimeLog[]
+  comments         comment[]
+  organiation      organiation    @relation(fields: [organiationId], references: [id])
+  taskAssignees    TaskAssignee[]
+  skills           String[]       @default([])
+  responsibilities String[]       @default([])
 }
 
 model projects {

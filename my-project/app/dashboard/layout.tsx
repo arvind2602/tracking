@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { ModeToggle } from "@/components/mode-toggle";
@@ -50,6 +50,7 @@ export default function DashboardLayout({
     { href: '/dashboard/tasks', icon: Code, label: 'Tasks' },
     { href: '/dashboard/users', icon: GraduationCap, label: 'Users' },
     { href: '/dashboard/projects', icon: Code, label: 'Projects' },
+    { href: '/dashboard/profile', icon: User, label: 'Profile' },
   ];
 
   const navItems = userRole === 'USER'

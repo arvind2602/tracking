@@ -94,8 +94,29 @@ const getEmployee = async (req, res, next) => {
     console.log('Fetching employee with ID:', user_uuid);
     try {
         const result = await pool.query(
-            'SELECT id, "firstName", "lastName", email, position, role, "organiationId" FROM employee WHERE id = $1 AND is_archived = false',
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, o.name as "organizationName"
+             FROM employee e
+             LEFT JOIN organiation o ON e."organiationId" = o.id
+             WHERE e.id = $1 AND e.is_archived = false`,
             [user_uuid]
+        );
+        if (result.rowCount === 0) return next(new NotFoundError('Employee not found'));
+        res.json(result.rows[0]);
+    } catch (error) { next(error); }
+};
+
+// View specific employee by ID (Admin/Manager view)
+const getEmployeeById = async (req, res, next) => {
+    const { id } = req.params;
+    const organizationId = req.user.organization_uuid; // Ensure they belong to same org
+
+    try {
+        const result = await pool.query(
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, o.name as "organizationName"
+             FROM employee e
+             LEFT JOIN organiation o ON e."organiationId" = o.id
+             WHERE e.id = $1 AND e."organiationId" = $2 AND e.is_archived = false`,
+            [id, organizationId]
         );
         if (result.rowCount === 0) return next(new NotFoundError('Employee not found'));
         res.json(result.rows[0]);
@@ -152,6 +173,8 @@ const getEmployeesByOrg = async (req, res, next) => {
                 e.position, 
                 e.role,
                 ws."weeklyPoints",
+                e.skills,
+                e.responsibilities,
                 RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
              FROM employee e
              JOIN WeeklyStats ws ON e.id = ws.id
@@ -185,12 +208,12 @@ const forgetPassword = async (req, res, next) => {
 // Edit user
 const updateEmployee = async (req, res, next) => {
     const { id } = req.params;
-    const { firstName, lastName, position, role } = req.body;
+    const { firstName, lastName, position, role, skills, responsibilities } = req.body;
     try {
         const result = await pool.query(
-            `UPDATE employee SET "firstName" = $1, "lastName" = $2, position = $3, role = $4, "updatedAt" = NOW()
-             WHERE id = $5 AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role`,
-            [firstName, lastName, position, role, id]
+            `UPDATE employee SET "firstName" = $1, "lastName" = $2, position = $3, role = $4, skills = $5, responsibilities = $6, "updatedAt" = NOW()
+             WHERE id = $7 AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities`,
+            [firstName, lastName, position, role, skills || [], responsibilities || [], id]
         );
         if (result.rowCount === 0) return next(new NotFoundError('Employee not found'));
         res.json(result.rows[0]);
@@ -234,6 +257,8 @@ const exportUsers = async (req, res, next) => {
                 e.position, 
                 e.role,
                 e."createdAt",
+                e.skills,
+                e.responsibilities,
                 ws."weeklyPoints",
                 RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
              FROM employee e
@@ -246,10 +271,13 @@ const exportUsers = async (req, res, next) => {
         const users = result.rows;
 
         // Convert to CSV
-        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Weekly Points', 'Joined At'];
+        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Skills', 'Responsibilities', 'Weekly Points', 'Joined At'];
         const csvRows = [header.join(',')];
 
         users.forEach(user => {
+            const skills = (user.skills || []).join('; ');
+            const responsibilities = (user.responsibilities || []).join('; ');
+
             const row = [
                 user.id,
                 user.rank,
@@ -258,6 +286,8 @@ const exportUsers = async (req, res, next) => {
                 `"${(user.email || '').replace(/"/g, '""')}"`,
                 `"${(user.position || '').replace(/"/g, '""')}"`,
                 user.role,
+                `"${skills.replace(/"/g, '""')}"`,
+                `"${responsibilities.replace(/"/g, '""')}"`,
                 user.weeklyPoints,
                 user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : ''
             ];
@@ -277,6 +307,7 @@ module.exports = {
     login,
     register,
     getEmployee,
+    getEmployeeById,
     getEmployeesByOrg,
     forgetPassword,
     updateEmployee,

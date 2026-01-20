@@ -14,6 +14,7 @@ employee.get('/organization', employeeController.getEmployeesByOrg);
 employee.get('/export', employeeController.exportUsers);
 employee.post('/register', employeeController.register);
 employee.get('/profile', employeeController.getEmployee);
+employee.get('/:id', employeeController.getEmployeeById);
 
 employee.use(activityMiddleware);
 employee.put('/:id', employeeController.updateEmployee);

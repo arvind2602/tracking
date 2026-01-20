@@ -15,11 +15,10 @@ import { useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
-import { Loader, Trash2, Download, Plus } from "lucide-react";
+import { Loader, Trash2, Download, Plus, Search } from "lucide-react";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { cn } from "@/lib/utils";
 import { TaskPoints } from "@/components/reports/TaskPoints";
-
 
 interface User {
   id: string;
@@ -30,6 +29,8 @@ interface User {
   role: string;
   rank?: number;
   weeklyPoints?: number;
+  skills?: string[];
+  responsibilities?: string[];
 }
 
 export default function Users() {
@@ -53,30 +54,24 @@ export default function Users() {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [sortBy, setSortBy] = useState<string>('weeklyPoints');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const groupedUsers = useMemo(() => {
     const groups: { [key: string]: User[] } = {};
 
-    // First, separate users by role
     const adminUsers = filteredUsers.filter(user => user.role === "ADMIN");
     const regularUsers = filteredUsers.filter(user => user.role !== "ADMIN");
 
-    // Process admins first
     adminUsers.forEach((user) => {
       const position = user.position ? user.position.charAt(0).toUpperCase() + user.position.slice(1) : "Unassigned";
       const key = `ADMIN - ${position}`;
-      if (!groups[key]) {
-        groups[key] = [];
-      }
+      if (!groups[key]) groups[key] = [];
       groups[key].push(user);
     });
 
-    // Then process regular users
     regularUsers.forEach((user) => {
       const position = user.position ? user.position.charAt(0).toUpperCase() + user.position.slice(1) : "Unassigned";
-      if (!groups[position]) {
-        groups[position] = [];
-      }
+      if (!groups[position]) groups[position] = [];
       groups[position].push(user);
     });
 
@@ -95,8 +90,18 @@ export default function Users() {
     if (positionFilter && positionFilter !== "all") {
       filtered = filtered.filter((user) => user.position === positionFilter);
     }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((user) =>
+        user.firstName.toLowerCase().includes(query) ||
+        user.lastName.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query) ||
+        user.skills?.some(s => s.toLowerCase().includes(query)) ||
+        user.responsibilities?.some(r => r.toLowerCase().includes(query))
+      );
+    }
     setFilteredUsers(filtered);
-  }, [usersList, roleFilter, positionFilter]);
+  }, [usersList, roleFilter, positionFilter, searchQuery]);
 
   const getUsers = async () => {
     setIsLoading(true);
@@ -142,7 +147,6 @@ export default function Users() {
 
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
-
     const toastId = toast.loading("Deleting...");
     try {
       await axios.delete(`/auth/${userToDelete}`);
@@ -208,22 +212,26 @@ export default function Users() {
 
       <Tabs defaultValue="list" className="w-full">
         <TabsList className="bg-secondary border border-border rounded-xl p-1 mb-4">
-          <TabsTrigger
-            value="list"
-            className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white px-6 py-2 font-medium transition-all"
-          >
+          <TabsTrigger value="list" className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white px-6 py-2 font-medium transition-all">
             Users List
           </TabsTrigger>
-          <TabsTrigger
-            value="heatmap"
-            className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white px-6 py-2 font-medium transition-all"
-          >
+          <TabsTrigger value="heatmap" className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white px-6 py-2 font-medium transition-all">
             Performance Heatmap
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative w-full md:w-1/3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, skills, responsibilities..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-card border-border text-foreground rounded-xl py-6"
+              />
+            </div>
+
             {userRole === 'ADMIN' && (
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-full md:w-1/4 bg-card border-border text-foreground rounded-xl py-4">
@@ -267,8 +275,7 @@ export default function Users() {
                   <thead>
                     <tr className="border-b border-border bg-secondary">
                       <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">S.No</th>
-                      <th
-                        className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
+                      <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                         onClick={() => {
                           if (sortBy === 'firstName') {
                             setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -280,13 +287,10 @@ export default function Users() {
                       >
                         <div className="flex items-center gap-1">
                           Name
-                          {sortBy === 'firstName' && (
-                            <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
-                          )}
+                          {sortBy === 'firstName' && <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>}
                         </div>
                       </th>
-                      <th
-                        className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
+                      <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                         onClick={() => {
                           if (sortBy === 'email') {
                             setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -298,13 +302,10 @@ export default function Users() {
                       >
                         <div className="flex items-center gap-1">
                           Email
-                          {sortBy === 'email' && (
-                            <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
-                          )}
+                          {sortBy === 'email' && <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>}
                         </div>
                       </th>
-                      <th
-                        className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
+                      <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                         onClick={() => {
                           if (sortBy === 'role') {
                             setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -316,13 +317,10 @@ export default function Users() {
                       >
                         <div className="flex items-center gap-1">
                           Role
-                          {sortBy === 'role' && (
-                            <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
-                          )}
+                          {sortBy === 'role' && <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>}
                         </div>
                       </th>
-                      <th
-                        className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
+                      <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                         onClick={() => {
                           if (sortBy === 'weeklyPoints') {
                             setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -334,9 +332,7 @@ export default function Users() {
                       >
                         <div className="flex items-center justify-center gap-1">
                           Pts
-                          {sortBy === 'weeklyPoints' && (
-                            <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
-                          )}
+                          {sortBy === 'weeklyPoints' && <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>}
                         </div>
                       </th>
                       <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-right text-xs md:text-sm">Act</th>
@@ -358,7 +354,7 @@ export default function Users() {
                             <td className="px-2 py-2 md:px-4 md:py-3">
                               <button
                                 className="font-semibold text-foreground hover:text-blue-400 transition-colors text-[10px] md:text-sm"
-                                onClick={() => router.push(`/dashboard/users/${u.id}/tasks`)}
+                                onClick={() => router.push(`/dashboard/users/${u.id}/profile`)}
                               >
                                 {u.firstName} {u.lastName}
                               </button>

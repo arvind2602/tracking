@@ -20,7 +20,11 @@ interface HeatmapCell {
   points: number;
 }
 
-export function TaskPoints() {
+interface TaskPointsProps {
+  employeeName?: string;
+}
+
+export function TaskPoints({ employeeName }: TaskPointsProps) {
   const [hoveredCell, setHoveredCell] = useState<HeatmapCell | null>(null);
 
   const { data, isLoading, error } = useQuery<TaskPointsData>({
@@ -33,7 +37,15 @@ export function TaskPoints() {
 
   // Transform data for heatmap
   const projects = data?.data || [];
-  const employees = data?.employees || [];
+  let employees = data?.employees || [];
+
+  if (employeeName) {
+    // Case-insensitive fuzzy matching or exact match
+    employees = employees.filter(emp =>
+      emp.toLowerCase() === employeeName.toLowerCase() ||
+      emp.toLowerCase().includes(employeeName.toLowerCase())
+    );
+  }
 
   // Calculate max points for color scaling
   let maxPoints = 0;
