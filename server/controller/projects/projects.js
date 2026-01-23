@@ -14,14 +14,14 @@ const createProject = async (req, res, next) => {
   const { error } = schema.validate(req.body);
   if (error) return next(new BadRequestError(error.details[0].message));
 
-  const { name, description, startDate } = req.body;
+  const { name, description, startDate, headId } = req.body;
   const organiationId = req.user.organization_uuid;
 
   try {
     const result = await pool.query(
-      `INSERT INTO projects (name, description, "startDate", "organiationId")
-             VALUES ($1, $2, $3, $4) RETURNING id, name, description, "startDate"`,
-      [name, description || '', startDate, organiationId]
+      `INSERT INTO projects (name, description, "startDate", "organiationId", "headId")
+             VALUES ($1, $2, $3, $4, $5) RETURNING id, name, description, "startDate", "headId"`,
+      [name, description || '', startDate, organiationId, headId || null]
     );
 
     res.status(201).json(result.rows[0]);
@@ -41,14 +41,17 @@ const getProject = async (req, res, next) => {
   try {
     const projectResult = await pool.query(
       `SELECT 
-         id, 
-         name, 
-         description, 
-         "startDate", 
-         "createdAt", 
-         "updatedAt"
-       FROM projects 
-       WHERE id = $1::uuid AND "organiationId" = $2::uuid `,
+         p.id, 
+         p.name, 
+         p.description, 
+         p."startDate", 
+         p."createdAt", 
+         p."updatedAt",
+         p."headId",
+         COALESCE(e."firstName" || ' ' || e."lastName", 'Unassigned') as "headName"
+       FROM projects p
+       LEFT JOIN employee e ON p."headId" = e.id
+       WHERE p.id = $1::uuid AND p."organiationId" = $2::uuid `,
       [id, organiationId]
     );
 
@@ -172,7 +175,9 @@ const getProjects = async (req, res, next) => {
          p.description, 
          p."startDate", 
          p."createdAt",
-          p.priority_order,
+         p.priority_order,
+         p."headId",
+         COALESCE(ph."firstName" || ' ' || ph."lastName", 'Unassigned') as "headName",
          ps."totalPoints",
          ps."yesterdayPoints",
          COALESCE((
@@ -182,6 +187,7 @@ const getProjects = async (req, res, next) => {
          ), '[]'::json) as "topPerformers"
        FROM projects p
        JOIN ProjectStats ps ON p.id = ps.id
+       LEFT JOIN employee ph ON p."headId" = ph.id
        WHERE p."organiationId" = $1 AND p.is_archived = false
        ${orderByClause}`,
       [organiationId]
@@ -195,15 +201,15 @@ const getProjects = async (req, res, next) => {
 // Update Project
 const updateProject = async (req, res, next) => {
   const { id } = req.params;
-  const { name, description, startDate } = req.body;
+  const { name, description, startDate, headId } = req.body;
   const organiationId = req.user.organization_uuid;
 
   try {
     const result = await pool.query(
-      `UPDATE projects SET name = $1, description = $2, "startDate" = $3, "updatedAt" = NOW()
+      `UPDATE projects SET name = $1, description = $2, "startDate" = $3, "headId" = $6, "updatedAt" = NOW()
              WHERE id = $4 AND "organiationId" = $5
-             RETURNING id, name, description, "startDate"`,
-      [name, description || '', startDate, id, organiationId]
+             RETURNING id, name, description, "startDate", "headId"`,
+      [name, description || '', startDate, id, organiationId, headId || null]
     );
     if (result.rowCount === 0) return next(new NotFoundError('Project not found'));
     res.json(result.rows[0]);
@@ -267,6 +273,7 @@ const exportProjects = async (req, res, next) => {
          p.description, 
          p."startDate", 
          p."createdAt",
+         COALESCE(ph."firstName" || ' ' || ph."lastName", 'Unassigned') as "headName",
          ps."totalPoints",
          ps."yesterdayPoints",
          COALESCE((
@@ -276,6 +283,7 @@ const exportProjects = async (req, res, next) => {
          ), '') as "topPerformers"
        FROM projects p
        JOIN ProjectStats ps ON p.id = ps.id
+       LEFT JOIN employee ph ON p."headId" = ph.id
        WHERE p."organiationId" = $1 AND p.is_archived = false
        ORDER BY ps."totalPoints" DESC, p."createdAt" DESC`,
       [organiationId]
@@ -284,7 +292,7 @@ const exportProjects = async (req, res, next) => {
     const projects = result.rows;
 
     // Convert to CSV
-    const header = ['ID', 'Name', 'Description', 'Start Date', 'Total Points', 'Yesterday Points', 'Top Performers', 'Created At'];
+    const header = ['ID', 'Name', 'Description', 'Start Date', 'Head', 'Total Points', 'Yesterday Points', 'Top Performers', 'Created At'];
     const csvRows = [header.join(',')];
 
     projects.forEach(project => {
@@ -293,6 +301,7 @@ const exportProjects = async (req, res, next) => {
         `"${(project.name || '').replace(/"/g, '""')}"`,
         `"${(project.description || '').replace(/"/g, '""')}"`,
         project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
+        `"${(project.headName || '').replace(/"/g, '""')}"`,
         project.totalPoints,
         project.yesterdayPoints,
         `"${(project.topPerformers || '').replace(/"/g, '""')}"`,

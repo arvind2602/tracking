@@ -1,5 +1,6 @@
 const { v2: cloudinary } = require('cloudinary');
-const { v4: uuidv4 } = require('uuid');
+const { UnprocessableEntityError } = require('../utils/errors');
+
 
 cloudinary.config({
   cloud_name: "dixp1jeqr",
@@ -9,6 +10,7 @@ cloudinary.config({
 
 
 const uploadToCloudinary = async (file, fileType) => {
+  const { v4: uuidv4 } = await import('uuid');
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {

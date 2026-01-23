@@ -40,6 +40,7 @@ model employee {
   dob              DateTime?
   bloodGroup       String?
   image            String?
+  headedProjects   projects[]     @relation("ProjectHead")
 }
 
 model projects {
@@ -55,6 +56,8 @@ model projects {
   priority_order Int?        @default(0)
   organiation    organiation @relation(fields: [organiationId], references: [id])
   task           task[]
+  headId         String?     @db.Uuid
+  head           employee?   @relation("ProjectHead", fields: [headId], references: [id])
 }
 
 model task {

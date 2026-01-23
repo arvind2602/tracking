@@ -29,7 +29,15 @@ import {
   verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
+
 import { CSS } from '@dnd-kit/utilities';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 
 const ProjectsPage = () => {
@@ -41,7 +49,17 @@ const ProjectsPage = () => {
     totalPoints: number;
     yesterdayPoints: number;
     priority_order?: number | null;
+
     topPerformers: { name: string; initial: string; points: number }[];
+    headId?: string;
+    headName?: string;
+  }
+
+  interface Employee {
+    id: string;
+    firstName: string;
+    lastName: string;
+    position: string;
   }
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -58,7 +76,23 @@ const ProjectsPage = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'priority'>('overview');
   const [sortBy, setSortBy] = useState<string>('priority_order');
+
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [newProjectHeadId, setNewProjectHeadId] = useState<string>('');
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await axios.get('/auth/organization'); // Adjust endpoint if needed
+      setEmployees(response.data);
+    } catch (error) {
+      console.error("Failed to fetch employees", error);
+    }
+  }
 
   useEffect(() => {
     fetchProjects();
@@ -110,6 +144,8 @@ const ProjectsPage = () => {
           name: newProjectName,
           description: newProjectDescription,
           startDate: newProjectStartDate,
+
+          headId: newProjectHeadId === "unassigned" ? null : newProjectHeadId,
           // endDate: newProjectEndDate,
         });
         setProjects([...projects, response.data]);
@@ -370,6 +406,8 @@ const ProjectsPage = () => {
                     </div>
                   </th>
                   <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Desc</th>
+
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Head</th>
                   <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Top</th>
                   <th
                     className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
@@ -422,6 +460,11 @@ const ProjectsPage = () => {
                       <p className="line-clamp-1 md:line-clamp-2 text-slate-400 text-xs md:text-sm" title={project.description}>
                         {project.description}
                       </p>
+                    </td>
+                    <td className="px-2 py-2 md:px-4 md:py-4 align-top">
+                      <span className="font-medium text-foreground text-xs md:text-sm">
+                        {project.headName === 'Unassigned' ? <span className="text-slate-500 italic">Unassigned</span> : project.headName}
+                      </span>
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
                       {project.topPerformers && project.topPerformers.length > 0 ? (
@@ -538,6 +581,23 @@ const ProjectsPage = () => {
                   onChange={(e) => setNewProjectStartDate(e.target.value)}
                   className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50 block dark:[color-scheme:dark]"
                 />
+
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Project Head</label>
+                <Select value={newProjectHeadId} onValueChange={setNewProjectHeadId}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:ring-blue-500/50">
+                    <SelectValue placeholder="Select a head (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.firstName} {emp.lastName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="flex gap-4 mt-10">
