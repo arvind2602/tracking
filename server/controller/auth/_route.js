@@ -18,7 +18,8 @@ employee.get('/profile', employeeController.getEmployee);
 employee.get('/:id', employeeController.getEmployeeById);
 
 employee.use(activityMiddleware);
-employee.put('/:id', employeeController.updateEmployee);
+const upload = require('../../middleware/uploadMiddleware');
+employee.put('/:id', upload.single('image'), employeeController.updateEmployee);
 employee.delete('/:id', employeeController.deleteEmployee);
 
 module.exports = employee;

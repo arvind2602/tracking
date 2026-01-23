@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import React from 'react';
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,9 +27,12 @@ interface UserProfile {
     createdAt?: string;
     skills: string[];
     responsibilities: string[];
+    dob?: string;
+    bloodGroup?: string;
+    image?: string;
 }
 
-export default function UserProfileView({ params }: { params: { userId: string } }) {
+export default function UserProfileView({ params }: { params: Promise<{ userId: string }> }) {
     const { userId } = React.use(params);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
@@ -39,6 +44,14 @@ export default function UserProfileView({ params }: { params: { userId: string }
     const [editedResponsibilities, setEditedResponsibilities] = useState<string[]>([]);
     const [newSkill, setNewSkill] = useState("");
     const [newResponsibility, setNewResponsibility] = useState("");
+
+    // New fields state
+    const [dob, setDob] = useState("");
+    const [bloodGroup, setBloodGroup] = useState("");
+    const [position, setPosition] = useState("");
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [removeImage, setRemoveImage] = useState(false);
 
     useEffect(() => {
         if (userId) {
@@ -57,6 +70,11 @@ export default function UserProfileView({ params }: { params: { userId: string }
             setProfile(data);
             setEditedSkills(data.skills);
             setEditedResponsibilities(data.responsibilities);
+            setDob(data.dob ? new Date(data.dob).toISOString().split('T')[0] : "");
+            setBloodGroup(data.bloodGroup || "");
+            setPosition(data.position || "");
+            setImagePreview(data.image || null);
+            setRemoveImage(false);
         } catch (error) {
             console.error("Failed to fetch profile:", error);
             toast.error("Failed to load user profile");
@@ -69,21 +87,41 @@ export default function UserProfileView({ params }: { params: { userId: string }
         if (!profile) return;
         setIsSaving(true);
         try {
-            await axios.put(`/auth/${profile.id}`, {
-                firstName: profile.firstName,
-                lastName: profile.lastName,
-                position: profile.position,
-                role: profile.role,
-                skills: editedSkills,
-                responsibilities: editedResponsibilities
+            const formData = new FormData();
+            formData.append("firstName", profile.firstName);
+            formData.append("lastName", profile.lastName);
+            formData.append("position", position);
+            formData.append("role", profile.role);
+            formData.append("dob", dob);
+            formData.append("bloodGroup", bloodGroup);
+
+            // Append arrays as JSON strings
+            formData.append("skills", JSON.stringify(editedSkills));
+            formData.append("responsibilities", JSON.stringify(editedResponsibilities));
+
+            if (imageFile) {
+                formData.append("image", imageFile);
+            } else if (removeImage) {
+                formData.append("removeImage", "true");
+            }
+
+            const response = await axios.put(`/auth/${profile.id}`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
             });
 
             setProfile({
                 ...profile,
                 skills: editedSkills,
-                responsibilities: editedResponsibilities
+                responsibilities: editedResponsibilities,
+                dob: dob,
+                bloodGroup: bloodGroup,
+                position: position,
+                image: response.data.image || (removeImage ? null : profile.image)
             });
             setIsEditing(false);
+            setRemoveImage(false);
             toast.success("Profile updated successfully");
         } catch (error) {
             console.error("Failed to update profile:", error);
@@ -164,18 +202,70 @@ export default function UserProfileView({ params }: { params: { userId: string }
                     <Card className="h-auto border-none shadow-xl bg-gradient-to-b from-sidebar/50 to-sidebar/20 backdrop-blur-xl overflow-hidden relative group transition-all duration-300 hover:shadow-2xl hover:bg-sidebar/40 sticky top-4">
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                         <CardContent className="pt-10 pb-8 px-6 flex flex-col items-center text-center relative z-10">
-                            <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 p-[2px] shadow-lg mb-6">
-                                <div className="w-full h-full rounded-full bg-sidebar flex items-center justify-center overflow-hidden">
-                                    <span className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-purple-600">
-                                        {profile.firstName[0]}{profile.lastName[0]}
-                                    </span>
+                            <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 p-[2px] shadow-lg mb-6 relative group/avatar">
+                                <div className="w-full h-full rounded-full bg-sidebar flex items-center justify-center overflow-hidden relative">
+                                    <Avatar className="w-full h-full">
+                                        <AvatarImage src={imagePreview || profile.image} alt={profile.firstName} className="object-cover" />
+                                        <AvatarFallback className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-purple-600">
+                                            {profile.firstName[0]}{profile.lastName[0]}
+                                        </AvatarFallback>
+                                    </Avatar>
+
+                                    {isEditing && (
+                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity gap-2">
+                                            <div
+                                                className="bg-white/20 p-2 rounded-full cursor-pointer hover:bg-white/30 transition-colors"
+                                                onClick={() => document.getElementById('image-upload')?.click()}
+                                                title="Upload Image"
+                                            >
+                                                <Camera className="w-5 h-5 text-white" />
+                                            </div>
+                                            {(imagePreview || profile.image) && (
+                                                <div
+                                                    className="bg-red-500/80 p-2 rounded-full cursor-pointer hover:bg-red-600/80 transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setImageFile(null);
+                                                        setImagePreview(null);
+                                                        setRemoveImage(true);
+                                                    }}
+                                                    title="Remove Image"
+                                                >
+                                                    <Trash2 className="w-5 h-5 text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
+                                <input
+                                    type="file"
+                                    id="image-upload"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            setImageFile(file);
+                                            setImagePreview(URL.createObjectURL(file));
+                                            setRemoveImage(false);
+                                        }
+                                    }}
+                                    disabled={!isEditing}
+                                />
                             </div>
 
                             <h2 className="text-2xl font-bold mb-1">{profile.firstName} {profile.lastName}</h2>
                             <div className="flex items-center gap-2 text-muted-foreground mb-4">
                                 <Briefcase className="w-4 h-4" />
-                                <span className="text-sm">{profile.position}</span>
+                                {isEditing ? (
+                                    <Input
+                                        value={position}
+                                        onChange={(e) => setPosition(e.target.value)}
+                                        className="h-8 text-sm max-w-[200px]"
+                                    />
+                                ) : (
+                                    <span className="text-sm">{profile.position}</span>
+                                )}
                             </div>
 
                             <Badge variant="secondary" className="mb-6 px-3 py-1">
@@ -216,6 +306,41 @@ export default function UserProfileView({ params }: { params: { userId: string }
                                     <div className="flex-1 overflow-hidden">
                                         <p className="text-xs text-muted-foreground">Organization</p>
                                         <p className="font-medium truncate">{profile.organizationName || "Unknown"}</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-border/50">
+                                    <div className="p-2 rounded-lg bg-sidebar/50">
+                                        <p className="text-xs text-muted-foreground mb-1">Date of Birth</p>
+                                        {isEditing ? (
+                                            <Input
+                                                type="date"
+                                                value={dob}
+                                                onChange={(e) => setDob(e.target.value)}
+                                                className="h-8 text-xs"
+                                            />
+                                        ) : (
+                                            <p className="font-medium text-sm">
+                                                {profile.dob ? new Date(profile.dob).toLocaleDateString() : "Not set"}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="p-2 rounded-lg bg-sidebar/50">
+                                        <p className="text-xs text-muted-foreground mb-1">Blood Group</p>
+                                        {isEditing ? (
+                                            <Select value={bloodGroup} onValueChange={setBloodGroup}>
+                                                <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue placeholder="Select" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bg => (
+                                                        <SelectItem key={bg} value={bg}>{bg}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <p className="font-medium text-sm">{profile.bloodGroup || "Not set"}</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

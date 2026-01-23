@@ -84,6 +84,7 @@ const getEmployeePerformance = async (req, res, next) => {
          e."firstName", 
          e."lastName", 
          e.position,
+         e.image,
          
          -- Workload Breakdown
          COUNT(t.id) as "totalAssigned",

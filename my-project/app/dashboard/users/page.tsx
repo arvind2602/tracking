@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { TaskPoints } from "@/components/reports/TaskPoints";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface User {
   id: string;
@@ -33,6 +34,7 @@ interface User {
   weeklyPoints?: number;
   skills?: string[];
   responsibilities?: string[];
+  image?: string;
 }
 
 export default function Users() {
@@ -498,10 +500,16 @@ export default function Users() {
                             </td>
                             <td className="px-2 py-2 md:px-4 md:py-3">
                               <button
-                                className="font-semibold text-foreground hover:text-blue-400 transition-colors text-[10px] md:text-sm"
+                                className="font-semibold text-foreground hover:text-blue-400 transition-colors text-[10px] md:text-sm flex items-center gap-3"
                                 onClick={() => router.push(`/dashboard/users/${u.id}/profile`)}
                               >
-                                {u.firstName} {u.lastName}
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src={u.image} alt={u.firstName} className="object-cover" />
+                                  <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                                    {u.firstName[0]}{u.lastName[0]}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{u.firstName} {u.lastName}</span>
                               </button>
                             </td>
                             <td className="px-2 py-2 md:px-4 md:py-3 text-slate-400 text-xs md:text-sm truncate max-w-[100px] md:max-w-none">{u.email}</td>

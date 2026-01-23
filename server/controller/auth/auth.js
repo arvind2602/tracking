@@ -94,7 +94,7 @@ const getEmployee = async (req, res, next) => {
     console.log('Fetching employee with ID:', user_uuid);
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e.is_archived = false`,
@@ -112,7 +112,7 @@ const getEmployeeById = async (req, res, next) => {
 
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e."organiationId" = $2 AND e.is_archived = false`,
@@ -175,6 +175,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                 ws."weeklyPoints",
                 e.skills,
                 e.responsibilities,
+                e.image,
                 RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
              FROM employee e
              JOIN WeeklyStats ws ON e.id = ws.id
@@ -237,13 +238,47 @@ const forgetPassword = async (req, res, next) => {
 // Edit user
 const updateEmployee = async (req, res, next) => {
     const { id } = req.params;
-    const { firstName, lastName, position, role, skills, responsibilities } = req.body;
+    // req.body might not have nested objects if valid JSON isn't sent with FormData
+    // So we need to handle parsing if they come as strings (though axios usually handles this, 
+    // appending arrays to FormData can be tricky).
+    // For now assuming direct fields or simple parsing if needed.
+
+    let { firstName, lastName, position, role, skills, responsibilities, dob, bloodGroup, removeImage } = req.body;
+
+    // Parse arrays if they come as strings (common with FormData)
+    if (typeof skills === 'string') {
+        try { skills = JSON.parse(skills); } catch (e) { skills = [skills]; }
+    }
+    if (typeof responsibilities === 'string') {
+        try { responsibilities = JSON.parse(responsibilities); } catch (e) { responsibilities = [responsibilities]; }
+    }
+
+    let imageUrl;
+
     try {
-        const result = await pool.query(
-            `UPDATE employee SET "firstName" = $1, "lastName" = $2, position = $3, role = $4, skills = $5, responsibilities = $6, "updatedAt" = NOW()
-             WHERE id = $7 AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities`,
-            [firstName, lastName, position, role, skills || [], responsibilities || [], id]
-        );
+        if (req.file) {
+            const { uploadToCloudinary } = require('../../config/cloudinary');
+            imageUrl = await uploadToCloudinary(req.file, 'image');
+        }
+
+        // Build the update query dynamically or simply
+        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, position = $3, role = $4, skills = $5, responsibilities = $6, dob = $7, "bloodGroup" = $8`;
+        let params = [firstName, lastName, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null];
+        let paramIndex = 9;
+
+        if (imageUrl) {
+            query += `, image = $${paramIndex}`;
+            params.push(imageUrl);
+            paramIndex++;
+        } else if (removeImage === 'true' || removeImage === true) {
+            query += `, image = NULL`;
+        }
+
+        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", image`;
+        params.push(id);
+
+        const result = await pool.query(query, params);
+
         if (result.rowCount === 0) return next(new NotFoundError('Employee not found'));
         res.json(result.rows[0]);
     } catch (error) { next(error); }

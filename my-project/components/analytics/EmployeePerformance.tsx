@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import axios from '@/lib/axios';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Trophy, Users } from "lucide-react";
 
@@ -12,6 +12,7 @@ interface EmployeeAnalytics {
     firstName: string;
     lastName: string;
     position: string;
+    image?: string;
     totalAssigned: string | number;
     completedTasks: string | number;
     pendingTasks: string | number; // This includes pending, todo, in-progress
@@ -76,8 +77,16 @@ export function EmployeePerformance() {
 
                             return (
                                 <div key={emp.id} className="space-y-1">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="font-medium">{emp.firstName} {emp.lastName}</span>
+                                    <div className="flex justify-between text-sm items-center">
+                                        <div className="flex items-center gap-2">
+                                            <Avatar className="h-6 w-6">
+                                                <AvatarImage src={emp.image} alt={emp.firstName} className="object-cover" />
+                                                <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
+                                                    {emp.firstName[0]}{emp.lastName[0]}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium">{emp.firstName} {emp.lastName}</span>
+                                        </div>
                                         <span className="text-muted-foreground">{activeLoad} active tasks</span>
                                     </div>
                                     <Progress value={loadPercent} className="h-2" />
@@ -102,13 +111,19 @@ export function EmployeePerformance() {
                         {topContributorsList.map((emp, index) => (
                             <div key={emp.id} className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className={`flex h-8 w-8 items-center justify-center rounded-full font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                                    <div className={`flex h-8 w-8 items-center justify-center rounded-full font-bold shrink-0 ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
                                         index === 1 ? 'bg-gray-100 text-gray-700' :
                                             index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-700'
                                         }`}>
                                         {index + 1}
                                     </div>
-                                    <div>
+                                    <div className="flex items-center gap-2">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={emp.image} alt={emp.firstName} className="object-cover" />
+                                            <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                                                {emp.firstName[0]}{emp.lastName[0]}
+                                            </AvatarFallback>
+                                        </Avatar>
                                         <p className="text-sm font-medium">{emp.firstName} {emp.lastName}</p>
                                     </div>
                                 </div>

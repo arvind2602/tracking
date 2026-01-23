@@ -37,6 +37,9 @@ model employee {
   taskAssignees    TaskAssignee[]
   skills           String[]       @default([])
   responsibilities String[]       @default([])
+  dob              DateTime?
+  bloodGroup       String?
+  image            String?
 }
 
 model projects {
