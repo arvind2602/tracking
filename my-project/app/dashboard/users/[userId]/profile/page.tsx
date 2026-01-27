@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import React from 'react';
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2 } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2, Download } from "lucide-react";
+import html2canvas from "html2canvas";
+import { QRCodeCanvas } from "qrcode.react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -52,6 +54,30 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [removeImage, setRemoveImage] = useState(false);
+
+    // ID Card content ref
+    const idCardRef = React.useRef<HTMLDivElement>(null);
+
+    const handleDownloadIdCard = async () => {
+        if (!idCardRef.current) return;
+
+        try {
+            const canvas = await html2canvas(idCardRef.current, {
+                useCORS: true, // Important for external images (cloudinary etc)
+                scale: 2, // Better quality
+                backgroundColor: null,
+            } as any);
+
+            const link = document.createElement("a");
+            link.download = `${profile?.firstName || "user"}_${profile?.lastName || "id_card"}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+            toast.success("ID Card downloaded");
+        } catch (error) {
+            console.error("Failed to download ID card", error);
+            toast.error("Failed to download ID card");
+        }
+    };
 
     useEffect(() => {
         if (userId) {
@@ -177,8 +203,343 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
 
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Hidden ID Card for Rendering */}
+            {/* Hidden ID Card for Rendering */}
+            <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
+                <div ref={idCardRef} style={{ padding: "40px", background: "#e5e7eb", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+                    <div style={{ display: "flex", gap: "40px", justifyContent: "center" }}>
+
+                        {/* FRONT SIDE */}
+                        <div style={{
+                            width: "340px",
+                            height: "540px",
+                            background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
+                            borderRadius: "16px",
+                            overflow: "hidden",
+                            boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+                            position: "relative",
+                            display: "flex",
+                            flexDirection: "column"
+                        }}>
+                            {/* Decorative Pattern */}
+                            <div style={{
+                                position: "absolute",
+                                top: 0,
+                                right: 0,
+                                width: "200px",
+                                height: "200px",
+                                background: "radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)",
+                                borderRadius: "50%",
+                                transform: "translate(50%, -50%)"
+                            }} />
+                            {/* Header Section */}
+                            <div style={{
+                                padding: "24px 24px 16px",
+                                background: "rgba(255,255,255,0.95)",
+                                position: "relative",
+                                zIndex: 1
+                            }}>
+                                <div style={{
+                                    fontSize: "26px",
+                                    fontWeight: "800",
+                                    letterSpacing: "-0.5px",
+                                    textAlign: "center"
+                                }}>
+                                    <span style={{ color: "#1e3a8a" }}>Vighno</span><span style={{ color: "#f97316" }}>Tech</span>
+                                </div>
+                                <div style={{
+                                    textAlign: "center",
+                                    fontSize: "11px",
+                                    color: "#6b7280",
+                                    marginTop: "4px",
+                                    letterSpacing: "1px",
+                                    textTransform: "uppercase",
+                                    fontWeight: "600"
+                                }}>
+                                    Employee Identification
+                                </div>
+                            </div>
+
+                            {/* Photo Section */}
+                            <div style={{
+                                flex: 1,
+                                padding: "32px 24px 24px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                position: "relative",
+                                zIndex: 1
+                            }}>
+                                <div style={{
+                                    width: "160px",
+                                    height: "200px",
+                                    marginBottom: "24px",
+                                    borderRadius: "12px",
+                                    overflow: "hidden",
+                                    border: "4px solid rgba(255,255,255,0.95)",
+                                    boxShadow: "0 8px 24px rgba(0,0,0,0.15)"
+                                }}>
+                                    <img
+                                        src={imagePreview || profile?.image || "/placeholder-avatar.jpg"}
+                                        style={{
+                                            width: "100%",
+                                            height: "100%",
+                                            objectFit: "cover",
+                                            display: "block"
+                                        }}
+                                        alt="Employee"
+                                    />
+                                </div>
+
+                                {/* Employee Details */}
+                                <div style={{
+                                    textAlign: "center",
+                                    width: "100%",
+                                    background: "rgba(255,255,255,0.95)",
+                                    padding: "20px",
+                                    borderRadius: "12px",
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                                }}>
+                                    <h2 style={{
+                                        margin: "0 0 8px 0",
+                                        fontSize: "22px",
+                                        fontWeight: "700",
+                                        color: "#1e3a8a",
+                                        letterSpacing: "-0.3px"
+                                    }}>
+                                        {profile?.firstName} {profile?.lastName}
+                                    </h2>
+                                    <div style={{
+                                        fontSize: "13px",
+                                        fontWeight: "600",
+                                        color: "#f97316",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.8px",
+                                        marginBottom: "12px"
+                                    }}>
+                                        {profile?.position || "Employee"}
+                                    </div>
+                                    <div style={{
+                                        fontSize: "11px",
+                                        fontWeight: "600",
+                                        color: "#64748b",
+                                        fontFamily: "monospace",
+                                        letterSpacing: "0.5px"
+                                    }}>
+                                        ID: {profile?.id?.slice(0, 10).toUpperCase()}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer Stripe */}
+                            <div style={{
+                                height: "8px",
+                                background: "#f97316"
+                            }} />
+                        </div>
+
+                        {/* BACK SIDE */}
+                        <div style={{
+                            width: "340px",
+                            height: "540px",
+                            background: "#ffffff",
+                            borderRadius: "16px",
+                            overflow: "hidden",
+                            boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+                            position: "relative",
+                            display: "flex",
+                            flexDirection: "column"
+                        }}>
+                            {/* Header */}
+                            <div style={{
+                                padding: "24px",
+                                background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
+                                textAlign: "center",
+                                position: "relative"
+                            }}>
+                                <div style={{
+                                    fontSize: "18px",
+                                    fontWeight: "700",
+                                    color: "#ffffff",
+                                    letterSpacing: "0.5px"
+                                }}>
+                                    EMPLOYEE INFORMATION
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div style={{
+                                flex: 1,
+                                padding: "32px 28px",
+                                display: "flex",
+                                flexDirection: "column"
+                            }}>
+                                {/* ID Section */}
+                                <div style={{ marginBottom: "24px" }}>
+                                    <div style={{
+                                        fontSize: "11px",
+                                        color: "#9ca3af",
+                                        marginBottom: "6px",
+                                        textTransform: "uppercase",
+                                        fontWeight: "700",
+                                        letterSpacing: "1px"
+                                    }}>
+                                        Employee ID Number
+                                    </div>
+                                    <div style={{
+                                        fontSize: "15px",
+                                        color: "#1e3a8a",
+                                        fontWeight: "600",
+                                        fontFamily: "monospace",
+                                        background: "#f3f4f6",
+                                        padding: "10px 12px",
+                                        borderRadius: "6px",
+                                        border: "1px solid #e5e7eb"
+                                    }}>
+                                        {profile?.id?.slice(0, 16).toUpperCase()}
+                                    </div>
+                                </div>
+
+                                {/* Email */}
+                                <div style={{ marginBottom: "24px" }}>
+                                    <div style={{
+                                        fontSize: "11px",
+                                        color: "#9ca3af",
+                                        marginBottom: "6px",
+                                        textTransform: "uppercase",
+                                        fontWeight: "700",
+                                        letterSpacing: "1px"
+                                    }}>
+                                        Official Email
+                                    </div>
+                                    <div style={{
+                                        fontSize: "13px",
+                                        color: "#111827",
+                                        fontWeight: "500",
+                                        wordBreak: "break-word"
+                                    }}>
+                                        {profile?.email}
+                                    </div>
+                                </div>
+
+                                {/* Personal Details Grid */}
+                                <div style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr 1fr",
+                                    gap: "20px",
+                                    marginBottom: "28px",
+                                    padding: "20px",
+                                    background: "#f9fafb",
+                                    borderRadius: "8px",
+                                    border: "1px solid #e5e7eb"
+                                }}>
+                                    <div>
+                                        <div style={{
+                                            fontSize: "11px",
+                                            color: "#9ca3af",
+                                            marginBottom: "6px",
+                                            textTransform: "uppercase",
+                                            fontWeight: "700",
+                                            letterSpacing: "0.5px"
+                                        }}>
+                                            Date of Birth
+                                        </div>
+                                        <div style={{
+                                            fontSize: "13px",
+                                            color: "#111827",
+                                            fontWeight: "600"
+                                        }}>
+                                            {profile?.dob ? new Date(profile.dob).toLocaleDateString('en-US', {
+                                                month: 'short',
+                                                day: '2-digit',
+                                                year: 'numeric'
+                                            }) : "N/A"}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{
+                                            fontSize: "11px",
+                                            color: "#9ca3af",
+                                            marginBottom: "6px",
+                                            textTransform: "uppercase",
+                                            fontWeight: "700",
+                                            letterSpacing: "0.5px"
+                                        }}>
+                                            Blood Type
+                                        </div>
+                                        <div style={{
+                                            fontSize: "13px",
+                                            color: "#111827",
+                                            fontWeight: "600"
+                                        }}>
+                                            {profile?.bloodGroup || "N/A"}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* QR Code Section */}
+                                <div style={{
+                                    marginTop: "auto",
+                                    textAlign: "center",
+                                    padding: "20px",
+                                    background: "#ffffff",
+                                    borderRadius: "8px",
+                                    border: "2px dashed #e5e7eb"
+                                }}>
+                                    <div style={{
+                                        fontSize: "10px",
+                                        color: "#9ca3af",
+                                        marginBottom: "12px",
+                                        textTransform: "uppercase",
+                                        fontWeight: "700",
+                                        letterSpacing: "1px"
+                                    }}>
+                                        Scan for Verification
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "center" }}>
+                                        <QRCodeCanvas
+                                            value={`vighnotech:employee:${profile?.id}`}
+                                            size={110}
+                                            level={"H"}
+                                            style={{ border: "4px solid white", borderRadius: "8px" }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div style={{
+                                padding: "16px",
+                                background: "#f9fafb",
+                                borderTop: "1px solid #e5e7eb",
+                                textAlign: "center"
+                            }}>
+                                <div style={{
+                                    fontSize: "9px",
+                                    color: "#9ca3af",
+                                    fontWeight: "600",
+                                    letterSpacing: "0.5px"
+                                }}>
+                                    This card remains property of VighnoTech • Report if lost
+                                </div>
+                            </div>
+
+                            {/* Bottom Accent */}
+                            <div style={{
+                                height: "8px",
+                                background: "#1e3a8a"
+                            }} />
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
             <div className="flex justify-end">
                 <div className="flex items-center gap-2">
+                    <Button onClick={handleDownloadIdCard} variant="outline" className="border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-600 mr-2">
+                        <Download className="w-4 h-4 mr-2" /> Download ID Card
+                    </Button>
                     {isEditing ? (
                         <>
                             <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>
@@ -477,6 +838,6 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                     </Card>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

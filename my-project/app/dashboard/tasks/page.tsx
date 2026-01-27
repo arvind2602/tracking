@@ -191,13 +191,15 @@ export default function Tasks() {
           </h1>
           <p className="text-muted-foreground mt-1 font-medium text-sm">Manage and monitor organizational tasks.</p>
         </div>
-        <Button
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
-          onClick={() => setIsModalOpen(true)}
-        >
-          <Plus className="h-5 w-5" />
-          Add New Task
-        </Button>
+        {userRole === 'ADMIN' && (
+          <Button
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
+            onClick={() => setIsModalOpen(true)}
+          >
+            <Plus className="h-5 w-5" />
+            Add New Task
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
