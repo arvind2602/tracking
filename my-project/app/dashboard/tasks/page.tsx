@@ -28,8 +28,9 @@ import React from 'react';
 interface DecodedToken {
   user: {
     role: string;
+    uuid: string;
+    organization_uuid: string;
   };
-  organizationId: string;
 }
 
 export default function Tasks() {
@@ -41,6 +42,7 @@ export default function Tasks() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -72,7 +74,7 @@ export default function Tasks() {
   }, [tasks, statusFilter, projectFilter, userFilter]);
 
   useEffect(() => {
-    const fetchInitialData = async (organizationId: string) => {
+    const fetchInitialData = async () => {
       setIsLoading(true);
       try {
         const [projectsResponse, usersResponse] = await Promise.all([
@@ -94,7 +96,8 @@ export default function Tasks() {
       try {
         const payload: DecodedToken = jwtDecode(token);
         setUserRole(payload.user.role);
-        fetchInitialData(payload.organizationId);
+        setCurrentUserId(payload.user.uuid);
+        fetchInitialData();
       } catch {
         router.push("/login");
       }
@@ -373,6 +376,7 @@ export default function Tasks() {
               projects={projects}
               onTaskAdded={fetchAllTasks}
               onClose={() => setIsModalOpen(false)}
+              currentUserId={currentUserId}
             />
           </div>
         </div>

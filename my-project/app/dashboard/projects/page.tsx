@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
-import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download, GripVertical, List, BarChart3 } from 'lucide-react';
+import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download, GripVertical, List, BarChart3, Pencil } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { jwtDecode } from 'jwt-decode';
 import { cn } from '@/lib/utils';
@@ -67,7 +67,9 @@ const ProjectsPage = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newProjectStartDate, setNewProjectStartDate] = useState('');
@@ -136,29 +138,83 @@ const ProjectsPage = () => {
     }
   };
 
-  const handleAddProject = async () => {
+  const handleSaveProject = async () => {
     if (newProjectName.trim() !== '' && newProjectStartDate.trim() !== '') {
-      const toastId = toast.loading('Adding project...');
+      const toastId = toast.loading(editingProject ? 'Updating project...' : 'Adding project...');
       try {
-        const response = await axios.post('/projects', {
-          name: newProjectName,
-          description: newProjectDescription,
-          startDate: newProjectStartDate,
+        const getHeadName = (id: string | null) => {
+          if (!id) return 'Unassigned';
+          const emp = employees.find(e => e.id === id);
+          return emp ? `${emp.firstName} ${emp.lastName}` : 'Unassigned';
+        };
 
-          headId: newProjectHeadId === "unassigned" ? null : newProjectHeadId,
-          // endDate: newProjectEndDate,
-        });
-        setProjects([...projects, response.data]);
-        setNewProjectName('');
-        setNewProjectDescription('');
-        setNewProjectStartDate('');
-        setNewProjectEndDate('');
-        setIsModalOpen(false);
-        toast.success('Project added successfully', { id: toastId });
+        if (editingProject) {
+          const response = await axios.put(`/projects/${editingProject.id}`, {
+            name: newProjectName,
+            description: newProjectDescription,
+            startDate: newProjectStartDate,
+            headId: newProjectHeadId === "unassigned" ? null : newProjectHeadId,
+          });
+
+          setProjects(projects.map(p => p.id === editingProject.id ? {
+            ...p,
+            ...response.data,
+            headName: getHeadName(response.data.headId)
+          } : p));
+
+          toast.success('Project updated successfully', { id: toastId });
+        } else {
+          const response = await axios.post('/projects', {
+            name: newProjectName,
+            description: newProjectDescription,
+            startDate: newProjectStartDate,
+            headId: newProjectHeadId === "unassigned" ? null : newProjectHeadId,
+          });
+
+          const newProjectData: Project = {
+            ...response.data,
+            totalPoints: 0,
+            yesterdayPoints: 0,
+            topPerformers: [],
+            headName: getHeadName(response.data.headId)
+          };
+
+          setProjects([...projects, newProjectData]);
+          toast.success('Project added successfully', { id: toastId });
+        }
+
+        closeModal();
       } catch (error) {
-        toast.error('Failed to add project', { id: toastId });
+        toast.error(editingProject ? 'Failed to update project' : 'Failed to add project', { id: toastId });
       }
     }
+  };
+
+  const openAddModal = () => {
+    setEditingProject(null);
+    setNewProjectName('');
+    setNewProjectDescription('');
+    setNewProjectStartDate('');
+    setNewProjectHeadId('unassigned');
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (project: Project) => {
+    setEditingProject(project);
+    setNewProjectName(project.name);
+    setNewProjectDescription(project.description || '');
+    setNewProjectStartDate(project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '');
+    setNewProjectHeadId(project.headId || 'unassigned');
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingProject(null);
+    setNewProjectName('');
+    setNewProjectDescription('');
+    setNewProjectStartDate('');
+    setNewProjectHeadId('');
   };
 
   const initiateDeleteProject = (projectId: number) => {
@@ -336,7 +392,7 @@ const ProjectsPage = () => {
           </Button>
           {userRole === 'ADMIN' && (
             <Button
-              onClick={() => setIsModalOpen(true)}
+              onClick={openAddModal}
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
             >
               <Plus className="h-4 w-4" />
@@ -499,14 +555,24 @@ const ProjectsPage = () => {
                           </Button>
                         </Link>
                         {userRole === 'ADMIN' && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 md:h-8 md:w-8 text-slate-400 hover:text-red-400 transition-colors"
-                            onClick={() => initiateDeleteProject(project.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 md:h-8 md:w-8 text-slate-400 hover:text-yellow-400 transition-colors"
+                              onClick={() => openEditModal(project)}
+                            >
+                              <Pencil className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 md:h-8 md:w-8 text-slate-400 hover:text-red-400 transition-colors"
+                              onClick={() => initiateDeleteProject(project.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -551,73 +617,76 @@ const ProjectsPage = () => {
             </SortableContext>
           </DndContext>
         </div>
-      )}
+      )
+      }
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-foreground tracking-tight">Add New Project</h2>
-              <p className="text-muted-foreground mt-2">Fill in the details for the new project.</p>
-            </div>
-            <div className="space-y-4">
-              <Input
-                placeholder="Project Name"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring block dark:[color-scheme:dark]"
-              />
-              <Textarea
-                placeholder="Description"
-                value={newProjectDescription}
-                onChange={(e) => setNewProjectDescription(e.target.value)}
-                className="bg-white/5 border-white/10 text-white rounded-xl py-4 min-h-[120px] focus:border-blue-500/50"
-              />
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Start Date</label>
+      {
+        isModalOpen && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-card border border-border p-8 rounded-[2rem] shadow-2xl w-full max-w-lg animate-in zoom-in duration-300">
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold text-foreground tracking-tight">{editingProject ? 'Edit Project' : 'Add New Project'}</h2>
+                <p className="text-muted-foreground mt-2">{editingProject ? 'Update the project details below.' : 'Fill in the details for the new project.'}</p>
+              </div>
+              <div className="space-y-4">
                 <Input
-                  type="date"
-                  value={newProjectStartDate}
-                  onChange={(e) => setNewProjectStartDate(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50 block dark:[color-scheme:dark]"
+                  placeholder="Project Name"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring block dark:[color-scheme:dark]"
                 />
+                <Textarea
+                  placeholder="Description"
+                  value={newProjectDescription}
+                  onChange={(e) => setNewProjectDescription(e.target.value)}
+                  className="bg-white/5 border-white/10 text-white rounded-xl py-4 min-h-[120px] focus:border-blue-500/50"
+                />
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Start Date</label>
+                  <Input
+                    type="date"
+                    value={newProjectStartDate}
+                    onChange={(e) => setNewProjectStartDate(e.target.value)}
+                    className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50 block dark:[color-scheme:dark]"
+                  />
 
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Project Head</label>
+                  <Select value={newProjectHeadId} onValueChange={setNewProjectHeadId}>
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:ring-blue-500/50">
+                      <SelectValue placeholder="Select a head (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.firstName} {emp.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Project Head</label>
-                <Select value={newProjectHeadId} onValueChange={setNewProjectHeadId}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:ring-blue-500/50">
-                    <SelectValue placeholder="Select a head (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {employees.map((emp) => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {emp.firstName} {emp.lastName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex gap-4 mt-10">
+                <Button
+                  variant="ghost"
+                  className="flex-1 rounded-xl py-6 text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border"
+                  onClick={closeModal}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl py-6 font-bold shadow-lg shadow-blue-500/20"
+                  onClick={handleSaveProject}
+                >
+                  {editingProject ? 'Update Project' : 'Add Project'}
+                </Button>
               </div>
-            </div>
-            <div className="flex gap-4 mt-10">
-              <Button
-                variant="ghost"
-                className="flex-1 rounded-xl py-6 text-muted-foreground hover:text-foreground hover:bg-secondary border border-transparent hover:border-border"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl py-6 font-bold shadow-lg shadow-blue-500/20"
-                onClick={handleAddProject}
-              >
-                Add Project
-              </Button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <ConfirmationModal
         isOpen={deleteModalOpen}
@@ -628,7 +697,7 @@ const ProjectsPage = () => {
         confirmText="Delete Project"
         variant="destructive"
       />
-    </div>
+    </div >
   );
 };
 
