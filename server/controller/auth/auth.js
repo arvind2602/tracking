@@ -164,6 +164,18 @@ const getEmployeesByOrg = async (req, res, next) => {
                     AND t."completedAt" >= NOW() - INTERVAL '7 days'
                 WHERE e."organiationId" = $1
                 GROUP BY e.id
+             ),
+             YesterdayStats AS (
+                SELECT 
+                    e.id,
+                    COALESCE(SUM(t.points), 0) as "yesterdayPoints"
+                FROM employee e
+                LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
+                    AND LOWER(t.status) IN ('done', 'completed')
+                    AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day'
+                    AND t."completedAt" < CURRENT_DATE
+                WHERE e."organiationId" = $1
+                GROUP BY e.id
              )
              SELECT 
                 e.id, 
@@ -173,13 +185,16 @@ const getEmployeesByOrg = async (req, res, next) => {
                 e.position, 
                 e.role,
                 ws."weeklyPoints",
+                COALESCE(ys."yesterdayPoints", 0) as "yesterdayPoints",
                 e.skills,
                 e.responsibilities,
                 e.image,
                 e.dob,
+                e."joiningDate",
                 RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
              FROM employee e
              JOIN WeeklyStats ws ON e.id = ws.id
+             LEFT JOIN YesterdayStats ys ON e.id = ys.id
              WHERE e."organiationId" = $1 AND e.is_archived = false
              ${orderByClause}`,
             [organizationId]
@@ -310,7 +325,19 @@ const exportUsers = async (req, res, next) => {
                 FROM employee e
                 LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
                     AND LOWER(t.status) IN ('done', 'completed')
-                    AND t."updatedAt" >= NOW() - INTERVAL '7 days'
+                    AND t."completedAt" >= NOW() - INTERVAL '7 days'
+                WHERE e."organiationId" = $1
+                GROUP BY e.id
+             ),
+             YesterdayStats AS (
+                SELECT 
+                    e.id,
+                    COALESCE(SUM(t.points), 0) as "yesterdayPoints"
+                FROM employee e
+                LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
+                    AND LOWER(t.status) IN ('done', 'completed')
+                    AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day'
+                    AND t."completedAt" < CURRENT_DATE
                 WHERE e."organiationId" = $1
                 GROUP BY e.id
              )
@@ -331,9 +358,11 @@ const exportUsers = async (req, res, next) => {
                 e.skills,
                 e.responsibilities,
                 ws."weeklyPoints",
+                COALESCE(ys."yesterdayPoints", 0) as "yesterdayPoints",
                 RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
              FROM employee e
              JOIN WeeklyStats ws ON e.id = ws.id
+             LEFT JOIN YesterdayStats ys ON e.id = ys.id
              WHERE e."organiationId" = $1 AND e.is_archived = false
              ORDER BY ws."weeklyPoints" DESC, e."firstName" ASC`,
             [organizationId]
