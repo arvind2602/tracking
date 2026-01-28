@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
 import { TaskPoints } from "@/components/reports/TaskPoints";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { KeyRound, Lock } from "lucide-react";
 
 interface UserProfile {
     id: string;
@@ -57,6 +59,11 @@ export default function ProfilePage() {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [removeImage, setRemoveImage] = useState(false);
+
+    // Password change states
+    const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+    const [newPassword, setNewPassword] = useState("");
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
 
     // Autocomplete states
     const [availableSkills, setAvailableSkills] = useState<string[]>([]);
@@ -195,6 +202,27 @@ export default function ProfilePage() {
         toast.success("Responsibility removed");
     };
 
+    const handleChangePassword = async () => {
+        if (!newPassword || newPassword.length < 6) {
+            toast.error("Password must be at least 6 characters long");
+            return;
+        }
+
+        setIsChangingPassword(true);
+        try {
+            if (!profile) return;
+            await axios.put(`/auth/${profile.id}/change-password`, { password: newPassword });
+            toast.success("Password updated successfully");
+            setIsPasswordDialogOpen(false);
+            setNewPassword("");
+        } catch (error) {
+            console.error("Failed to change password:", error);
+            toast.error("Failed to update password");
+        } finally {
+            setIsChangingPassword(false);
+        }
+    };
+
     // Filter skills that are not yet added and match current input
     const filteredAvailableSkills = newSkill.trim() === "" ? [] : availableSkills.filter(
         skill => !editedSkills.includes(skill) &&
@@ -233,6 +261,49 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-600 mr-2">
+                                <KeyRound className="w-4 h-4 mr-2" /> Change Password
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Change Your Password</DialogTitle>
+                                <DialogDescription>
+                                    Enter a new password for your account.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="flex items-center space-x-2 py-4">
+                                <div className="grid flex-1 gap-2">
+                                    <Input
+                                        type="password"
+                                        placeholder="Enter new password"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleChangePassword()}
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter className="sm:justify-end">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setIsPasswordDialogOpen(false)}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={handleChangePassword}
+                                    disabled={isChangingPassword}
+                                    className="bg-orange-600 hover:bg-orange-700"
+                                >
+                                    {isChangingPassword ? "Updating..." : "Update Password"}
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                     {isEditing ? (
                         <>
                             <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>

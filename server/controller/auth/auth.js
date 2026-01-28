@@ -251,6 +251,26 @@ const forgetPassword = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+const changePassword = async (req, res, next) => {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+        return next(new BadRequestError('Password must be at least 6 characters long'));
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const result = await pool.query(
+            'UPDATE employee SET password = $1, "updatedAt" = NOW() WHERE id = $2 AND is_archived = false RETURNING id',
+            [hashedPassword, id]
+        );
+
+        if (result.rowCount === 0) return next(new NotFoundError('Employee not found'));
+        res.json({ message: 'Password updated successfully' });
+    } catch (error) { next(error); }
+};
+
 // Edit user
 const updateEmployee = async (req, res, next) => {
     const { id } = req.params;
@@ -416,6 +436,7 @@ module.exports = {
     getEmployeesByOrg,
     forgetPassword,
     updateEmployee,
+    changePassword,
     deleteEmployee,
     exportUsers,
     getSkills

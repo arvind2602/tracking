@@ -20,6 +20,7 @@ employee.get('/:id', employeeController.getEmployeeById);
 employee.use(activityMiddleware);
 const upload = require('../../middleware/uploadMiddleware');
 employee.put('/:id', upload.single('image'), employeeController.updateEmployee);
+employee.put('/:id/change-password', employeeController.changePassword);
 employee.delete('/:id', employeeController.deleteEmployee);
 
 module.exports = employee;
