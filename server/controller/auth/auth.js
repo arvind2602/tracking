@@ -94,7 +94,7 @@ const getEmployee = async (req, res, next) => {
     console.log('Fetching employee with ID:', user_uuid);
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."joiningDate", o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e.is_archived = false`,
@@ -112,7 +112,7 @@ const getEmployeeById = async (req, res, next) => {
 
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."joiningDate", o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e."organiationId" = $2 AND e.is_archived = false`,
@@ -176,6 +176,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                 e.skills,
                 e.responsibilities,
                 e.image,
+                e.dob,
                 RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
              FROM employee e
              JOIN WeeklyStats ws ON e.id = ws.id
@@ -243,7 +244,7 @@ const updateEmployee = async (req, res, next) => {
     // appending arrays to FormData can be tricky).
     // For now assuming direct fields or simple parsing if needed.
 
-    let { firstName, lastName, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, removeImage } = req.body;
+    let { firstName, lastName, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, joiningDate, removeImage } = req.body;
 
     // Parse arrays if they come as strings (common with FormData)
     if (typeof skills === 'string') {
@@ -262,9 +263,9 @@ const updateEmployee = async (req, res, next) => {
         }
 
         // Build the update query dynamically or simply
-        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, position = $3, role = $4, skills = $5, responsibilities = $6, dob = $7, "bloodGroup" = $8, "phoneNumber" = $9`;
-        let params = [firstName, lastName, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null];
-        let paramIndex = 10;
+        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, position = $3, role = $4, skills = $5, responsibilities = $6, dob = $7, "bloodGroup" = $8, "phoneNumber" = $9, "joiningDate" = $10`;
+        let params = [firstName, lastName, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, joiningDate || null];
+        let paramIndex = 11;
 
         if (imageUrl) {
             query += `, image = $${paramIndex}`;
@@ -274,7 +275,7 @@ const updateEmployee = async (req, res, next) => {
             query += `, image = NULL`;
         }
 
-        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", image`;
+        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", "joiningDate", image`;
         params.push(id);
 
         const result = await pool.query(query, params);
@@ -320,7 +321,13 @@ const exportUsers = async (req, res, next) => {
                 e.email, 
                 e.position, 
                 e.role,
+                e."updatedAt",
+                e.dob,
+                e."bloodGroup",
+                e."phoneNumber",
+                e.image,
                 e."createdAt",
+                e."joiningDate",
                 e.skills,
                 e.responsibilities,
                 ws."weeklyPoints",
@@ -335,7 +342,7 @@ const exportUsers = async (req, res, next) => {
         const users = result.rows;
 
         // Convert to CSV
-        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Skills', 'Responsibilities', 'Weekly Points', 'Joined At'];
+        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Skills', 'Responsibilities', 'Weekly Points', 'Joined At', 'Date of Birth', 'Blood Group', 'Phone Number', 'Image URL', 'Last Updated'];
         const csvRows = [header.join(',')];
 
         users.forEach(user => {
@@ -353,7 +360,12 @@ const exportUsers = async (req, res, next) => {
                 `"${skills.replace(/"/g, '""')}"`,
                 `"${responsibilities.replace(/"/g, '""')}"`,
                 user.weeklyPoints,
-                user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : ''
+                user.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : (user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : ''),
+                user.dob ? new Date(user.dob).toISOString().split('T')[0] : '',
+                `"${(user.bloodGroup || '').replace(/"/g, '""')}"`,
+                `"${(user.phoneNumber || '').replace(/"/g, '""')}"`,
+                `"${(user.image || '').replace(/"/g, '""')}"`,
+                user.updatedAt ? new Date(user.updatedAt).toISOString() : ''
             ];
             csvRows.push(row.join(','));
         });

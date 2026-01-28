@@ -6,6 +6,7 @@ import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, Chevron
 import { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { ModeToggle } from "@/components/mode-toggle";
+import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { Button } from "@/components/ui/button";
 
 interface DecodedToken {
@@ -164,6 +165,7 @@ export default function DashboardLayout({
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden relative z-10 transition-all duration-300">
+        <BirthdayBanner />
         <header className="md:hidden flex items-center justify-between p-4 bg-card border-b border-border">
           <button onClick={() => setIsSidebarOpen(true)} className="text-foreground">
             <Menu className="h-6 w-6" />

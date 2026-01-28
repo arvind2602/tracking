@@ -41,6 +41,7 @@ model employee {
   bloodGroup       String?
   image            String?
   phoneNumber      String?
+  joiningDate      DateTime?
   headedProjects   projects[]     @relation("ProjectHead")
 }
 

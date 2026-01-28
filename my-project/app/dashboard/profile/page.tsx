@@ -30,6 +30,7 @@ interface UserProfile {
     bloodGroup?: string;
     image?: string;
     phoneNumber?: string;
+    joiningDate?: string;
 }
 
 export default function ProfilePage() {
@@ -48,6 +49,7 @@ export default function ProfilePage() {
     const [dob, setDob] = useState("");
     const [bloodGroup, setBloodGroup] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
+    const [joiningDate, setJoiningDate] = useState("");
     const [position, setPosition] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export default function ProfilePage() {
             setEditedSkills(data.skills);
             setEditedResponsibilities(data.responsibilities);
             setDob(data.dob ? new Date(data.dob).toISOString().split('T')[0] : "");
+            setJoiningDate(data.joiningDate ? new Date(data.joiningDate).toISOString().split('T')[0] : (data.createdAt ? new Date(data.createdAt).toISOString().split('T')[0] : ""));
 
             setBloodGroup(data.bloodGroup || "");
             setPhoneNumber(data.phoneNumber || "");
@@ -116,6 +119,7 @@ export default function ProfilePage() {
             formData.append("dob", dob);
             formData.append("bloodGroup", bloodGroup);
             formData.append("phoneNumber", phoneNumber);
+            formData.append("joiningDate", joiningDate);
 
             // Append arrays as JSON strings
             formData.append("skills", JSON.stringify(editedSkills));
@@ -140,6 +144,7 @@ export default function ProfilePage() {
                 dob: dob,
                 bloodGroup: bloodGroup,
                 phoneNumber: phoneNumber,
+                joiningDate: joiningDate,
                 position: position,
                 image: response.data.image || (removeImage ? null : profile.image)
             });
@@ -347,13 +352,22 @@ export default function ProfilePage() {
                                     <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
                                         <Calendar className="w-4 h-4" />
                                     </div>
-                                    <div>
+                                    <div className="flex-1 overflow-hidden">
                                         <p className="text-xs text-muted-foreground">Joined</p>
-                                        <p className="font-medium">
-                                            {profile.createdAt
-                                                ? new Date(profile.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
-                                                : 'N/A'}
-                                        </p>
+                                        {isEditing ? (
+                                            <Input
+                                                type="date"
+                                                value={joiningDate}
+                                                onChange={(e) => setJoiningDate(e.target.value)}
+                                                className="h-8 text-xs"
+                                            />
+                                        ) : (
+                                            <p className="font-medium">
+                                                {profile.joiningDate
+                                                    ? new Date(profile.joiningDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+                                                    : (profile.createdAt ? new Date(profile.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A')}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
