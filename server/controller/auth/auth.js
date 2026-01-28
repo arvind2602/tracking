@@ -259,7 +259,7 @@ const updateEmployee = async (req, res, next) => {
     // appending arrays to FormData can be tricky).
     // For now assuming direct fields or simple parsing if needed.
 
-    let { firstName, lastName, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, joiningDate, removeImage } = req.body;
+    let { firstName, lastName, email, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, joiningDate, removeImage } = req.body;
 
     // Parse arrays if they come as strings (common with FormData)
     if (typeof skills === 'string') {
@@ -278,9 +278,9 @@ const updateEmployee = async (req, res, next) => {
         }
 
         // Build the update query dynamically or simply
-        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, position = $3, role = $4, skills = $5, responsibilities = $6, dob = $7, "bloodGroup" = $8, "phoneNumber" = $9, "joiningDate" = $10`;
-        let params = [firstName, lastName, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, joiningDate || null];
-        let paramIndex = 11;
+        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, email = $3, position = $4, role = $5, skills = $6, responsibilities = $7, dob = $8, "bloodGroup" = $9, "phoneNumber" = $10, "joiningDate" = $11`;
+        let params = [firstName, lastName, email, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, joiningDate || null];
+        let paramIndex = 12;
 
         if (imageUrl) {
             query += `, image = $${paramIndex}`;

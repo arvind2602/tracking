@@ -50,6 +50,9 @@ export default function ProfilePage() {
     const [bloodGroup, setBloodGroup] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [joiningDate, setJoiningDate] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
     const [position, setPosition] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -80,6 +83,9 @@ export default function ProfilePage() {
             setBloodGroup(data.bloodGroup || "");
             setPhoneNumber(data.phoneNumber || "");
             setPosition(data.position || "");
+            setFirstName(data.firstName || "");
+            setLastName(data.lastName || "");
+            setEmail(data.email || "");
             setImagePreview(data.image || null);
             setRemoveImage(false);
         } catch (error) {
@@ -112,8 +118,9 @@ export default function ProfilePage() {
         setIsSaving(true);
         try {
             const formData = new FormData();
-            formData.append("firstName", profile.firstName);
-            formData.append("lastName", profile.lastName);
+            formData.append("firstName", firstName);
+            formData.append("lastName", lastName);
+            formData.append("email", email);
             formData.append("position", position);
             formData.append("role", profile.role);
             formData.append("dob", dob);
@@ -139,6 +146,9 @@ export default function ProfilePage() {
 
             setProfile({
                 ...profile,
+                firstName: firstName,
+                lastName: lastName,
+                email: email,
                 skills: editedSkills,
                 responsibilities: editedResponsibilities,
                 dob: dob,
@@ -298,7 +308,24 @@ export default function ProfilePage() {
                                 />
                             </div>
 
-                            <h2 className="text-2xl font-bold mb-1">{profile.firstName} {profile.lastName}</h2>
+                            {isEditing ? (
+                                <div className="flex gap-2 mb-1">
+                                    <Input
+                                        value={firstName}
+                                        onChange={(e) => setFirstName(e.target.value)}
+                                        className="h-8 text-lg font-bold text-center"
+                                        placeholder="First Name"
+                                    />
+                                    <Input
+                                        value={lastName}
+                                        onChange={(e) => setLastName(e.target.value)}
+                                        className="h-8 text-lg font-bold text-center"
+                                        placeholder="Last Name"
+                                    />
+                                </div>
+                            ) : (
+                                <h2 className="text-2xl font-bold mb-1">{profile.firstName} {profile.lastName}</h2>
+                            )}
                             <div className="flex items-center gap-2 text-muted-foreground mb-4">
                                 <Briefcase className="w-4 h-4" />
                                 {isEditing ? (
@@ -325,7 +352,16 @@ export default function ProfilePage() {
                                     </div>
                                     <div className="flex-1 overflow-hidden">
                                         <p className="text-xs text-muted-foreground">Email</p>
-                                        <p className="font-medium truncate" title={profile.email}>{profile.email}</p>
+                                        {isEditing ? (
+                                            <Input
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                className="h-8 text-sm"
+                                                placeholder="Email Address"
+                                            />
+                                        ) : (
+                                            <p className="font-medium truncate" title={profile.email}>{profile.email}</p>
+                                        )}
                                     </div>
                                 </div>
 
