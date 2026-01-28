@@ -24,7 +24,6 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
     try {
       const payload: any = jwtDecode(token);
-      console.log('Decoded payload:', payload.user.role);
       const userRole = payload.user.role;
 
       if (userRole === 'USER') {

@@ -22,6 +22,10 @@ import { TaskPoints } from "@/components/reports/TaskPoints";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import html2canvas from "html2canvas";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
+import { IDCardTemplate } from "@/components/IDCardTemplate";
 
 interface User {
   id: string;
@@ -65,6 +69,14 @@ export default function Users() {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
   const skillsDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Bulk ID Generation States
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [isGeneratingIds, setIsGeneratingIds] = useState(false);
+  const [currentProcessingUser, setCurrentProcessingUser] = useState<User | null>(null);
+  const processingQueueRef = useRef<User[]>([]);
+  const zipRef = useRef<JSZip | null>(null);
+  const idCardRef = useRef<HTMLDivElement>(null);
 
   const groupedUsers = useMemo(() => {
     const groups: { [key: string]: User[] } = {};
@@ -231,6 +243,79 @@ export default function Users() {
     );
   };
 
+  const toggleSelectAll = () => {
+    if (selectedUsers.length === filteredUsers.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(filteredUsers.map(u => u.id));
+    }
+  };
+
+  const toggleSelectUser = (userId: string) => {
+    setSelectedUsers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleBulkDownload = () => {
+    if (selectedUsers.length === 0) return;
+
+    const usersToProcess = usersList.filter(u => selectedUsers.includes(u.id));
+    processingQueueRef.current = [...usersToProcess];
+    zipRef.current = new JSZip();
+    setIsGeneratingIds(true);
+    processNextUser();
+  };
+
+  const processNextUser = () => {
+    if (processingQueueRef.current.length === 0) {
+      // Finished
+      if (zipRef.current) {
+        zipRef.current.generateAsync({ type: "blob" }).then((content) => {
+          saveAs(content, "ID_Cards.zip");
+          setIsGeneratingIds(false);
+          setCurrentProcessingUser(null);
+          zipRef.current = null;
+          toast.success("IDs downloaded successfully!");
+        });
+      }
+      return;
+    }
+
+    const nextUser = processingQueueRef.current.shift();
+    if (nextUser) {
+      setCurrentProcessingUser(nextUser);
+      // The template will render, process image, and call onImageProcessed
+    }
+  };
+
+  const handleTemplateReady = async () => {
+    if (!idCardRef.current || !currentProcessingUser) return;
+
+    try {
+      // Small delay to ensure rendering is perfect
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const canvas = await html2canvas(idCardRef.current as HTMLElement, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: null,
+      } as any);
+
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+      if (blob && zipRef.current) {
+        const fileName = `${currentProcessingUser.firstName}_${currentProcessingUser.lastName}_ID.png`;
+        zipRef.current.file(fileName, blob);
+      }
+    } catch (error) {
+      console.error("Error capturing ID card:", error);
+    }
+
+    processNextUser();
+  };
+
   const breadcrumbItems = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Users", href: "/dashboard/users" },
@@ -255,6 +340,19 @@ export default function Users() {
             <Download className="h-4 w-4" />
             Export Users
           </Button>
+          {selectedUsers.length > 0 && (
+            <Button
+              onClick={handleBulkDownload}
+              disabled={isGeneratingIds}
+              className="bg-orange-500 hover:bg-orange-600 text-white border-none rounded-xl px-6 py-4 transition-all duration-300 gap-2"
+            >
+              {isGeneratingIds ? (
+                <><Loader className="h-4 w-4 animate-spin" /> Generating {selectedUsers.length} IDs...</>
+              ) : (
+                <><Download className="h-4 w-4" /> Download {selectedUsers.length} IDs</>
+              )}
+            </Button>
+          )}
           <Button
             onClick={() => setIsModalOpen(true)}
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
@@ -421,6 +519,14 @@ export default function Users() {
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary">
+                      <th className="px-2 py-2 md:px-4 md:py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </th>
                       <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">S.No</th>
                       <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                         onClick={() => {
@@ -489,12 +595,20 @@ export default function Users() {
                     {Object.entries(groupedUsers).sort((a, b) => a[0].localeCompare(b[0])).map(([position, users]) => (
                       <React.Fragment key={`group-${position}`}>
                         <tr className="bg-secondary/50">
-                          <td colSpan={6} className="px-4 py-2 font-bold text-blue-400/80 bg-blue-500/5 text-xs uppercase tracking-widest">
+                          <td colSpan={7} className="px-4 py-2 font-bold text-blue-400/80 bg-blue-500/5 text-xs uppercase tracking-widest">
                             {position} ({users.length})
                           </td>
                         </tr>
                         {users.map((u, index) => (
                           <tr key={u.id} className="group hover:bg-secondary transition-all duration-300">
+                            <td className="px-2 py-2 md:px-4 md:py-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedUsers.includes(u.id)}
+                                onChange={() => toggleSelectUser(u.id)}
+                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                            </td>
                             <td className="px-2 py-2 md:px-4 md:py-3 text-slate-500 font-mono text-xs text-center md:text-left">
                               {String(index + 1).padStart(2, '0')}
                             </td>
@@ -639,6 +753,17 @@ export default function Users() {
         confirmText="Delete User"
         variant="destructive"
       />
+
+      {/* Hidden ID Card Generator */}
+      <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
+        {currentProcessingUser && (
+          <IDCardTemplate
+            profile={currentProcessingUser}
+            idCardRef={idCardRef as React.RefObject<HTMLDivElement>}
+            onImageProcessed={handleTemplateReady}
+          />
+        )}
+      </div>
     </div>
   );
 }

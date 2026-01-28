@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import React from 'react';
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2, Download } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2, Download, Loader2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { QRCodeCanvas } from "qrcode.react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,8 +14,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import toast from "react-hot-toast";
-import Breadcrumbs from "@/components/ui/breadcrumbs";
 import { TaskPoints } from "@/components/reports/TaskPoints";
+import { removeBackground } from "@imgly/background-removal";
+
+
 
 interface UserProfile {
     id: string;
@@ -32,6 +34,7 @@ interface UserProfile {
     dob?: string;
     bloodGroup?: string;
     image?: string;
+    phoneNumber?: string;
 }
 
 export default function UserProfileView({ params }: { params: Promise<{ userId: string }> }) {
@@ -50,21 +53,52 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
     // New fields state
     const [dob, setDob] = useState("");
     const [bloodGroup, setBloodGroup] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
     const [position, setPosition] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [removeImage, setRemoveImage] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [processedImage, setProcessedImage] = useState<string | null>(null);
+    const [isProcessingImage, setIsProcessingImage] = useState(false);
 
     // ID Card content ref
     const idCardRef = React.useRef<HTMLDivElement>(null);
 
     const handleDownloadIdCard = async () => {
         if (!idCardRef.current) return;
+        setIsDownloading(true);
+        const toastId = toast.loading("Processing image and generating ID Card...");
 
         try {
+            // Process image first if not already processed
+            const sourceImage = imagePreview || profile?.image || "./Arvind.png";
+            let currentProcessedImage = processedImage;
+
+            // Always re-process to ensure freshness, or check if we need to
+            // For now, let's process it now.
+            if (!currentProcessedImage) {
+                try {
+                    console.log("Starting background removal for ID card image:", sourceImage);
+                    const config = {
+                        publicPath: 'https://static.imgly.com/lib/background-removal-js/v1.7.0/dist/'
+                    };
+                    const imageBlob = await removeBackground(sourceImage);
+                    currentProcessedImage = URL.createObjectURL(imageBlob);
+                    setProcessedImage(currentProcessedImage); // Update state to show it
+
+                    // Wait for state update and re-render
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (err) {
+                    console.error("Background removal failed, using original", err);
+                    currentProcessedImage = sourceImage;
+                }
+            }
+
+            // Now capture
             const canvas = await html2canvas(idCardRef.current, {
-                useCORS: true, // Important for external images (cloudinary etc)
-                scale: 2, // Better quality
+                useCORS: true,
+                scale: 2,
                 backgroundColor: null,
             } as any);
 
@@ -72,10 +106,12 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             link.download = `${profile?.firstName || "user"}_${profile?.lastName || "id_card"}.png`;
             link.href = canvas.toDataURL("image/png");
             link.click();
-            toast.success("ID Card downloaded");
+            toast.success("ID Card downloaded", { id: toastId });
         } catch (error) {
             console.error("Failed to download ID card", error);
-            toast.error("Failed to download ID card");
+            toast.error("Failed to download ID card", { id: toastId });
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -84,6 +120,8 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             fetchProfile();
         }
     }, [userId]);
+
+
 
     const fetchProfile = async () => {
         try {
@@ -96,8 +134,10 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             setProfile(data);
             setEditedSkills(data.skills);
             setEditedResponsibilities(data.responsibilities);
+            setEditedResponsibilities(data.responsibilities);
             setDob(data.dob ? new Date(data.dob).toISOString().split('T')[0] : "");
             setBloodGroup(data.bloodGroup || "");
+            setPhoneNumber(data.phoneNumber || "");
             setPosition(data.position || "");
             setImagePreview(data.image || null);
             setRemoveImage(false);
@@ -120,6 +160,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             formData.append("role", profile.role);
             formData.append("dob", dob);
             formData.append("bloodGroup", bloodGroup);
+            formData.append("phoneNumber", phoneNumber);
 
             // Append arrays as JSON strings
             formData.append("skills", JSON.stringify(editedSkills));
@@ -143,6 +184,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                 responsibilities: editedResponsibilities,
                 dob: dob,
                 bloodGroup: bloodGroup,
+                phoneNumber: phoneNumber,
                 position: position,
                 image: response.data.image || (removeImage ? null : profile.image)
             });
@@ -206,339 +248,234 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             {/* Hidden ID Card for Rendering */}
             {/* Hidden ID Card for Rendering */}
             <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
-                <div ref={idCardRef} style={{ padding: "40px", background: "#e5e7eb", fontFamily: "'Inter', -apple-system, sans-serif" }}>
-                    <div style={{ display: "flex", gap: "40px", justifyContent: "center" }}>
+                <div ref={idCardRef} className="flex gap-10 items-start p-10" style={{ width: "fit-content", fontFamily: "'Montserrat', sans-serif", backgroundColor: "transparent" }}>
+                    {/* External Resources */}
+                    <link rel="preconnect" href="https://fonts.googleapis.com" />
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+                    <link
+                        href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+                        rel="stylesheet"
+                    />
+                    <link
+                        href="https://fonts.googleapis.com/icon?family=Material+Icons"
+                        rel="stylesheet"
+                    />
 
-                        {/* FRONT SIDE */}
-                        <div style={{
-                            width: "340px",
-                            height: "540px",
-                            background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
-                            borderRadius: "16px",
-                            overflow: "hidden",
-                            boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
-                            position: "relative",
-                            display: "flex",
-                            flexDirection: "column"
-                        }}>
-                            {/* Decorative Pattern */}
-                            <div style={{
-                                position: "absolute",
-                                top: 0,
-                                right: 0,
-                                width: "200px",
-                                height: "200px",
-                                background: "radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)",
-                                borderRadius: "50%",
-                                transform: "translate(50%, -50%)"
-                            }} />
-                            {/* Header Section */}
-                            <div style={{
-                                padding: "24px 24px 16px",
-                                background: "rgba(255,255,255,0.95)",
-                                position: "relative",
-                                zIndex: 1
-                            }}>
-                                <div style={{
-                                    fontSize: "26px",
-                                    fontWeight: "800",
-                                    letterSpacing: "-0.5px",
-                                    textAlign: "center"
-                                }}>
-                                    <span style={{ color: "#1e3a8a" }}>Vighno</span><span style={{ color: "#f97316" }}>Tech</span>
-                                </div>
-                                <div style={{
-                                    textAlign: "center",
-                                    fontSize: "11px",
-                                    color: "#6b7280",
-                                    marginTop: "4px",
-                                    letterSpacing: "1px",
-                                    textTransform: "uppercase",
-                                    fontWeight: "600"
-                                }}>
-                                    Employee Identification
-                                </div>
-                            </div>
+                    {/* Custom Styles */}
+                    <style dangerouslySetInnerHTML={{
+                        __html: `
+                        .grid-pattern {
+                            background-image:
+                                linear-gradient(#e2e8f0 1px, transparent 1px),
+                                linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+                            background-size: 20px 20px;
+                        }
+                        .font-display {
+                            font-family: 'Montserrat', sans-serif;
+                        }
+                    `}} />
 
-                            {/* Photo Section */}
-                            <div style={{
-                                flex: 1,
-                                padding: "32px 24px 24px",
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                position: "relative",
-                                zIndex: 1
-                            }}>
-                                <div style={{
-                                    width: "160px",
-                                    height: "200px",
-                                    marginBottom: "24px",
-                                    borderRadius: "12px",
-                                    overflow: "hidden",
-                                    border: "4px solid rgba(255,255,255,0.95)",
-                                    boxShadow: "0 8px 24px rgba(0,0,0,0.15)"
-                                }}>
+                    {/* FRONT SIDE */}
+                    <div
+                        className="w-[450px] h-[720px] rounded-[24px] shadow-2xl overflow-hidden font-display relative flex flex-col shrink-0"
+                        style={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderWidth: '1px' }}
+                    >
+                        <div className="relative flex-1 flex flex-col">
+                            <div className="absolute inset-0 grid-pattern opacity-40 pointer-events-none"></div>
+
+                            <div className="relative z-10 px-8 pt-12 gap-2 flex-1 flex flex-col">
+                                {/* Logo Header */}
+                                <div className="flex items-center justify-center ">
                                     <img
-                                        src={imagePreview || profile?.image || "/placeholder-avatar.jpg"}
-                                        style={{
-                                            width: "100%",
-                                            height: "100%",
-                                            objectFit: "cover",
-                                            display: "block"
-                                        }}
-                                        alt="Employee"
+                                        src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512650123_VLogo.png"
+                                        alt="VighnoTech Logo"
+                                        className=""
+                                        crossOrigin="anonymous"
+                                    />
+                                    <img
+                                        src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512668299_vighnotechNewLogo.png"
+                                        alt="VighnoTech Text Logo"
+                                        className=""
+                                        crossOrigin="anonymous"
                                     />
                                 </div>
 
-                                {/* Employee Details */}
-                                <div style={{
-                                    textAlign: "center",
-                                    width: "100%",
-                                    background: "rgba(255,255,255,0.95)",
-                                    padding: "20px",
-                                    borderRadius: "12px",
-                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                                }}>
-                                    <h2 style={{
-                                        margin: "0 0 8px 0",
-                                        fontSize: "22px",
-                                        fontWeight: "700",
-                                        color: "#1e3a8a",
-                                        letterSpacing: "-0.3px"
-                                    }}>
-                                        {profile?.firstName} {profile?.lastName}
-                                    </h2>
-                                    <div style={{
-                                        fontSize: "13px",
-                                        fontWeight: "600",
-                                        color: "#f97316",
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.8px",
-                                        marginBottom: "12px"
-                                    }}>
-                                        {profile?.position || "Employee"}
+                                {/* Employee Name */}
+                                <div className="text-center mb-[30px] mt-[-20px]">
+                                    <h1 className="text-5xl font-bold leading-tight" style={{ color: '#0f172a' }}>
+                                        {profile?.firstName || "Arvind"}
+                                    </h1>
+                                    <h1 className="text-5xl font-bold leading-tight" style={{ color: '#0f172a' }}>
+                                        {profile?.lastName || "Gupta"}
+                                    </h1>
+                                </div>
+
+                                {/* Designation Badge */}
+                                <div className="flex justify-center items-center">
+                                    <div
+                                        className="px-4 py-2 rounded-full shadow-md items-center justify-center text-center"
+                                        style={{ backgroundColor: '#FF7905' }}
+                                    >
+                                        <p className="font-bold mb-2 mt-[-2px] text-lg uppercase tracking-wider text-white">
+                                            {profile?.position || ""}
+                                        </p>
                                     </div>
-                                    <div style={{
-                                        fontSize: "11px",
-                                        fontWeight: "600",
-                                        color: "#64748b",
-                                        fontFamily: "monospace",
-                                        letterSpacing: "0.5px"
-                                    }}>
-                                        ID: {profile?.id?.slice(0, 10).toUpperCase()}
+                                </div>
+
+
+
+                                {/* Employee Photo Container */}
+                                <div className="relative flex-1 overflow-hidden mt-auto">
+                                    {/* Large V Logo Background */}
+                                    <div className="absolute inset-0 flex items-end justify-center z-0 translate-y-20">
+                                        <img
+                                            src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769514419110_Vighnotech_Tick.png"
+                                            alt="Background V"
+                                            className="w-[450px] max-w-none opacity-90"
+                                            crossOrigin="anonymous"
+                                        />
+                                    </div>
+
+                                    {/* Employee Photo */}
+                                    <div className="absolute bottom-0 left-0 right-0 z-10 flex justify-center">
+                                        <img
+                                            src={processedImage || imagePreview || profile?.image || "./Arvind.png"}
+                                            className="w-[450px] object-contain"
+                                            crossOrigin="anonymous"
+                                            alt="Profile"
+                                        />
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Footer Stripe */}
-                            <div style={{
-                                height: "8px",
-                                background: "#f97316"
-                            }} />
                         </div>
+                    </div>
 
-                        {/* BACK SIDE */}
-                        <div style={{
-                            width: "340px",
-                            height: "540px",
-                            background: "#ffffff",
-                            borderRadius: "16px",
-                            overflow: "hidden",
-                            boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
-                            position: "relative",
-                            display: "flex",
-                            flexDirection: "column"
-                        }}>
-                            {/* Header */}
-                            <div style={{
-                                padding: "24px",
-                                background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)",
-                                textAlign: "center",
-                                position: "relative"
-                            }}>
-                                <div style={{
-                                    fontSize: "18px",
-                                    fontWeight: "700",
-                                    color: "#ffffff",
-                                    letterSpacing: "0.5px"
-                                }}>
-                                    EMPLOYEE INFORMATION
-                                </div>
-                            </div>
+                    {/* BACK SIDE */}
+                    <div
+                        className="w-[450px] h-[720px] rounded-[24px] shadow-2xl overflow-hidden font-display relative flex flex-col shrink-0"
+                        style={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderWidth: '1px' }}
+                    >
+                        <div className="relative flex-1 flex flex-col">
+                            <div className="absolute inset-0 grid-pattern opacity-40 pointer-events-none"></div>
 
-                            {/* Content */}
-                            <div style={{
-                                flex: 1,
-                                padding: "32px 28px",
-                                display: "flex",
-                                flexDirection: "column"
-                            }}>
-                                {/* ID Section */}
-                                <div style={{ marginBottom: "24px" }}>
-                                    <div style={{
-                                        fontSize: "11px",
-                                        color: "#9ca3af",
-                                        marginBottom: "6px",
-                                        textTransform: "uppercase",
-                                        fontWeight: "700",
-                                        letterSpacing: "1px"
-                                    }}>
-                                        Employee ID Number
-                                    </div>
-                                    <div style={{
-                                        fontSize: "15px",
-                                        color: "#1e3a8a",
-                                        fontWeight: "600",
-                                        fontFamily: "monospace",
-                                        background: "#f3f4f6",
-                                        padding: "10px 12px",
-                                        borderRadius: "6px",
-                                        border: "1px solid #e5e7eb"
-                                    }}>
-                                        {profile?.id?.slice(0, 16).toUpperCase()}
-                                    </div>
+                            <div className="relative z-10 px-8 pt-6 gap-2 flex-1 flex flex-col">
+                                {/* Logo Header */}
+                                <div className="flex items-center justify-center mb-2">
+                                    <img
+                                        src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512650123_VLogo.png"
+                                        alt="VighnoTech Logo"
+                                        crossOrigin="anonymous"
+                                    />
+                                    <img
+                                        src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512668299_vighnotechNewLogo.png"
+                                        alt="VighnoTech Text Logo"
+                                        crossOrigin="anonymous"
+                                    />
                                 </div>
 
-                                {/* Email */}
-                                <div style={{ marginBottom: "24px" }}>
-                                    <div style={{
-                                        fontSize: "11px",
-                                        color: "#9ca3af",
-                                        marginBottom: "6px",
-                                        textTransform: "uppercase",
-                                        fontWeight: "700",
-                                        letterSpacing: "1px"
-                                    }}>
-                                        Official Email
+                                {/* Contact Information */}
+                                <div className="space-y-6 mb-5">
+                                    {/* Email */}
+                                    <div className="flex items-center group">
+                                        <div className="w-12 h-12 rounded-full flex items-center justify-center mr-4 shrink-0" style={{ backgroundColor: 'rgba(255, 121, 5, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <span className="material-icons text-2xl" style={{ color: '#FF7905' }}>alternate_email</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#94a3b8' }}>Email Address</p>
+                                            <p className="font-bold break-all text-base" style={{ color: '#1e293b' }}>{profile?.email}</p>
+                                        </div>
                                     </div>
-                                    <div style={{
-                                        fontSize: "13px",
-                                        color: "#111827",
-                                        fontWeight: "500",
-                                        wordBreak: "break-word"
-                                    }}>
-                                        {profile?.email}
-                                    </div>
-                                </div>
 
-                                {/* Personal Details Grid */}
-                                <div style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr 1fr",
-                                    gap: "20px",
-                                    marginBottom: "28px",
-                                    padding: "20px",
-                                    background: "#f9fafb",
-                                    borderRadius: "8px",
-                                    border: "1px solid #e5e7eb"
-                                }}>
-                                    <div>
-                                        <div style={{
-                                            fontSize: "11px",
-                                            color: "#9ca3af",
-                                            marginBottom: "6px",
-                                            textTransform: "uppercase",
-                                            fontWeight: "700",
-                                            letterSpacing: "0.5px"
-                                        }}>
-                                            Date of Birth
+                                    {/* Phone */}
+                                    <div className="flex items-center group">
+                                        <div className="w-12 h-12 rounded-full flex items-center justify-center mr-4 shrink-0" style={{ backgroundColor: 'rgba(255, 121, 5, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <span className="material-icons text-2xl" style={{ color: '#FF7905' }}>call</span>
                                         </div>
-                                        <div style={{
-                                            fontSize: "13px",
-                                            color: "#111827",
-                                            fontWeight: "600"
-                                        }}>
-                                            {profile?.dob ? new Date(profile.dob).toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: '2-digit',
-                                                year: 'numeric'
-                                            }) : "N/A"}
+                                        <div>
+                                            <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#94a3b8' }}>Phone Number</p>
+                                            <p className="font-bold text-base" style={{ color: '#1e293b' }}>{profile?.phoneNumber || "+91 9833911446"}</p>
                                         </div>
                                     </div>
-                                    <div>
-                                        <div style={{
-                                            fontSize: "11px",
-                                            color: "#9ca3af",
-                                            marginBottom: "6px",
-                                            textTransform: "uppercase",
-                                            fontWeight: "700",
-                                            letterSpacing: "0.5px"
-                                        }}>
-                                            Blood Type
+
+                                    {/* DOB */}
+                                    <div className="flex items-center group">
+                                        <div className="w-12 h-12 rounded-full flex items-center justify-center mr-4 shrink-0" style={{ backgroundColor: 'rgba(255, 121, 5, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <span className="material-icons text-2xl" style={{ color: '#FF7905' }}>cake</span>
                                         </div>
-                                        <div style={{
-                                            fontSize: "13px",
-                                            color: "#111827",
-                                            fontWeight: "600"
-                                        }}>
-                                            {profile?.bloodGroup || "N/A"}
+                                        <div>
+                                            <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#94a3b8' }}>Date of Birth</p>
+                                            <p className="font-bold text-base" style={{ color: '#1e293b' }}>
+                                                {profile?.dob ? new Date(profile.dob).toLocaleDateString('en-GB') : "07 / 03 / 2002"}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Blood Group */}
+                                    <div className="flex items-center group">
+                                        <div className="w-12 h-12 rounded-full flex items-center justify-center mr-4 shrink-0" style={{ backgroundColor: 'rgba(255, 121, 5, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <span className="material-icons text-2xl" style={{ color: '#FF7905' }}>water_drop</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#94a3b8' }}>Blood Group</p>
+                                            <p className="font-bold text-base" style={{ color: '#1e293b' }}>{profile?.bloodGroup || "'O' Positive"}</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* QR Code Section */}
-                                <div style={{
-                                    marginTop: "auto",
-                                    textAlign: "center",
-                                    padding: "20px",
-                                    background: "#ffffff",
-                                    borderRadius: "8px",
-                                    border: "2px dashed #e5e7eb"
-                                }}>
-                                    <div style={{
-                                        fontSize: "10px",
-                                        color: "#9ca3af",
-                                        marginBottom: "12px",
-                                        textTransform: "uppercase",
-                                        fontWeight: "700",
-                                        letterSpacing: "1px"
-                                    }}>
-                                        Scan for Verification
-                                    </div>
-                                    <div style={{ display: "flex", justifyContent: "center" }}>
-                                        <QRCodeCanvas
-                                            value={`vighnotech:employee:${profile?.id}`}
-                                            size={110}
-                                            level={"H"}
-                                            style={{ border: "4px solid white", borderRadius: "8px" }}
-                                        />
+                                <div className="flex flex-col items-center justify-center mb-5 mt-auto">
+                                    <div className="relative p-3 rounded-2xl shadow-sm" style={{ backgroundColor: '#ffffff', borderColor: '#f1f5f9', borderWidth: '1px' }}>
+                                        <div className="w-48 h-48 flex items-center justify-center relative rounded-lg overflow-hidden" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', borderWidth: '1px' }}>
+                                            <QRCodeCanvas
+                                                value={`https://vigtask.vercel.app/dashboard/users/${userId}/profile`}
+                                                size={170}
+                                                bgColor={"transparent"}
+                                                fgColor={"#1e293b"}
+                                                level={"H"}
+                                            />
+                                            {/* Center Logo */}
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                <div className="p-1 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}>
+                                                    <img
+                                                        src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512650123_VLogo.png"
+                                                        alt="Logo"
+                                                        className="w-10 h-10 object-contain"
+                                                        crossOrigin="anonymous"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Footer */}
-                            <div style={{
-                                padding: "16px",
-                                background: "#f9fafb",
-                                borderTop: "1px solid #e5e7eb",
-                                textAlign: "center"
-                            }}>
-                                <div style={{
-                                    fontSize: "9px",
-                                    color: "#9ca3af",
-                                    fontWeight: "600",
-                                    letterSpacing: "0.5px"
-                                }}>
-                                    This card remains property of VighnoTech • Report if lost
-                                </div>
+                            {/* Address Footer */}
+                            <div className="px-8 py-5 text-center relative z-20" style={{ backgroundColor: '#FF7905' }}>
+                                <p className="text-[15px] font-bold leading-relaxed" style={{ color: '#000000' }}>
+                                    90 Feet Rd, Thakur Complex, Kandivali East,<br />
+                                    Mumbai - 400101, Maharashtra.
+                                </p>
                             </div>
-
-                            {/* Bottom Accent */}
-                            <div style={{
-                                height: "8px",
-                                background: "#1e3a8a"
-                            }} />
                         </div>
-
                     </div>
                 </div>
             </div>
 
             <div className="flex justify-end">
                 <div className="flex items-center gap-2">
-                    <Button onClick={handleDownloadIdCard} variant="outline" className="border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-600 mr-2">
-                        <Download className="w-4 h-4 mr-2" /> Download ID Card
+                    <Button
+                        onClick={handleDownloadIdCard}
+                        disabled={isDownloading || isProcessingImage}
+                        variant="outline"
+                        className="border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-600 mr-2"
+                    >
+                        {isProcessingImage ? (
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Preparing ID...</>
+                        ) : isDownloading ? (
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Downloading...</>
+                        ) : (
+                            <><Download className="w-4 h-4 mr-2" /> Download ID Card</>
+                        )}
                     </Button>
                     {isEditing ? (
                         <>
@@ -643,6 +580,25 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                                     <div className="flex-1 overflow-hidden">
                                         <p className="text-xs text-muted-foreground">Email</p>
                                         <p className="font-medium truncate" title={profile.email}>{profile.email}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-sidebar/50 transition-colors">
+                                    <div className="p-2 rounded-lg bg-green-500/10 text-green-500">
+                                        <span className="material-icons text-base">call</span>
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="text-xs text-muted-foreground">Phone</p>
+                                        {isEditing ? (
+                                            <Input
+                                                value={phoneNumber}
+                                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                                className="h-8 text-sm"
+                                                placeholder="+91 0000000000"
+                                            />
+                                        ) : (
+                                            <p className="font-medium truncate">{profile.phoneNumber || "Not set"}</p>
+                                        )}
                                     </div>
                                 </div>
 

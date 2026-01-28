@@ -23,9 +23,10 @@ export default function UserTasksPage() {
       if (!userId) return;
       setIsLoading(true);
       try {
-        const [tasksResponse] = await Promise.all([
-          axios.get(`/tasks/user/${userId}`), 
-
+        const [tasksResponse, usersResponse, projectsResponse] = await Promise.all([
+          axios.get(`/tasks/user/${userId}`),
+          axios.get("/auth/organization"),
+          axios.get("/projects"),
         ]);
         setTasks(tasksResponse.data);
         setUsers(usersResponse.data);
@@ -68,7 +69,7 @@ export default function UserTasksPage() {
         <h1 className="text-4xl font-bold text-white">{userName}'s Tasks</h1>
       </div>
 
-       {/*  Create a list of the tasks */}
+      {/*  Create a list of the tasks */}
       <AllTasks tasks={tasks} users={users} projects={projects} />
     </div>
   );

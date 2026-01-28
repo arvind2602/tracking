@@ -94,7 +94,7 @@ const getEmployee = async (req, res, next) => {
     console.log('Fetching employee with ID:', user_uuid);
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e.is_archived = false`,
@@ -112,7 +112,7 @@ const getEmployeeById = async (req, res, next) => {
 
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e."organiationId" = $2 AND e.is_archived = false`,
@@ -243,7 +243,7 @@ const updateEmployee = async (req, res, next) => {
     // appending arrays to FormData can be tricky).
     // For now assuming direct fields or simple parsing if needed.
 
-    let { firstName, lastName, position, role, skills, responsibilities, dob, bloodGroup, removeImage } = req.body;
+    let { firstName, lastName, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, removeImage } = req.body;
 
     // Parse arrays if they come as strings (common with FormData)
     if (typeof skills === 'string') {
@@ -262,9 +262,9 @@ const updateEmployee = async (req, res, next) => {
         }
 
         // Build the update query dynamically or simply
-        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, position = $3, role = $4, skills = $5, responsibilities = $6, dob = $7, "bloodGroup" = $8`;
-        let params = [firstName, lastName, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null];
-        let paramIndex = 9;
+        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, position = $3, role = $4, skills = $5, responsibilities = $6, dob = $7, "bloodGroup" = $8, "phoneNumber" = $9`;
+        let params = [firstName, lastName, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null];
+        let paramIndex = 10;
 
         if (imageUrl) {
             query += `, image = $${paramIndex}`;
@@ -274,7 +274,7 @@ const updateEmployee = async (req, res, next) => {
             query += `, image = NULL`;
         }
 
-        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", image`;
+        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", image`;
         params.push(id);
 
         const result = await pool.query(query, params);

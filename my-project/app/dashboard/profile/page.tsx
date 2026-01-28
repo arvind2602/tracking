@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Plus, X, Save, Edit2, Check, Camera, Trash2 } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Plus, X, Save, Edit2, Check, Camera, Trash2, Phone } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -29,6 +29,7 @@ interface UserProfile {
     dob?: string;
     bloodGroup?: string;
     image?: string;
+    phoneNumber?: string;
 }
 
 export default function ProfilePage() {
@@ -46,6 +47,7 @@ export default function ProfilePage() {
     // New fields state
     const [dob, setDob] = useState("");
     const [bloodGroup, setBloodGroup] = useState("");
+    const [phoneNumber, setPhoneNumber] = useState("");
     const [position, setPosition] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -71,7 +73,9 @@ export default function ProfilePage() {
             setEditedSkills(data.skills);
             setEditedResponsibilities(data.responsibilities);
             setDob(data.dob ? new Date(data.dob).toISOString().split('T')[0] : "");
+
             setBloodGroup(data.bloodGroup || "");
+            setPhoneNumber(data.phoneNumber || "");
             setPosition(data.position || "");
             setImagePreview(data.image || null);
             setRemoveImage(false);
@@ -111,6 +115,7 @@ export default function ProfilePage() {
             formData.append("role", profile.role);
             formData.append("dob", dob);
             formData.append("bloodGroup", bloodGroup);
+            formData.append("phoneNumber", phoneNumber);
 
             // Append arrays as JSON strings
             formData.append("skills", JSON.stringify(editedSkills));
@@ -134,6 +139,7 @@ export default function ProfilePage() {
                 responsibilities: editedResponsibilities,
                 dob: dob,
                 bloodGroup: bloodGroup,
+                phoneNumber: phoneNumber,
                 position: position,
                 image: response.data.image || (removeImage ? null : profile.image)
             });
@@ -315,6 +321,25 @@ export default function ProfilePage() {
                                     <div className="flex-1 overflow-hidden">
                                         <p className="text-xs text-muted-foreground">Email</p>
                                         <p className="font-medium truncate" title={profile.email}>{profile.email}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-sidebar/50 transition-colors">
+                                    <div className="p-2 rounded-lg bg-green-500/10 text-green-500">
+                                        <Phone className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="text-xs text-muted-foreground">Phone</p>
+                                        {isEditing ? (
+                                            <Input
+                                                value={phoneNumber}
+                                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                                className="h-8 text-sm"
+                                                placeholder="+91 0000000000"
+                                            />
+                                        ) : (
+                                            <p className="font-medium truncate">{profile.phoneNumber || "Not set"}</p>
+                                        )}
                                     </div>
                                 </div>
 
