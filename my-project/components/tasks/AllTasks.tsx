@@ -14,7 +14,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { formatDateTimeIST, formatDateIST, formatDateLongIST, formatDateOnlyIST, cn } from "@/lib/utils";
-import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock, CalendarClock } from "lucide-react";
+import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock, CalendarClock, Play } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import React from 'react';
@@ -62,11 +62,16 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [groupingType, setGroupingType] = useState<'assignedDate' | 'dueDate'>('assignedDate');
 
 
-  // Completion Modal State
   const [completionModalOpen, setCompletionModalOpen] = useState(false);
   const [taskToComplete, setTaskToComplete] = useState<string | null>(null);
   const [completionComment, setCompletionComment] = useState("");
   const [isCompleting, setIsCompleting] = useState(false);
+
+  // In Progress Modal State
+  const [inProgressModalOpen, setInProgressModalOpen] = useState(false);
+  const [taskToInProgress, setTaskToInProgress] = useState<string | null>(null);
+  const [inProgressComment, setInProgressComment] = useState("");
+  const [isInProgressSetting, setIsInProgressSetting] = useState(false);
 
   const toggleExpand = (taskId: string) => {
     const newExpanded = new Set(expandedTasks);
@@ -210,6 +215,49 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       setIsCompleting(false);
       setLoadingTaskId(null);
       setTaskToComplete(null);
+    }
+  };
+
+  const handleMarkAsInProgress = (taskId: string) => {
+    setTaskToInProgress(taskId);
+    setInProgressComment("");
+    setInProgressModalOpen(true);
+  };
+
+  const confirmInProgress = async () => {
+    if (!taskToInProgress) return;
+    if (!inProgressComment.trim()) {
+      toast.error("Please add a comment to mark the task as in-progress.");
+      return;
+    }
+
+    setIsInProgressSetting(true);
+    setLoadingTaskId(taskToInProgress);
+    try {
+      // 1. Add Comment
+      await axios.post(`/tasks/comments/${taskToInProgress}`, { content: inProgressComment });
+
+      // 2. Mark as In Progress
+      const response = await axios.put(`/tasks/${taskToInProgress}/status`, { status: "in-progress" });
+
+      setTasks(prev => prev.map(t => {
+        if (t.id === taskToInProgress) {
+          return { ...t, ...response.data };
+        }
+        if (t.subtasks) {
+          const updatedSubtasks = t.subtasks.map(s => s.id === taskToInProgress ? { ...s, ...response.data } : s);
+          return { ...t, subtasks: updatedSubtasks };
+        }
+        return t;
+      }));
+      toast.success("Task marked as in-progress!");
+      setInProgressModalOpen(false);
+    } catch {
+      toast.error("Failed to update status");
+    } finally {
+      setIsInProgressSetting(false);
+      setLoadingTaskId(null);
+      setTaskToInProgress(null);
     }
   };
 
@@ -563,6 +611,19 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                               {loadingAddSubtaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />}
                             </Button>
 
+                            {task.status === "pending" && (
+                              <Button
+                                onClick={() => handleMarkAsInProgress(task.id)}
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-blue-400"
+                                disabled={loadingTaskId === task.id}
+                                title="Mark as In Progress"
+                              >
+                                {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Play className="h-3.5 w-3.5 md:h-4 md:w-4" />}
+                              </Button>
+                            )}
+
                             {task.status !== "completed" && (
                               task.type === 'SEQUENTIAL' && task.assignedTo !== currentUserId ? (
                                 <TooltipProvider>
@@ -739,6 +800,19 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                             <tr key={subtask.id} className="bg-secondary/50 relative">
                               <td className="px-2 py-1 border border-slate-700/50 bg-secondary">
                                 <div className="flex items-center justify-start gap-1 scale-90 origin-left">
+                                  {subtask.status === "pending" && (
+                                    <Button
+                                      onClick={() => handleMarkAsInProgress(subtask.id)}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-slate-500 hover:text-blue-400"
+                                      disabled={loadingTaskId === subtask.id}
+                                      title="Mark as In Progress"
+                                    >
+                                      {loadingTaskId === subtask.id ? <Loader className="animate-spin h-3 w-3" /> : <Play className="h-3 w-3" />}
+                                    </Button>
+                                  )}
+
                                   {subtask.status !== "completed" && (
                                     <Button
                                       onClick={() => handleMarkAsCompleted(subtask.id)}
@@ -891,9 +965,9 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <label htmlFor="comment" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-200">Comment</label>
+              <label htmlFor="complete-comment" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-200">Comment</label>
               <Textarea
-                id="comment"
+                id="complete-comment"
                 placeholder="Work done details..."
                 value={completionComment}
                 onChange={(e) => setCompletionComment(e.target.value)}
@@ -908,6 +982,39 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
             <Button onClick={confirmCompletion} disabled={isCompleting || !completionComment.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
               {isCompleting ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
               Complete Task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* In Progress Comment Modal */}
+      <Dialog open={inProgressModalOpen} onOpenChange={setInProgressModalOpen}>
+        <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-700 text-slate-100">
+          <DialogHeader>
+            <DialogTitle>Start Task</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Please add a comment to start working on this task.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="inprogress-comment" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-200">Comment</label>
+              <Textarea
+                id="inprogress-comment"
+                placeholder="Starting work on..."
+                value={inProgressComment}
+                onChange={(e) => setInProgressComment(e.target.value)}
+                className="bg-slate-800 border-slate-700 text-slate-100 min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setInProgressModalOpen(false)} disabled={isInProgressSetting} className="text-slate-400 hover:text-white hover:bg-white/10">
+              Cancel
+            </Button>
+            <Button onClick={confirmInProgress} disabled={isInProgressSetting || !inProgressComment.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
+              {isInProgressSetting ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+              Start Task
             </Button>
           </DialogFooter>
         </DialogContent>

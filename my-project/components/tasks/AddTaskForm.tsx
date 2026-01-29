@@ -163,23 +163,6 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium leading-none">Status</label>
-          <SearchableSelect
-            value={form.status}
-            onValueChange={(val: any) =>
-              setForm({ ...form, status: val })
-            }
-            options={[
-              { value: "pending", label: "Pending" },
-              { value: "in-progress", label: "In Progress" },
-              { value: "completed", label: "Completed" },
-            ]}
-            placeholder="Select Status"
-            className="w-full"
-          />
-        </div>
-
-        <div className="space-y-2">
           <label className="text-sm font-medium leading-none">Priority</label>
           <SearchableSelect
             value={form.priority}
@@ -195,66 +178,6 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
             className="w-full"
           />
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        {!parentTask && (
-          <div className="space-y-2" ref={dropdownRef}>
-            <label className="text-sm font-medium leading-none">Assign To</label>
-            <div className="relative">
-              <div
-                className="flex min-h-[40px] w-full flex-wrap items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-                onClick={() => setAssignDropdownOpen(!assignDropdownOpen)}
-              >
-                <div className="flex flex-wrap gap-1">
-                  {selectedAssignees.length > 0 ? (
-                    selectedAssignees.map(userId => {
-                      const user = users.find(u => u.id === userId);
-                      return (
-                        <Badge key={userId} variant="secondary" className="mr-1">
-                          {user?.firstName} {user?.lastName}
-                          <div
-                            className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleAssignee(userId);
-                            }}
-                          >
-                            <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                          </div>
-                        </Badge>
-                      );
-                    })
-                  ) : (
-                    <span className="text-muted-foreground">Select Members</span>
-                  )}
-                </div>
-              </div>
-              {assignDropdownOpen && (
-                <div className="absolute top-full z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95">
-                  <Command>
-                    <CommandInput placeholder="Search users..." />
-                    <CommandList>
-                      <CommandEmpty>No users found.</CommandEmpty>
-                      <CommandGroup className="max-h-60 overflow-auto">
-                        {users.map((user) => (
-                          <CommandItem
-                            key={user.id}
-                            onSelect={() => toggleAssignee(user.id)}
-                            className="cursor-pointer flex items-center justify-between"
-                          >
-                            <span>{user.firstName} {user.lastName}</span>
-                            {selectedAssignees.includes(user.id) && <Check className="h-4 w-4" />}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         <div className="space-y-2">
           <label className="text-sm font-medium leading-none">Due Date</label>
@@ -266,6 +189,64 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
           />
         </div>
       </div>
+
+      {!parentTask && (
+        <div className="space-y-2" ref={dropdownRef}>
+          <label className="text-sm font-medium leading-none">Assign To</label>
+          <div className="relative">
+            <div
+              className="flex min-h-[40px] w-full flex-wrap items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              onClick={() => setAssignDropdownOpen(!assignDropdownOpen)}
+            >
+              <div className="flex flex-wrap gap-1">
+                {selectedAssignees.length > 0 ? (
+                  selectedAssignees.map(userId => {
+                    const user = users.find(u => u.id === userId);
+                    return (
+                      <Badge key={userId} variant="secondary" className="mr-1">
+                        {user?.firstName} {user?.lastName}
+                        <div
+                          className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleAssignee(userId);
+                          }}
+                        >
+                          <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                        </div>
+                      </Badge>
+                    );
+                  })
+                ) : (
+                  <span className="text-muted-foreground">Select Members</span>
+                )}
+              </div>
+            </div>
+            {assignDropdownOpen && (
+              <div className="absolute top-full z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95">
+                <Command>
+                  <CommandInput placeholder="Search users..." />
+                  <CommandList>
+                    <CommandEmpty>No users found.</CommandEmpty>
+                    <CommandGroup className="max-h-60 overflow-auto">
+                      {users.map((user) => (
+                        <CommandItem
+                          key={user.id}
+                          onSelect={() => toggleAssignee(user.id)}
+                          className="cursor-pointer flex items-center justify-between"
+                        >
+                          <span>{user.firstName} {user.lastName}</span>
+                          {selectedAssignees.includes(user.id) && <Check className="h-4 w-4" />}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Task Type Selector - Only visible when multiple assignees */}
       {selectedAssignees.length > 1 && (
