@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, ChevronLeft, ChevronRight, User, Settings } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import axios from '@/lib/axios';
 import { ModeToggle } from "@/components/mode-toggle";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,20 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [orgSettings, setOrgSettings] = useState<any>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchOrgSettings = async () => {
+      try {
+        const response = await axios.get('/organization/settings');
+        setOrgSettings(response.data);
+      } catch (err) {
+        console.error('Failed to fetch org settings', err);
+      }
+    };
+    fetchOrgSettings();
+  }, []);
 
   if (!userRole && typeof window !== 'undefined') {
     router.push('/');
@@ -52,6 +66,7 @@ export default function DashboardLayout({
     { href: '/dashboard/users', icon: GraduationCap, label: 'Users' },
     { href: '/dashboard/projects', icon: Code, label: 'Projects' },
     { href: '/dashboard/profile', icon: User, label: 'Profile' },
+    { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
   ];
 
   const navItems = userRole === 'USER'
@@ -98,13 +113,21 @@ export default function DashboardLayout({
         <div className={`p-4 border-b border-sidebar-border flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed && (
             <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 truncate">
-              <Activity className="h-6 w-6 text-blue-500 dark:text-blue-400 shrink-0" />
-              <span>Vighnotech</span>
+              {orgSettings?.logo ? (
+                <img src={orgSettings.logo} alt="Logo" className="h-8 w-8 object-contain rounded-lg shrink-0" />
+              ) : (
+                <Activity className="h-6 w-6 text-blue-500 dark:text-blue-400 shrink-0" />
+              )}
+              <span>{orgSettings?.name || 'Vighnotech'}</span>
             </Link>
           )}
           {isCollapsed && (
             <Link href="/dashboard">
-              <Activity className="h-6 w-6 text-blue-500 dark:text-blue-400 shrink-0" />
+              {orgSettings?.logo ? (
+                <img src={orgSettings.logo} alt="Logo" className="h-8 w-8 object-contain rounded-lg" />
+              ) : (
+                <Activity className="h-6 w-6 text-blue-500 dark:text-blue-400" />
+              )}
             </Link>
           )}
 
@@ -170,8 +193,13 @@ export default function DashboardLayout({
           <button onClick={() => setIsSidebarOpen(true)} className="text-foreground">
             <Menu className="h-6 w-6" />
           </button>
-          <Link href="/dashboard" className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-            Vighnotech
+          <Link href="/dashboard" className="flex items-center gap-2 text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+            {orgSettings?.logo ? (
+              <img src={orgSettings.logo} alt="Logo" className="h-6 w-6 object-contain rounded" />
+            ) : (
+              <Activity className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+            )}
+            <span>{orgSettings?.name || 'Dashboard'}</span>
           </Link>
           <div className="w-6" /> {/* Spacer */}
         </header>

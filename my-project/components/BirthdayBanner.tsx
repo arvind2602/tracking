@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from '@/lib/axios';
-import { X, Gift, Award, TrendingUp, TrendingDown, Briefcase, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { X, Gift, Award, TrendingUp, TrendingDown, Briefcase, ChevronLeft, ChevronRight, Loader2, AlertTriangle, UserMinus } from 'lucide-react';
 
 interface Employee {
     id: string;
@@ -13,11 +13,12 @@ interface Employee {
     image: string | null;
     role: string;
     yesterdayPoints: number;
+    yesterdayTaskCount: number;
 }
 
 interface BannerEvent {
     id: string;
-    type: 'birthday' | 'anniversary' | 'top-performer' | 'worst-performer';
+    type: 'birthday' | 'anniversary' | 'top-performer' | 'worst-performer' | 'suspicious' | 'no-tasks';
     message: React.ReactNode;
     icon: any;
     colorClass: string;
@@ -29,11 +30,22 @@ export function BirthdayBanner() {
     const [isVisible, setIsVisible] = useState(true);
     const [isPaused, setIsPaused] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [showBannerSetting, setShowBannerSetting] = useState(true);
 
     useEffect(() => {
-        const fetchEmployees = async () => {
+        const fetchSettingsAndEmployees = async () => {
             setLoading(true);
             try {
+                // Fetch Org Settings first
+                const settingsResponse = await axios.get('/organization/settings');
+                const showBanner = settingsResponse.data.showBanner;
+                setShowBannerSetting(showBanner);
+
+                if (!showBanner) {
+                    setLoading(false);
+                    return;
+                }
+
                 const response = await axios.get('/auth/organization');
                 const employees: Employee[] = response.data;
                 const newEvents: BannerEvent[] = [];
@@ -105,15 +117,25 @@ export function BirthdayBanner() {
                 console.log("Banner: Eligible for performance", eligibleForPerformance.length);
 
                 if (eligibleForPerformance.length > 0) {
-                    const sortedByPoints = [...eligibleForPerformance].sort((a, b) => Number(b.yesterdayPoints || 0) - Number(a.yesterdayPoints || 0));
-                    const topPerformer = sortedByPoints[0];
-                    const worstPerformer = sortedByPoints[sortedByPoints.length - 1];
+                    // Separate suspicious vs normal
+                    const suspicious = eligibleForPerformance.filter(e => Number(e.yesterdayPoints || 0) > 10);
+                    const validPerformance = eligibleForPerformance.filter(e => Number(e.yesterdayPoints || 0) <= 10);
 
+                    // Add Suspicious Activity Banners
+                    suspicious.forEach(emp => {
+                        newEvents.push({
+                            id: `suspicious-${emp.id}`,
+                            type: 'suspicious',
+                            message: <span>⚠️ Suspicious Activity: <span className="font-bold text-red-200">{emp.firstName} {emp.lastName}</span> completed <span className="font-bold text-white">{emp.yesterdayPoints} points</span> in a single day!</span>,
+                            icon: AlertTriangle,
+                            colorClass: 'from-red-600 via-red-500 to-red-900'
+                        });
+                    });
+
+                    // Top Performer (Highest points <= 10)
+                    const sortedValid = [...validPerformance].sort((a, b) => Number(b.yesterdayPoints || 0) - Number(a.yesterdayPoints || 0));
+                    const topPerformer = sortedValid[0];
                     const topPoints = Number(topPerformer?.yesterdayPoints || 0);
-                    const worstPoints = Number(worstPerformer?.yesterdayPoints || 0);
-
-                    console.log("Banner: Top Performer", topPerformer.firstName, "Points:", topPoints);
-                    console.log("Banner: Worst Performer", worstPerformer.firstName, "Points:", worstPoints);
 
                     if (topPerformer && topPoints > 0) {
                         newEvents.push({
@@ -125,7 +147,13 @@ export function BirthdayBanner() {
                         });
                     }
 
-                    if (worstPerformer && worstPerformer.id !== topPerformer?.id) {
+                    // Worst Performer (Lowest points from all eligible)
+                    const sortedAll = [...eligibleForPerformance].sort((a, b) => Number(a.yesterdayPoints || 0) - Number(b.yesterdayPoints || 0));
+                    const worstPerformer = sortedAll[0];
+                    const worstPoints = Number(worstPerformer?.yesterdayPoints || 0);
+
+                    // Only show worst if they aren't also the top performer or valid top performer
+                    if (worstPerformer && worstPerformer.id !== topPerformer?.id && !suspicious.find(s => s.id === worstPerformer.id)) {
                         newEvents.push({
                             id: 'worst-performer-event',
                             type: 'worst-performer',
@@ -133,13 +161,18 @@ export function BirthdayBanner() {
                             icon: TrendingDown,
                             colorClass: 'from-slate-700 via-slate-800 to-slate-900'
                         });
-                    } else if (eligibleForPerformance.length > 1 && worstPoints === 0 && topPoints > 0) {
+                    }
+
+                    // --- 4. No Tasks Added ---
+                    const noTasksEmployees = eligibleForPerformance.filter(e => Number(e.yesterdayTaskCount || 0) === 0);
+                    if (noTasksEmployees.length > 0) {
+                        const names = noTasksEmployees.map(e => `${e.firstName} ${e.lastName}`).join(', ');
                         newEvents.push({
-                            id: 'worst-performer-event-zero',
-                            type: 'worst-performer',
-                            message: <span>Needs Improvement: <span className="font-bold text-gray-200">{worstPerformer.firstName} {worstPerformer.lastName}</span> (0 points yesterday)</span>,
-                            icon: TrendingDown,
-                            colorClass: 'from-slate-700 via-slate-800 to-slate-900'
+                            id: 'no-tasks-event',
+                            type: 'no-tasks',
+                            message: <span>Work Not Assigned: <span className="font-bold text-blue-200">{names}</span> had no tasks yesterday.</span>,
+                            icon: UserMinus,
+                            colorClass: 'from-gray-600 via-gray-700 to-gray-800'
                         });
                     }
                 }
@@ -153,7 +186,7 @@ export function BirthdayBanner() {
             }
         };
 
-        fetchEmployees();
+        fetchSettingsAndEmployees();
     }, []);
 
     // Rotation Logic
@@ -174,7 +207,7 @@ export function BirthdayBanner() {
         setCurrentIndex((prev) => (prev - 1 + events.length) % events.length);
     };
 
-    if (!isVisible) return null;
+    if (!isVisible || !showBannerSetting) return null;
     if (loading) return null; // Or a subtle loader if preferred
     if (events.length === 0) return null;
 

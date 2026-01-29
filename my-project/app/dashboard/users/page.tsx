@@ -49,6 +49,8 @@ export default function Users() {
     email: "",
     password: "",
     position: "",
+    phoneNumber: "",
+    emergencyContact: "",
     role: "USER" as "USER" | "ADMIN",
   });
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -191,6 +193,8 @@ export default function Users() {
         email: "",
         password: "",
         position: "",
+        phoneNumber: "",
+        emergencyContact: "",
         role: "USER",
       });
       toast.success("User added", { id: toastId });
@@ -717,6 +721,20 @@ export default function Users() {
                   <SelectItem value="ADMIN">Administrator</SelectItem>
                 </SelectContent>
               </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  placeholder="Primary Phone Number"
+                  value={form.phoneNumber}
+                  onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+                  className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
+                />
+                <Input
+                  placeholder="Emergency Contact"
+                  value={form.emergencyContact}
+                  onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
+                  className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
+                />
+              </div>
               <Input
                 placeholder="Initial Password"
                 type="password"

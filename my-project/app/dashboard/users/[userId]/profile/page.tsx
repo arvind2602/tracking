@@ -37,6 +37,7 @@ interface UserProfile {
     bloodGroup?: string;
     image?: string;
     phoneNumber?: string;
+    emergencyContact?: string;
     joiningDate?: string;
 }
 
@@ -57,6 +58,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
     const [dob, setDob] = useState("");
     const [bloodGroup, setBloodGroup] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
+    const [emergencyContact, setEmergencyContact] = useState("");
     const [joiningDate, setJoiningDate] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -150,6 +152,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             setDob(data.dob ? new Date(data.dob).toISOString().split('T')[0] : "");
             setBloodGroup(data.bloodGroup || "");
             setPhoneNumber(data.phoneNumber || "");
+            setEmergencyContact(data.emergencyContact || "");
             setJoiningDate(data.joiningDate ? new Date(data.joiningDate).toISOString().split('T')[0] : (data.createdAt ? new Date(data.createdAt).toISOString().split('T')[0] : ""));
             setPosition(data.position || "");
             setFirstName(data.firstName || "");
@@ -178,6 +181,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             formData.append("dob", dob);
             formData.append("bloodGroup", bloodGroup);
             formData.append("phoneNumber", phoneNumber);
+            formData.append("emergencyContact", emergencyContact);
             formData.append("joiningDate", joiningDate);
 
             // Append arrays as JSON strings
@@ -206,6 +210,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                 dob: dob,
                 bloodGroup: bloodGroup,
                 phoneNumber: phoneNumber,
+                emergencyContact: emergencyContact,
                 joiningDate: joiningDate,
                 position: position,
                 image: response.data.image || (removeImage ? null : profile.image)
@@ -709,6 +714,25 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                                             />
                                         ) : (
                                             <p className="font-medium truncate">{profile.phoneNumber || "Not set"}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-sidebar/50 transition-colors">
+                                    <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500">
+                                        <span className="material-icons text-base">contact_phone</span>
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="text-xs text-muted-foreground">Emergency Number</p>
+                                        {isEditing ? (
+                                            <Input
+                                                value={emergencyContact}
+                                                onChange={(e) => setEmergencyContact(e.target.value)}
+                                                className="h-8 text-sm"
+                                                placeholder="Emergency number"
+                                            />
+                                        ) : (
+                                            <p className="font-medium truncate">{profile.emergencyContact || "Not set"}</p>
                                         )}
                                     </div>
                                 </div>

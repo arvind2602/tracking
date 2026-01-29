@@ -9,13 +9,15 @@ datasource db {
 }
 
 model organiation {
-  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime?  @updatedAt
-  Site      Site[]
-  employees employee[]
-  projects  projects[]
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime?  @updatedAt
+  showBanner Boolean    @default(true)
+  logo       String?
+  Site       Site[]
+  employees  employee[]
+  projects   projects[]
 }
 
 model employee {
@@ -41,6 +43,7 @@ model employee {
   bloodGroup       String?
   image            String?
   phoneNumber      String?
+  emergencyContact String?
   joiningDate      DateTime?
   headedProjects   projects[]     @relation("ProjectHead")
 }

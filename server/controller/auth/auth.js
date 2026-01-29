@@ -53,12 +53,14 @@ const register = async (req, res, next) => {
         password: Joi.string().min(6).required(),
         position: Joi.string().required(),
         role: Joi.string().required(),
+        phoneNumber: Joi.string().optional().allow(null, ''),
+        emergencyContact: Joi.string().optional().allow(null, '')
     });
 
     const { error } = schema.validate(req.body);
     if (error) return next(new BadRequestError(error.details[0].message));
 
-    const { firstName, lastName, email, password, position, role } = req.body;
+    const { firstName, lastName, email, password, position, role, phoneNumber, emergencyContact } = req.body;
 
     try {
         const existingResult = await pool.query(
@@ -75,10 +77,10 @@ const register = async (req, res, next) => {
         const organiationId = req.user.organization_uuid;
 
         const insertResult = await pool.query(
-            `INSERT INTO employee ("firstName", "lastName", "email", "password", "position", "role", "organiationId") 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) 
+            `INSERT INTO employee ("firstName", "lastName", "email", "password", "position", "role", "organiationId", "phoneNumber", "emergencyContact") 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
              RETURNING id, email, role, "organiationId"`,
-            [firstName, lastName, email, hashedPassword, position, role, organiationId]
+            [firstName, lastName, email, hashedPassword, position, role, organiationId, phoneNumber || null, emergencyContact || null]
         );
 
         res.status(201).json({ user: insertResult.rows[0] });
@@ -94,7 +96,7 @@ const getEmployee = async (req, res, next) => {
     console.log('Fetching employee with ID:', user_uuid);
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."joiningDate", o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e."joiningDate", o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e.is_archived = false`,
@@ -112,7 +114,7 @@ const getEmployeeById = async (req, res, next) => {
 
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."joiningDate", o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e."joiningDate", o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e."organiationId" = $2 AND e.is_archived = false`,
@@ -157,9 +159,19 @@ const getEmployeesByOrg = async (req, res, next) => {
             `WITH WeeklyStats AS (
                 SELECT 
                     e.id,
-                    COALESCE(SUM(t.points), 0) as "weeklyPoints"
+                    COALESCE(SUM(
+                        CASE 
+                            WHEN t.type = 'SHARED' THEN 
+                                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                            ELSE 
+                                t.points 
+                        END
+                    ), 0) as "weeklyPoints"
                 FROM employee e
-                LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
+                LEFT JOIN task t ON (
+                    (t.type != 'SHARED' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= NOW() - INTERVAL '7 days'
                 WHERE e."organiationId" = $1
@@ -168,12 +180,29 @@ const getEmployeesByOrg = async (req, res, next) => {
              YesterdayStats AS (
                 SELECT 
                     e.id,
-                    COALESCE(SUM(t.points), 0) as "yesterdayPoints"
+                    COALESCE(SUM(
+                        CASE 
+                            WHEN LOWER(t.status) IN ('done', 'completed') 
+                                 AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day' 
+                                 AND t."completedAt" < CURRENT_DATE THEN
+                                CASE 
+                                    WHEN t.type = 'SHARED' THEN 
+                                        t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                                    ELSE 
+                                        t.points 
+                                END
+                            ELSE 0
+                        END
+                    ), 0) as "yesterdayPoints",
+                    COUNT(t.id) as "yesterdayTaskCount"
                 FROM employee e
-                LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
-                    AND LOWER(t.status) IN ('done', 'completed')
-                    AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day'
-                    AND t."completedAt" < CURRENT_DATE
+                LEFT JOIN task t ON (
+                    (t.type != 'SHARED' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                )
+                -- We only count tasks that were assigned/existing yesterday
+                AND t."createdAt" < CURRENT_DATE 
+                AND (t.status != 'completed' OR t."completedAt" >= CURRENT_DATE - INTERVAL '1 day')
                 WHERE e."organiationId" = $1
                 GROUP BY e.id
              )
@@ -186,10 +215,13 @@ const getEmployeesByOrg = async (req, res, next) => {
                 e.role,
                 ws."weeklyPoints",
                 COALESCE(ys."yesterdayPoints", 0) as "yesterdayPoints",
+                COALESCE(ys."yesterdayTaskCount", 0) as "yesterdayTaskCount",
                 e.skills,
                 e.responsibilities,
                 e.image,
                 e.dob,
+                e."phoneNumber",
+                e."emergencyContact",
                 e."joiningDate",
                 RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
              FROM employee e
@@ -279,7 +311,7 @@ const updateEmployee = async (req, res, next) => {
     // appending arrays to FormData can be tricky).
     // For now assuming direct fields or simple parsing if needed.
 
-    let { firstName, lastName, email, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, joiningDate, removeImage } = req.body;
+    let { firstName, lastName, email, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, emergencyContact, joiningDate, removeImage } = req.body;
 
     // Parse arrays if they come as strings (common with FormData)
     if (typeof skills === 'string') {
@@ -298,9 +330,9 @@ const updateEmployee = async (req, res, next) => {
         }
 
         // Build the update query dynamically or simply
-        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, email = $3, position = $4, role = $5, skills = $6, responsibilities = $7, dob = $8, "bloodGroup" = $9, "phoneNumber" = $10, "joiningDate" = $11`;
-        let params = [firstName, lastName, email, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, joiningDate || null];
-        let paramIndex = 12;
+        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, email = $3, position = $4, role = $5, skills = $6, responsibilities = $7, dob = $8, "bloodGroup" = $9, "phoneNumber" = $10, "emergencyContact" = $11, "joiningDate" = $12`;
+        let params = [firstName, lastName, email, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, emergencyContact || null, joiningDate || null];
+        let paramIndex = 13;
 
         if (imageUrl) {
             query += `, image = $${paramIndex}`;
@@ -310,7 +342,7 @@ const updateEmployee = async (req, res, next) => {
             query += `, image = NULL`;
         }
 
-        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", "joiningDate", image`;
+        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", "emergencyContact", "joiningDate", image`;
         params.push(id);
 
         const result = await pool.query(query, params);
@@ -341,9 +373,19 @@ const exportUsers = async (req, res, next) => {
             `WITH WeeklyStats AS (
                 SELECT 
                     e.id,
-                    COALESCE(SUM(t.points), 0) as "weeklyPoints"
+                    COALESCE(SUM(
+                        CASE 
+                            WHEN t.type = 'SHARED' THEN 
+                                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                            ELSE 
+                                t.points 
+                        END
+                    ), 0) as "weeklyPoints"
                 FROM employee e
-                LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
+                LEFT JOIN task t ON (
+                    (t.type != 'SHARED' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= NOW() - INTERVAL '7 days'
                 WHERE e."organiationId" = $1
@@ -352,9 +394,19 @@ const exportUsers = async (req, res, next) => {
              YesterdayStats AS (
                 SELECT 
                     e.id,
-                    COALESCE(SUM(t.points), 0) as "yesterdayPoints"
+                    COALESCE(SUM(
+                        CASE 
+                            WHEN t.type = 'SHARED' THEN 
+                                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                            ELSE 
+                                t.points 
+                        END
+                    ), 0) as "yesterdayPoints"
                 FROM employee e
-                LEFT JOIN task t ON e.id = t."assignedTo"::uuid 
+                LEFT JOIN task t ON (
+                    (t.type != 'SHARED' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day'
                     AND t."completedAt" < CURRENT_DATE
@@ -372,6 +424,7 @@ const exportUsers = async (req, res, next) => {
                 e.dob,
                 e."bloodGroup",
                 e."phoneNumber",
+                e."emergencyContact",
                 e.image,
                 e."createdAt",
                 e."joiningDate",
