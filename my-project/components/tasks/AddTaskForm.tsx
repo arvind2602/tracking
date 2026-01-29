@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, useEffect, useRef } from "react";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
@@ -163,40 +164,36 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium leading-none">Status</label>
-          <Select
+          <SearchableSelect
             value={form.status}
-            onValueChange={(val: "pending" | "in-progress" | "completed") =>
+            onValueChange={(val: any) =>
               setForm({ ...form, status: val })
             }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-            </SelectContent>
-          </Select>
+            options={[
+              { value: "pending", label: "Pending" },
+              { value: "in-progress", label: "In Progress" },
+              { value: "completed", label: "Completed" },
+            ]}
+            placeholder="Select Status"
+            className="w-full"
+          />
         </div>
 
         <div className="space-y-2">
           <label className="text-sm font-medium leading-none">Priority</label>
-          <Select
+          <SearchableSelect
             value={form.priority}
-            onValueChange={(val: "LOW" | "MEDIUM" | "HIGH") =>
+            onValueChange={(val: any) =>
               setForm({ ...form, priority: val })
             }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="LOW">Low</SelectItem>
-              <SelectItem value="MEDIUM">Medium</SelectItem>
-              <SelectItem value="HIGH">High</SelectItem>
-            </SelectContent>
-          </Select>
+            options={[
+              { value: "LOW", label: "Low" },
+              { value: "MEDIUM", label: "Medium" },
+              { value: "HIGH", label: "High" },
+            ]}
+            placeholder="Select Priority"
+            className="w-full"
+          />
         </div>
       </div>
 
@@ -343,21 +340,16 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
         {!parentTask && (
           <div className="space-y-2">
             <label className="text-sm font-medium leading-none">Project</label>
-            <Select
+            <SearchableSelect
               value={form.projectId}
               onValueChange={(val) => setForm({ ...form, projectId: val })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select Project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={projects.map((project) => ({
+                value: project.id,
+                label: project.name,
+              }))}
+              placeholder="Select Project"
+              className="w-full"
+            />
           </div>
         )}
       </div>

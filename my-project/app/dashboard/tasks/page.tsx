@@ -8,7 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState, useRef, useEffect } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import axios from "@/lib/axios";
@@ -273,59 +274,55 @@ export default function Tasks() {
 
       <div className="flex flex-wrap gap-3">
         {userRole === 'ADMIN' && (
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-4">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+            options={[
+              { value: "all", label: "All Statuses" },
+              { value: "pending", label: "Pending" },
+              { value: "in-progress", label: "In Progress" },
+              { value: "completed", label: "Completed" },
+            ]}
+            placeholder="Status"
+            className="w-full md:w-[220px]"
+          />
         )}
         {userRole === 'ADMIN' && (
-          <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-4">
-              <SelectValue placeholder="Project" />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
-              <SelectItem value="all">All Projects</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={projectFilter}
+            onValueChange={setProjectFilter}
+            options={[
+              { value: "all", label: "All Projects" },
+              ...projects.map(p => ({ value: p.id, label: p.name }))
+            ]}
+            placeholder="Project"
+            className="w-full md:w-[220px]"
+          />
         )}
         {userRole === 'ADMIN' && (
-          <Select value={userFilter} onValueChange={setUserFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-white/5 border-white/10 text-slate-300 rounded-xl py-4">
-              <SelectValue placeholder="Assigned To" />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
-              <SelectItem value="all">All Users</SelectItem>
-              {users.map((user) => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.firstName} {user.lastName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={userFilter}
+            onValueChange={setUserFilter}
+            options={[
+              { value: "all", label: "All Users" },
+              ...users.map(u => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }))
+            ]}
+            placeholder="Assigned To"
+            className="w-full md:w-[220px]"
+          />
         )}
-        <Select value={dateFilter} onValueChange={setDateFilter}>
-          <SelectTrigger className="w-full md:w-[220px] bg-card border-border text-foreground rounded-xl py-4">
-            <SelectValue placeholder="Date" />
-          </SelectTrigger>
-          <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
-            <SelectItem value="all">All Dates</SelectItem>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="overdue">Overdue</SelectItem>
-          </SelectContent>
-        </Select>
+        <SearchableSelect
+          value={dateFilter}
+          onValueChange={setDateFilter}
+          options={[
+            { value: "all", label: "All Dates" },
+            { value: "today", label: "Today" },
+            { value: "week", label: "This Week" },
+            { value: "overdue", label: "Overdue" },
+          ]}
+          placeholder="Date"
+          className="w-full md:w-[220px]"
+        />
       </div>
 
       <div className="flex space-x-6 border-b border-border">

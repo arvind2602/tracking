@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState } from "react";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
@@ -88,18 +89,16 @@ export function AddUserForm({ organizationId, onUserAdded, onClose }: AddUserFor
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium leading-none">Role</label>
-          <Select
+          <SearchableSelect
             value={form.role}
-            onValueChange={(val: "USER" | "ADMIN") => setForm({ ...form, role: val })}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="USER">User</SelectItem>
-              <SelectItem value="ADMIN">Admin</SelectItem>
-            </SelectContent>
-          </Select>
+            onValueChange={(val: any) => setForm({ ...form, role: val })}
+            options={[
+              { value: "USER", label: "User" },
+              { value: "ADMIN", label: "Admin" },
+            ]}
+            placeholder="Select Role"
+            className="w-full"
+          />
         </div>
       </div>
 

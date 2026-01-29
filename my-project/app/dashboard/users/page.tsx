@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useMemo, useRef } from "react";
 import React from "react";
@@ -391,30 +392,31 @@ export default function Users() {
 
             {userRole === 'ADMIN' && (
               <>
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger className="w-full md:w-1/5 bg-card border-border text-foreground rounded-xl py-4">
-                    <SelectValue placeholder="Filter by role" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
-                    <SelectItem value="all">All Roles</SelectItem>
-                    <SelectItem value="USER">USER</SelectItem>
-                    <SelectItem value="ADMIN">ADMIN</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={roleFilter}
+                  onValueChange={setRoleFilter}
+                  options={[
+                    { value: "all", label: "All Roles" },
+                    { value: "USER", label: "USER" },
+                    { value: "ADMIN", label: "ADMIN" },
+                  ]}
+                  placeholder="Filter by role"
+                  className="w-full md:w-1/5"
+                />
 
-                <Select value={positionFilter} onValueChange={setPositionFilter}>
-                  <SelectTrigger className="w-full md:w-1/5 bg-card border-border text-foreground rounded-xl py-4">
-                    <SelectValue placeholder="Filter by position" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
-                    <SelectItem value="all">All Positions</SelectItem>
-                    {[...new Set(usersList.map((user) => user.position).filter(Boolean))].map((position) => (
-                      <SelectItem key={position} value={position}>
-                        {position}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={positionFilter}
+                  onValueChange={setPositionFilter}
+                  options={[
+                    { value: "all", label: "All Positions" },
+                    ...[...new Set(usersList.map((user) => user.position).filter(Boolean))].map((pos: any) => ({
+                      value: pos,
+                      label: pos,
+                    })),
+                  ]}
+                  placeholder="Filter by position"
+                  className="w-full md:w-1/5"
+                />
 
                 {/* Skills Multi-Select Filter */}
                 <div className="relative w-full md:w-1/3" ref={skillsDropdownRef}>
@@ -709,18 +711,16 @@ export default function Users() {
                 onChange={(e) => setForm({ ...form, position: e.target.value })}
                 className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
               />
-              <Select
+              <SearchableSelect
                 value={form.role}
-                onValueChange={(val: "USER" | "ADMIN") => setForm({ ...form, role: val })}
-              >
-                <SelectTrigger className="bg-card border-border text-foreground rounded-xl py-6">
-                  <SelectValue placeholder="Select Role" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-white/10 text-slate-300">
-                  <SelectItem value="USER">Standard User</SelectItem>
-                  <SelectItem value="ADMIN">Administrator</SelectItem>
-                </SelectContent>
-              </Select>
+                onValueChange={(val: any) => setForm({ ...form, role: val })}
+                options={[
+                  { value: "USER", label: "Standard User" },
+                  { value: "ADMIN", label: "Administrator" },
+                ]}
+                placeholder="Select Role"
+                className="w-full"
+              />
               <div className="grid grid-cols-2 gap-4">
                 <Input
                   placeholder="Primary Phone Number"

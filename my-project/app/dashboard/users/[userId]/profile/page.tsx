@@ -8,6 +8,7 @@ import html2canvas from "html2canvas";
 import { QRCodeCanvas } from "qrcode.react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -789,16 +790,16 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                                     <div className="p-2 rounded-lg bg-sidebar/50">
                                         <p className="text-xs text-muted-foreground mb-1">Blood Group</p>
                                         {isEditing ? (
-                                            <Select value={bloodGroup} onValueChange={setBloodGroup}>
-                                                <SelectTrigger className="h-8 text-xs">
-                                                    <SelectValue placeholder="Select" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bg => (
-                                                        <SelectItem key={bg} value={bg}>{bg}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <SearchableSelect
+                                                value={bloodGroup}
+                                                onValueChange={setBloodGroup}
+                                                options={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(bg => ({
+                                                    value: bg,
+                                                    label: bg,
+                                                }))}
+                                                placeholder="Select"
+                                                className="h-8 text-[10px]"
+                                            />
                                         ) : (
                                             <p className="font-medium text-sm">{profile.bloodGroup || "Not set"}</p>
                                         )}

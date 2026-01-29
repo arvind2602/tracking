@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 
 
 const ProjectsPage = () => {
@@ -653,19 +654,19 @@ const ProjectsPage = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Project Head</label>
-                  <Select value={newProjectHeadId} onValueChange={setNewProjectHeadId}>
-                    <SelectTrigger className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:ring-blue-500/50">
-                      <SelectValue placeholder="Select a head (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {employees.map((emp) => (
-                        <SelectItem key={emp.id} value={emp.id}>
-                          {emp.firstName} {emp.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={newProjectHeadId}
+                    onValueChange={setNewProjectHeadId}
+                    options={[
+                      { value: "unassigned", label: "Unassigned" },
+                      ...employees.map((emp) => ({
+                        value: emp.id,
+                        label: `${emp.firstName} ${emp.lastName}`,
+                      })),
+                    ]}
+                    placeholder="Select a head (optional)"
+                    className="w-full"
+                  />
                 </div>
               </div>
               <div className="flex gap-4 mt-10">
