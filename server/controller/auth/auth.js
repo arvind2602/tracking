@@ -169,8 +169,8 @@ const getEmployeesByOrg = async (req, res, next) => {
                     ), 0) as "weeklyPoints"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type != 'SHARED' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= NOW() - INTERVAL '7 days'
@@ -197,8 +197,8 @@ const getEmployeesByOrg = async (req, res, next) => {
                     COUNT(t.id) as "yesterdayTaskCount"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type != 'SHARED' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                 -- We only count tasks that were assigned/existing yesterday
                 AND t."createdAt" < CURRENT_DATE 
@@ -383,8 +383,8 @@ const exportUsers = async (req, res, next) => {
                     ), 0) as "weeklyPoints"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type != 'SHARED' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= NOW() - INTERVAL '7 days'
@@ -404,8 +404,8 @@ const exportUsers = async (req, res, next) => {
                     ), 0) as "yesterdayPoints"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type != 'SHARED' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day'
