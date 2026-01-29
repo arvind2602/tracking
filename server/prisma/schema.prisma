@@ -13,7 +13,7 @@ model organiation {
   name       String
   createdAt  DateTime   @default(now())
   updatedAt  DateTime?  @updatedAt
-  showBanner Boolean    @default(true)
+  showBanner Boolean    @default(false)
   logo       String?
   Site       Site[]
   employees  employee[]

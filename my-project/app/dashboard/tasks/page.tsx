@@ -73,9 +73,24 @@ export default function Tasks() {
     setFilteredTasks(filtered);
   }, [tasks, statusFilter, projectFilter, userFilter]);
 
+  // Initial initialization
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/");
+      return;
+    }
+
+    try {
+      const payload: DecodedToken = jwtDecode(token);
+      setUserRole(payload.user.role);
+      setCurrentUserId(payload.user.uuid);
+    } catch {
+      router.push("/");
+      return;
+    }
+
     const fetchInitialData = async () => {
-      setIsLoading(true);
       try {
         const [projectsResponse, usersResponse] = await Promise.all([
           axios.get("/projects"),
@@ -83,25 +98,16 @@ export default function Tasks() {
         ]);
         setProjects(projectsResponse.data);
         setUsers(usersResponse.data);
-        // Initial fetch with default page 1
-        fetchAllTasks(1);
+        // fetchAllTasks will be triggered by dependency effect or called here once
+        await fetchAllTasks(1);
       } catch {
         toast.error("Failed to fetch initial data");
+      } finally {
         setIsLoading(false);
       }
     };
 
-    const token = localStorage.getItem("token");
-    if (token) {
-      try {
-        const payload: DecodedToken = jwtDecode(token);
-        setUserRole(payload.user.role);
-        setCurrentUserId(payload.user.uuid);
-        fetchInitialData();
-      } catch {
-        router.push("/login");
-      }
-    }
+    fetchInitialData();
   }, [router]);
 
 
@@ -117,7 +123,10 @@ export default function Tasks() {
 
   useEffect(() => {
     // Re-fetch tasks when filters change or tab changes, resetting to page 1
-    fetchAllTasks(1);
+    // Skip the very first run as initialData fetch handles it
+    if (!isLoading) {
+      fetchAllTasks(1);
+    }
   }, [statusFilter, projectFilter, userFilter, dateFilter, activeTab, sortBy, sortOrder]);
 
   // ... existing initial data effect
@@ -179,6 +188,18 @@ export default function Tasks() {
     { label: "Dashboard", href: "/dashboard" },
     { label: "Tasks", href: "/dashboard/tasks" },
   ];
+
+  if (isLoading && tasks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+          <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full animate-pulse"></div>
+        </div>
+        <p className="text-muted-foreground animate-pulse">Loading tasks...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -16,17 +16,6 @@ interface DecodedToken {
   };
 }
 
-let userRole: string | null = null;
-const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-if (token) {
-  try {
-    const payload: DecodedToken = jwtDecode(token);
-    userRole = payload.user.role;
-  } catch (error) {
-    console.error('Invalid token', error);
-  }
-}
-
 export default function DashboardLayout({
   children,
 }: {
@@ -37,7 +26,25 @@ export default function DashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [orgSettings, setOrgSettings] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload: DecodedToken = jwtDecode(token);
+        setUserRole(payload.user.role);
+      } catch (error) {
+        console.error('Invalid token', error);
+        router.push('/');
+      }
+    } else {
+      router.push('/');
+    }
+    setIsLoading(false);
+  }, [router]);
 
   useEffect(() => {
     const fetchOrgSettings = async () => {
@@ -51,9 +58,23 @@ export default function DashboardLayout({
     fetchOrgSettings();
   }, []);
 
-  if (!userRole && typeof window !== 'undefined') {
-    router.push('/');
-  }
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    if (isSidebarOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSidebarOpen]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -73,23 +94,13 @@ export default function DashboardLayout({
     ? allNavItems.filter(item => item.label === 'Tasks' || item.label === 'Profile')
     : allNavItems;
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
-        setIsSidebarOpen(false);
-      }
-    };
-
-    if (isSidebarOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isSidebarOpen]);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-background font-mono">
