@@ -648,15 +648,17 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                   </Tooltip>
                                 </TooltipProvider>
                               ) : (
-                                <Button
-                                  onClick={() => handleMarkAsCompleted(task.id)}
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-emerald-400"
-                                  disabled={loadingTaskId === task.id}
-                                >
-                                  {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Check className="h-3.5 w-3.5 md:h-4 md:w-4" />}
-                                </Button>
+                                task.status !== 'pending' && (
+                                  <Button
+                                    onClick={() => handleMarkAsCompleted(task.id)}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-emerald-400"
+                                    disabled={loadingTaskId === task.id}
+                                  >
+                                    {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Check className="h-3.5 w-3.5 md:h-4 md:w-4" />}
+                                  </Button>
+                                )
                               )
                             )}
                             {userRole === "ADMIN" && (
@@ -813,7 +815,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                     </Button>
                                   )}
 
-                                  {subtask.status !== "completed" && (
+                                  {subtask.status !== "completed" && subtask.status !== "pending" && (
                                     <Button
                                       onClick={() => handleMarkAsCompleted(subtask.id)}
                                       variant="ghost"
