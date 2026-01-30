@@ -225,30 +225,38 @@ export function BirthdayBanner() {
                 <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '16px 16px' }}></div>
             </div>
 
-            <div className="container mx-auto px-4 py-3 flex items-center justify-between relative z-10 min-h-[50px]">
+            <div className="container mx-auto px-2 md:px-4 py-3 flex items-center justify-between relative z-10 min-h-[50px] gap-2">
 
                 {/* Carousel Controls (Left) */}
                 {events.length > 1 && (
-                    <button onClick={prevSlide} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white/20 rounded-full absolute left-4 md:static z-20">
+                    <button
+                        onClick={prevSlide}
+                        className="p-1 hover:bg-white/20 rounded-full shrink-0 text-white/75 hover:text-white transition-colors"
+                        aria-label="Previous"
+                    >
                         <ChevronLeft className="h-5 w-5" />
                     </button>
                 )}
 
-                <div className="flex-1 flex items-center justify-center gap-3 md:justify-start md:pl-4 overflow-hidden">
-                    <div className="p-2 bg-white/20 rounded-full backdrop-blur-sm shrink-0">
+                <div className="flex-1 flex items-center justify-center md:justify-start gap-2 md:gap-3 overflow-hidden">
+                    <div className="hidden sm:flex p-2 bg-white/20 rounded-full backdrop-blur-sm shrink-0">
                         <Icon className="h-5 w-5" />
                     </div>
                     <div
                         key={currentEvent.id}
-                        className="text-sm font-medium truncate animate-in slide-in-from-bottom-2 fade-in duration-500"
+                        className="text-xs md:text-sm font-medium animate-in slide-in-from-bottom-2 fade-in duration-500 text-center md:text-left"
                     >
+                        {/* Mobile Icon Inline if needed, or just rely on text */}
+                        <span className="sm:hidden inline-flex items-center justify-center p-1 bg-white/20 rounded-full backdrop-blur-sm mr-2 align-middle">
+                            <Icon className="h-3 w-3" />
+                        </span>
                         {currentEvent.message}
                     </div>
                 </div>
 
-                {/* Indicators */}
+                {/* Indicators (Desktop Only) */}
                 {events.length > 1 && (
-                    <div className="hidden md:flex gap-1.5 mx-4">
+                    <div className="hidden lg:flex gap-1.5 mx-4">
                         {events.map((_, idx) => (
                             <button
                                 key={idx}
@@ -260,13 +268,21 @@ export function BirthdayBanner() {
                 )}
 
                 {/* Carousel Controls (Right) & Close */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 md:gap-2 shrink-0">
                     {events.length > 1 && (
-                        <button onClick={nextSlide} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white/20 rounded-full mr-2 hidden md:block z-20">
+                        <button
+                            onClick={nextSlide}
+                            className="p-1 hover:bg-white/20 rounded-full text-white/75 hover:text-white transition-colors"
+                            aria-label="Next"
+                        >
                             <ChevronRight className="h-5 w-5" />
                         </button>
                     )}
-                    <button onClick={() => setIsVisible(false)} className="text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-1.5 rounded-full z-20">
+                    <button
+                        onClick={() => setIsVisible(false)}
+                        className="text-white/80 hover:text-white transition-colors bg-white/10 hover:bg-white/20 p-1.5 rounded-full ml-1"
+                        aria-label="Close"
+                    >
                         <X className="h-4 w-4" />
                     </button>
                 </div>
