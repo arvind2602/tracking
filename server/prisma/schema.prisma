@@ -24,7 +24,7 @@ model employee {
   id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   firstName        String
   lastName         String
-  email            String         @unique
+  email            String
   position         String
   role             role
   createdAt        DateTime       @default(now())

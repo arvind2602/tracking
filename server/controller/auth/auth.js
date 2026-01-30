@@ -324,6 +324,16 @@ const updateEmployee = async (req, res, next) => {
     let imageUrl;
 
     try {
+        if (email) {
+            const emailCheck = await pool.query(
+                'SELECT id FROM employee WHERE email = $1 AND id != $2 AND is_archived = false',
+                [email, id]
+            );
+            if (emailCheck.rowCount > 0) {
+                return next(new UnprocessableEntityError('Email already exists'));
+            }
+        }
+
         if (req.file) {
             const { uploadToCloudinary } = require('../../config/cloudinary');
             imageUrl = await uploadToCloudinary(req.file, 'image');
