@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Plus, X, Save, Edit2, Check, Camera, Trash2, Phone } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Plus, X, Save, Edit2, Check, Camera, Trash2, Phone, MapPin } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -34,6 +34,7 @@ interface UserProfile {
     image?: string;
     phoneNumber?: string;
     emergencyContact?: string;
+    address?: string;
     joiningDate?: string;
 }
 
@@ -54,6 +55,7 @@ export default function ProfilePage() {
     const [bloodGroup, setBloodGroup] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [emergencyContact, setEmergencyContact] = useState("");
+    const [address, setAddress] = useState("");
     const [joiningDate, setJoiningDate] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -93,6 +95,7 @@ export default function ProfilePage() {
             setBloodGroup(data.bloodGroup || "");
             setPhoneNumber(data.phoneNumber || "");
             setEmergencyContact(data.emergencyContact || "");
+            setAddress(data.address || "");
             setPosition(data.position || "");
             setFirstName(data.firstName || "");
             setLastName(data.lastName || "");
@@ -138,6 +141,7 @@ export default function ProfilePage() {
             formData.append("bloodGroup", bloodGroup);
             formData.append("phoneNumber", phoneNumber);
             formData.append("emergencyContact", emergencyContact);
+            formData.append("address", address);
             formData.append("joiningDate", joiningDate);
 
             // Append arrays as JSON strings
@@ -167,6 +171,7 @@ export default function ProfilePage() {
                 bloodGroup: bloodGroup,
                 phoneNumber: phoneNumber,
                 emergencyContact: emergencyContact,
+                address: address,
                 joiningDate: joiningDate,
                 position: position,
                 image: response.data.image || (removeImage ? null : profile.image)
@@ -476,6 +481,24 @@ export default function ProfilePage() {
                                             />
                                         ) : (
                                             <p className="font-medium truncate">{profile.emergencyContact || "Not set"}</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-sidebar/50 transition-colors">
+                                    <div className="p-2 rounded-lg bg-yellow-500/10 text-yellow-500">
+                                        <MapPin className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="text-xs text-muted-foreground">Address</p>
+                                        {isEditing ? (
+                                            <Input
+                                                value={address}
+                                                onChange={(e) => setAddress(e.target.value)}
+                                                className="h-8 text-sm"
+                                                placeholder="Address"
+                                            />
+                                        ) : (
+                                            <p className="font-medium truncate" title={profile.address}>{profile.address || "Not set"}</p>
                                         )}
                                     </div>
                                 </div>

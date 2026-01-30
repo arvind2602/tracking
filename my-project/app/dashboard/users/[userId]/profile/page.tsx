@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import React from 'react';
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2, Download, Loader2 } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2, Download, Loader2, MapPin } from "lucide-react";
 import html2canvas from "html2canvas";
 import { QRCodeCanvas } from "qrcode.react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -39,6 +39,7 @@ interface UserProfile {
     image?: string;
     phoneNumber?: string;
     emergencyContact?: string;
+    address?: string;
     joiningDate?: string;
 }
 
@@ -60,6 +61,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
     const [bloodGroup, setBloodGroup] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [emergencyContact, setEmergencyContact] = useState("");
+    const [address, setAddress] = useState("");
     const [joiningDate, setJoiningDate] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -154,6 +156,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             setBloodGroup(data.bloodGroup || "");
             setPhoneNumber(data.phoneNumber || "");
             setEmergencyContact(data.emergencyContact || "");
+            setAddress(data.address || "");
             setJoiningDate(data.joiningDate ? new Date(data.joiningDate).toISOString().split('T')[0] : (data.createdAt ? new Date(data.createdAt).toISOString().split('T')[0] : ""));
             setPosition(data.position || "");
             setFirstName(data.firstName || "");
@@ -183,6 +186,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             formData.append("bloodGroup", bloodGroup);
             formData.append("phoneNumber", phoneNumber);
             formData.append("emergencyContact", emergencyContact);
+            formData.append("address", address);
             formData.append("joiningDate", joiningDate);
 
             // Append arrays as JSON strings
@@ -212,6 +216,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                 bloodGroup: bloodGroup,
                 phoneNumber: phoneNumber,
                 emergencyContact: emergencyContact,
+                address: address,
                 joiningDate: joiningDate,
                 position: position,
                 image: response.data.image || (removeImage ? null : profile.image)
@@ -734,6 +739,26 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                                             />
                                         ) : (
                                             <p className="font-medium truncate">{profile.emergencyContact || "Not set"}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+
+                                <div className="flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-sidebar/50 transition-colors">
+                                    <div className="p-2 rounded-lg bg-yellow-500/10 text-yellow-500">
+                                        <MapPin className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="text-xs text-muted-foreground">Address</p>
+                                        {isEditing ? (
+                                            <Input
+                                                value={address}
+                                                onChange={(e) => setAddress(e.target.value)}
+                                                className="h-8 text-sm"
+                                                placeholder="Address"
+                                            />
+                                        ) : (
+                                            <p className="font-medium truncate">{profile.address || "Not set"}</p>
                                         )}
                                     </div>
                                 </div>

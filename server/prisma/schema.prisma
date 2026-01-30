@@ -44,6 +44,7 @@ model employee {
   image            String?
   phoneNumber      String?
   emergencyContact String?
+  address          String?
   joiningDate      DateTime?
   headedProjects   projects[]     @relation("ProjectHead")
 }
