@@ -8,7 +8,8 @@ const createProject = async (req, res, next) => {
   const schema = Joi.object({
     name: Joi.string().required(),
     description: Joi.string().allow(''),
-    startDate: Joi.date().iso().required()
+    startDate: Joi.date().iso().required(),
+    headId: Joi.string().allow(null, '').optional()
   });
 
   const { error } = schema.validate(req.body);
