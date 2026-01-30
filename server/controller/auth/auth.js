@@ -161,7 +161,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                     e.id,
                     COALESCE(SUM(
                         CASE 
-                            WHEN t.type = 'SHARED' THEN 
+                            WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN 
                                 t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
                             ELSE 
                                 t.points 
@@ -169,8 +169,8 @@ const getEmployeesByOrg = async (req, res, next) => {
                     ), 0) as "weeklyPoints"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= NOW() - INTERVAL '7 days'
@@ -186,7 +186,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                                  AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day' 
                                  AND t."completedAt" < CURRENT_DATE THEN
                                 CASE 
-                                    WHEN t.type = 'SHARED' THEN 
+                                    WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN 
                                         t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
                                     ELSE 
                                         t.points 
@@ -197,8 +197,8 @@ const getEmployeesByOrg = async (req, res, next) => {
                     COUNT(t.id) as "yesterdayTaskCount"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                 -- We only count tasks that were assigned/existing yesterday
                 AND t."createdAt" < CURRENT_DATE 
@@ -385,7 +385,7 @@ const exportUsers = async (req, res, next) => {
                     e.id,
                     COALESCE(SUM(
                         CASE 
-                            WHEN t.type = 'SHARED' THEN 
+                            WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN 
                                 t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
                             ELSE 
                                 t.points 
@@ -393,8 +393,8 @@ const exportUsers = async (req, res, next) => {
                     ), 0) as "weeklyPoints"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= NOW() - INTERVAL '7 days'
@@ -406,7 +406,7 @@ const exportUsers = async (req, res, next) => {
                     e.id,
                     COALESCE(SUM(
                         CASE 
-                            WHEN t.type = 'SHARED' THEN 
+                            WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN 
                                 t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
                             ELSE 
                                 t.points 
@@ -414,8 +414,8 @@ const exportUsers = async (req, res, next) => {
                     ), 0) as "yesterdayPoints"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
+                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day'
