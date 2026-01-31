@@ -135,7 +135,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                         left: '50%',
                         transform: 'translateX(-50%)',
                         width: '100%',
-                        height: '415px',
+
                         zIndex: 1,
                     }}>
                         <img
