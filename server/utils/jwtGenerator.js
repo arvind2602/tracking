@@ -1,13 +1,13 @@
 const jwt = require('jsonwebtoken');
 const { jwtConfig } = require('../config/jwtConfig');
 
-const generateJwtToken = (email, role, uuid, organization_uuid, options = {}) => {
+const generateJwtToken = (email, role, uuid, organization_uuid, is_hr = false, options = {}) => {
     if (!email || typeof email !== 'string') throw new Error('Valid email required');
-    console.log('Generating JWT for:', { email, role, uuid, organization_uuid });
+    console.log('Generating JWT for:', { email, role, uuid, organization_uuid, is_hr });
 
     const tokenOptions = { ...jwtConfig, ...options, expiresIn: options.expiresIn || jwtConfig.expiresIn };
 
-    const payload = { user: { email, role, uuid, organization_uuid } };
+    const payload = { user: { email, role, uuid, organization_uuid, is_hr } };
 
     return jwt.sign(payload, tokenOptions.secret, {
         expiresIn: tokenOptions.expiresIn,

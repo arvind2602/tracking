@@ -1,24 +1,32 @@
-
 import React, { useEffect, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { removeBackground } from "@imgly/background-removal";
 
 interface IDCardTemplateProps {
     profile: any;
-    idCardRef: React.RefObject<HTMLDivElement>;
+    idCardRef: React.RefObject<HTMLDivElement | null>;
     onImageProcessed?: () => void;
+    processedImage?: string | null;
+    shouldProcess?: boolean;
 }
 
-export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed }: IDCardTemplateProps) => {
-    const [processedImage, setProcessedImage] = useState<string | null>(null);
+export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processedImage: externalProcessedImage, shouldProcess = false }: IDCardTemplateProps) => {
+    const [internalProcessedImage, setInternalProcessedImage] = useState<string | null>(null);
+
+    const displayImage = externalProcessedImage || internalProcessedImage || profile.image;
 
     useEffect(() => {
+        if (!shouldProcess) {
+            if (onImageProcessed) onImageProcessed();
+            return;
+        }
+
         let isMounted = true;
         const processImage = async () => {
             // If we already have a blob url that we generated, don't re-process
             if (profile.image?.startsWith('blob:')) {
                 if (isMounted) {
-                    setProcessedImage(profile.image);
+                    setInternalProcessedImage(profile.image);
                     onImageProcessed?.();
                 }
                 return;
@@ -26,7 +34,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed }: IDCardT
 
             if (!profile.image) {
                 if (isMounted) {
-                    setProcessedImage(null); // Use fallback
+                    setInternalProcessedImage(null); // Use fallback
                     onImageProcessed?.();
                 }
                 return;
@@ -36,14 +44,14 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed }: IDCardT
                 const imageBlob = await removeBackground(profile.image);
                 const url = URL.createObjectURL(imageBlob);
                 if (isMounted) {
-                    setProcessedImage(url);
+                    setInternalProcessedImage(url);
                     console.log("Background removed for", profile.firstName);
                     onImageProcessed?.();
                 }
             } catch (error) {
                 console.error("Failed to remove background", error);
                 if (isMounted) {
-                    setProcessedImage(profile.image); // Fallback to original
+                    setInternalProcessedImage(profile.image); // Fallback to original
                     onImageProcessed?.();
                 }
             }
@@ -51,224 +59,224 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed }: IDCardT
 
         processImage();
         return () => { isMounted = false; };
-    }, [profile.image]);
+    }, [profile.id, profile.image, shouldProcess]); // Dependency on profile.id to ensure re-process if user changes but image URL is same (unlikely but safe)
 
-    // Use a fixed date if DOB is missing or invalid for consistency, or format properly
+    // Format date properly
     const formatDate = (dateString: string) => {
-        if (!dateString) return "07 / 03 / 2002"; // Fallback
+        if (!dateString) return "25 August 2003"; // Default label from user template
         try {
-            return new Date(dateString).toLocaleDateString('en-GB');
+            return new Date(dateString).toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
         } catch {
-            return "07 / 03 / 2002";
+            return "25 August 2003";
         }
     };
 
     return (
-        <div ref={idCardRef} className="flex gap-10 items-start p-10" style={{ width: "fit-content", fontFamily: "'Montserrat', sans-serif", backgroundColor: "transparent" }}>
+        <div ref={idCardRef} style={{ background: 'transparent', padding: '0', margin: '0', boxSizing: 'border-box' }}>
             {/* External Resources */}
             <link rel="preconnect" href="https://fonts.googleapis.com" />
             <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
             <link
-                href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
-                rel="stylesheet"
-            />
-            <link
-                href="https://fonts.googleapis.com/icon?family=Material+Icons"
+                href="https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,100..900;1,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
                 rel="stylesheet"
             />
 
-            {/* Custom Styles */}
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                .grid-pattern {
-                    background-image:
-                        linear-gradient(#e2e8f0 1px, transparent 1px),
-                        linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
-                    background-size: 20px 20px;
-                }
-                .font-display {
-                    font-family: 'Montserrat', sans-serif;
-                }
-            `}} />
-
-            {/* FRONT SIDE */}
-            <div
-                className="w-[450px] h-[720px] rounded-[24px] shadow-2xl overflow-hidden font-display relative flex flex-col shrink-0"
-                style={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderWidth: '1px' }}
-            >
-                <div className="relative flex-1 flex flex-col">
-                    <div className="absolute inset-0 grid-pattern opacity-40 pointer-events-none"></div>
-
-                    <div className="relative z-10 px-8 pt-12 gap-2 flex-1 flex flex-col">
-                        {/* Logo Header */}
-                        <div className="flex items-center justify-center ">
+            {/* MAIN WRAPPER */}
+            <div style={{
+                display: 'flex',
+                gap: '40px',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '40px',
+            }}>
+                {/* ================= FRONT SIDE ================= */}
+                <div style={{
+                    width: '400px',
+                    height: '620px',
+                    background: '#ffffff',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    boxShadow: '0 12px 25px rgba(0, 0, 0, 0.15)',
+                    position: 'relative',
+                }}>
+                    {/* Header */}
+                    <div style={{ padding: '28px' }}>
+                        <div style={{ padding: '0 42px', margin: '10px 0 14px 0' }}>
                             <img
-                                src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512650123_VLogo.png"
-                                alt="VighnoTech Logo"
-                                className=""
-                                crossOrigin="anonymous"
-                            />
-                            <img
-                                src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512668299_vighnotechNewLogo.png"
-                                alt="VighnoTech Text Logo"
-                                className=""
-                                crossOrigin="anonymous"
+                                src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769776403335_Vighno%20ID%20(1).png?v=1"
+                                alt="logo"
+                                style={{ width: '100%', objectFit: 'cover' }}
+
                             />
                         </div>
-
-                        {/* Employee Name */}
-                        <div className="text-center mb-[30px] mt-[-20px]">
-                            <h1 className="text-5xl font-bold leading-tight" style={{ color: '#0f172a' }}>
-                                {profile.firstName || "Arvind"}
-                            </h1>
-                            <h1 className="text-5xl font-bold leading-tight" style={{ color: '#0f172a' }}>
-                                {profile.lastName || "Gupta"}
-                            </h1>
+                        <div style={{ fontFamily: "'Chivo', sans-serif", fontSize: '20px', color: '#000' }}>
+                            {profile.position || ""}
                         </div>
 
-                        {/* Designation Badge */}
-                        <div className="flex justify-center items-center">
-                            <div
-                                className="px-4 py-2 rounded-full shadow-md items-center justify-center text-center"
-                                style={{ backgroundColor: '#FF7905' }}
-                            >
-                                <p className="font-bold mb-2 mt-[-2px] text-lg uppercase tracking-wider text-white">
-                                    {profile.position || ""}
-                                </p>
-                            </div>
+                        <div style={{ fontFamily: "'Poppins', sans-serif", margin: '0px 0 12px', fontSize: '48px', fontWeight: 900, lineHeight: 1, color: '#000' }}>
+                            {(profile.firstName || "").toUpperCase()}<br />
+                            {(profile.lastName || "").toUpperCase()}
                         </div>
 
-                        {/* Employee Photo Container */}
-                        <div className="relative flex-1 overflow-hidden mt-auto">
-                            {/* Large V Logo Background */}
-                            <div className="absolute inset-0 flex items-end justify-center z-0 translate-y-20">
-                                <img
-                                    src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769514419110_Vighnotech_Tick.png"
-                                    alt="Background V"
-                                    className="w-[450px] max-w-none opacity-90"
-                                    crossOrigin="anonymous"
-                                />
-                            </div>
-
-                            {/* Employee Photo */}
-                            <div className="absolute bottom-0 left-0 right-0 z-10 flex justify-center">
-                                <img
-                                    src={processedImage || profile.image || "./Arvind.png"}
-                                    className="w-[450px] object-contain"
-                                    crossOrigin="anonymous"
-                                    alt="Profile"
-                                />
-                            </div>
+                        <div style={{ fontFamily: "'Chivo', sans-serif", marginTop: '10px', fontSize: '16px', color: '#000' }}>
+                            EMP ID: {profile.id?.slice(0, 4).toUpperCase() || ""}
                         </div>
+                    </div>
+
+                    {/* Profile Image */}
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '0',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: '100%',
+
+                        zIndex: 1,
+                    }}>
+                        <img
+                            src={displayImage || ""}
+                            alt="Profile"
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            crossOrigin="anonymous"
+                        />
+                    </div>
+
+                    {/* Decorative Bottom */}
+                    <div style={{ width: '100%', position: 'absolute', bottom: '-4px', left: '0', right: '0' }}>
+                        <img
+                            src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769778312732_Vighno%20ID.png?v=1"
+                            alt=""
+                            style={{ width: '100%', objectFit: 'cover' }}
+                            crossOrigin="anonymous"
+                        />
                     </div>
                 </div>
-            </div>
 
-            {/* BACK SIDE */}
-            <div
-                className="w-[450px] h-[720px] rounded-[24px] shadow-2xl overflow-hidden font-display relative flex flex-col shrink-0"
-                style={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderWidth: '1px' }}
-            >
-                <div className="relative flex-1 flex flex-col">
-                    <div className="absolute inset-0 grid-pattern opacity-40 pointer-events-none"></div>
+                {/* ================= BACK SIDE ================= */}
+                <div style={{
+                    width: '400px',
+                    height: '620px',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    boxShadow: '0 12px 25px rgba(0, 0, 0, 0.15)',
+                    position: 'relative',
+                    backgroundColor: '#fb923c',
+                }}>
+                    {/* Background Image */}
+                    <img
+                        src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769779682030_back.jpg.jpeg?v=1"
+                        alt=""
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
+                        crossOrigin="anonymous"
+                    />
 
-                    <div className="relative z-10 px-8 pt-6 gap-2 flex-1 flex flex-col">
-                        {/* Logo Header */}
-                        <div className="flex items-center justify-center mb-2">
-                            <img
-                                src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512650123_VLogo.png"
-                                alt="VighnoTech Logo"
-                                crossOrigin="anonymous"
-                            />
-                            <img
-                                src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512668299_vighnotechNewLogo.png"
-                                alt="VighnoTech Text Logo"
-                                crossOrigin="anonymous"
-                            />
+                    {/* Title */}
+                    <div style={{
+                        fontFamily: "'Montserrat', sans-serif",
+                        position: 'absolute',
+                        top: '44px',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        fontSize: '105px',
+                        fontWeight: 700,
+                        color: '#000',
+                        lineHeight: 1,
+                        zIndex: 1,
+                        textAlign: 'center',
+                    }}>
+                        {(profile.position?.split(' ')[0] || "")}<br />
+                        Division
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ padding: '220px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                            <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
+                                <img
+                                    src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png?v=1"
+                                    alt=""
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                    crossOrigin="anonymous"
+                                />
+                            </div>
+                            <p style={{ margin: 0 }}>{profile.phoneNumber || "+91 95944 94737"}</p>
                         </div>
-
-                        {/* Contact Information */}
-                        <div className="space-y-6 mb-5">
-                            {/* Email */}
-                            <div className="flex items-center group">
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center mr-4 shrink-0" style={{ backgroundColor: 'rgba(255, 121, 5, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <span className="material-icons text-2xl" style={{ color: '#FF7905' }}>alternate_email</span>
-                                </div>
-                                <div>
-                                    <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#94a3b8' }}>Email Address</p>
-                                    <p className="font-bold break-all text-base" style={{ color: '#1e293b' }}>{profile.email}</p>
-                                </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                            <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
+                                <img
+                                    src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back%20(1).png?v=1"
+                                    alt=""
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                    crossOrigin="anonymous"
+                                />
                             </div>
-
-                            {/* Phone */}
-                            <div className="flex items-center group">
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center mr-4 shrink-0" style={{ backgroundColor: 'rgba(255, 121, 5, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <span className="material-icons text-2xl" style={{ color: '#FF7905' }}>call</span>
-                                </div>
-                                <div>
-                                    <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#94a3b8' }}>Phone Number</p>
-                                    <p className="font-bold text-base" style={{ color: '#1e293b' }}>{profile.phoneNumber || "+91 9833911446"}</p>
-                                </div>
-                            </div>
-
-                            {/* DOB */}
-                            <div className="flex items-center group">
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center mr-4 shrink-0" style={{ backgroundColor: 'rgba(255, 121, 5, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <span className="material-icons text-2xl" style={{ color: '#FF7905' }}>cake</span>
-                                </div>
-                                <div>
-                                    <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#94a3b8' }}>Date of Birth</p>
-                                    <p className="font-bold text-base" style={{ color: '#1e293b' }}>
-                                        {formatDate(profile.dob)}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Blood Group */}
-                            <div className="flex items-center group">
-                                <div className="w-12 h-12 rounded-full flex items-center justify-center mr-4 shrink-0" style={{ backgroundColor: 'rgba(255, 121, 5, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <span className="material-icons text-2xl" style={{ color: '#FF7905' }}>water_drop</span>
-                                </div>
-                                <div>
-                                    <p className="text-xs uppercase tracking-wider font-bold" style={{ color: '#94a3b8' }}>Blood Group</p>
-                                    <p className="font-bold text-base" style={{ color: '#1e293b' }}>{profile.bloodGroup || "'O' Positive"}</p>
-                                </div>
-                            </div>
+                            <p style={{ margin: 0 }}>{profile.email || ""}</p>
                         </div>
-
-                        {/* QR Code Section */}
-                        <div className="flex flex-col items-center justify-center mb-5 mt-auto">
-                            <div className="relative p-3 rounded-2xl shadow-sm" style={{ backgroundColor: '#ffffff', borderColor: '#f1f5f9', borderWidth: '1px' }}>
-                                <div className="w-48 h-48 flex items-center justify-center relative rounded-lg overflow-hidden" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', borderWidth: '1px' }}>
-                                    <QRCodeCanvas
-                                        value={`https://vigtask.vercel.app/dashboard/users/${profile.id}/profile`}
-                                        size={170}
-                                        bgColor={"transparent"}
-                                        fgColor={"#1e293b"}
-                                        level={"H"}
-                                    />
-                                    {/* Center Logo */}
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                        <div className="p-1 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.95)' }}>
-                                            <img
-                                                src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769512650123_VLogo.png"
-                                                alt="Logo"
-                                                className="w-10 h-10 object-contain"
-                                                crossOrigin="anonymous"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                            <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
+                                <img
+                                    src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781289822_back%20(2).png?v=1"
+                                    alt=""
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                    crossOrigin="anonymous"
+                                />
                             </div>
+                            <p style={{ margin: 0 }}>{profile.bloodGroup || "O Positive"}</p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                            <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
+                                <img
+                                    src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781382352_back%20(3).png?v=1"
+                                    alt=""
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                    crossOrigin="anonymous"
+                                />
+                            </div>
+                            <p style={{ margin: 0 }}>{formatDate(profile.dob)}</p>
                         </div>
                     </div>
 
-                    {/* Address Footer */}
-                    <div className="px-8 py-5 text-center relative z-20" style={{ backgroundColor: '#FF7905' }}>
-                        <p className="text-[15px] font-bold leading-relaxed" style={{ color: '#000000' }}>
-                            90 Feet Rd, Thakur Complex, Kandivali East,<br />
-                            Mumbai - 400101, Maharashtra.
-                        </p>
+                    {/* QR Code & Address */}
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '24px',
+                        left: '24px',
+                        right: '24px',
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        gap: '16px',
+                        zIndex: 1,
+                    }}>
+                        <div style={{
+                            width: '120px',
+                            height: '115px',
+                            background: '#ffffff',
+                            padding: '8px',
+                            borderRadius: '8px',
+                        }}>
+                            <QRCodeCanvas
+                                value={`https://vigtask.vercel.app/dashboard/users/${profile.id}/profile`}
+                                size={104}
+                                bgColor={"#ffffff"}
+                                fgColor={"#000000"}
+                                level={"H"}
+                            />
+                        </div>
+                        <div style={{
+                            flex: 1,
+                            fontSize: '12px',
+                            color: '#fff',
+                            fontWeight: 500,
+                            lineHeight: 1.4,
+                            marginBottom: '4px',
+                        }}>
+                            90 feet road, Thakur Complex,<br />
+                            Kandivalli(E), Mumbai: 400101
+                        </div>
                     </div>
                 </div>
             </div>

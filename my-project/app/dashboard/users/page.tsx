@@ -779,6 +779,7 @@ export default function Users() {
             profile={currentProcessingUser}
             idCardRef={idCardRef as React.RefObject<HTMLDivElement>}
             onImageProcessed={handleTemplateReady}
+            shouldProcess={true}
           />
         )}
       </div>

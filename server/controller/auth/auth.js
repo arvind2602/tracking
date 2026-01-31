@@ -3,7 +3,7 @@ const pool = require('../../config/db');
 const { BadRequestError, UnprocessableEntityError } = require('../../utils/errors');
 const { generateJwtToken } = require('../../utils/jwtGenerator');
 const bcrypt = require('bcryptjs');
-const { get } = require('./_route');
+
 
 const login = async (req, res, next) => {
     const schema = Joi.object({
@@ -19,7 +19,7 @@ const login = async (req, res, next) => {
 
     try {
         const result = await pool.query(
-            'SELECT id, email, password, role, "organiationId" FROM employee WHERE email = $1 AND is_archived = false',
+            'SELECT id, email, password, role, "organiationId", "isHR" FROM employee WHERE email = $1 AND is_archived = false',
             [email]
         );
 
@@ -33,7 +33,7 @@ const login = async (req, res, next) => {
             return next(new UnprocessableEntityError('Invalid email or password'));
         }
 
-        const token = generateJwtToken(user.email, user.role, user.id, user.organiationId);
+        const token = generateJwtToken(user.email, user.role, user.id, user.organiationId, user.isHR);
 
 
         res.cookie('token', token, { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 24 });
@@ -61,7 +61,7 @@ const register = async (req, res, next) => {
     const { error } = schema.validate(req.body);
     if (error) return next(new BadRequestError(error.details[0].message));
 
-    const { firstName, lastName, email, password, position, role, phoneNumber, emergencyContact, address } = req.body;
+    const { firstName, lastName, email, password, position, role, phoneNumber, emergencyContact, address, isHR } = req.body;
 
     try {
         const existingResult = await pool.query(
@@ -78,10 +78,10 @@ const register = async (req, res, next) => {
         const organiationId = req.user.organization_uuid;
 
         const insertResult = await pool.query(
-            `INSERT INTO employee ("firstName", "lastName", "email", "password", "position", "role", "organiationId", "phoneNumber", "emergencyContact", "address") 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-             RETURNING id, email, role, "organiationId"`,
-            [firstName, lastName, email, hashedPassword, position, role, organiationId, phoneNumber || null, emergencyContact || null, address || null]
+            `INSERT INTO employee ("firstName", "lastName", "email", "password", "position", "role", "organiationId", "phoneNumber", "emergencyContact", "address", "isHR") 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+             RETURNING id, email, role, "organiationId", "isHR"`,
+            [firstName, lastName, email, hashedPassword, position, role, organiationId, phoneNumber || null, emergencyContact || null, address || null, isHR || false]
         );
 
         res.status(201).json({ user: insertResult.rows[0] });
@@ -97,7 +97,7 @@ const getEmployee = async (req, res, next) => {
     console.log('Fetching employee with ID:', user_uuid);
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate", o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate", e."isHR", o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e.is_archived = false`,
@@ -115,7 +115,7 @@ const getEmployeeById = async (req, res, next) => {
 
     try {
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate", o.name as "organizationName"
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate", e."isHR", o.name as "organizationName"
              FROM employee e
              LEFT JOIN organiation o ON e."organiationId" = o.id
              WHERE e.id = $1 AND e."organiationId" = $2 AND e.is_archived = false`,
@@ -214,6 +214,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                 e.email, 
                 e.position, 
                 e.role,
+                e."isHR",
                 ws."weeklyPoints",
                 COALESCE(ys."yesterdayPoints", 0) as "yesterdayPoints",
                 COALESCE(ys."yesterdayTaskCount", 0) as "yesterdayTaskCount",
@@ -313,7 +314,7 @@ const updateEmployee = async (req, res, next) => {
     // appending arrays to FormData can be tricky).
     // For now assuming direct fields or simple parsing if needed.
 
-    let { firstName, lastName, email, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, emergencyContact, address, joiningDate, removeImage } = req.body;
+    let { firstName, lastName, email, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, emergencyContact, address, joiningDate, removeImage, isHR } = req.body;
 
     // Parse arrays if they come as strings (common with FormData)
     if (typeof skills === 'string') {
@@ -342,9 +343,9 @@ const updateEmployee = async (req, res, next) => {
         }
 
         // Build the update query dynamically or simply
-        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, email = $3, position = $4, role = $5, skills = $6, responsibilities = $7, dob = $8, "bloodGroup" = $9, "phoneNumber" = $10, "emergencyContact" = $11, address = $12, "joiningDate" = $13`;
-        let params = [firstName, lastName, email, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, emergencyContact || null, address || null, joiningDate || null];
-        let paramIndex = 14;
+        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, email = $3, position = $4, role = $5, skills = $6, responsibilities = $7, dob = $8, "bloodGroup" = $9, "phoneNumber" = $10, "emergencyContact" = $11, address = $12, "joiningDate" = $13, "isHR" = $14`;
+        let params = [firstName, lastName, email, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, emergencyContact || null, address || null, joiningDate || null, isHR || false];
+        let paramIndex = 15;
 
         if (imageUrl) {
             query += `, image = $${paramIndex}`;
@@ -354,7 +355,7 @@ const updateEmployee = async (req, res, next) => {
             query += `, image = NULL`;
         }
 
-        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", "emergencyContact", address, "joiningDate", image`;
+        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", "emergencyContact", address, "joiningDate", image, "isHR"`;
         params.push(id);
 
         const result = await pool.query(query, params);
@@ -457,7 +458,7 @@ const exportUsers = async (req, res, next) => {
         const users = result.rows;
 
         // Convert to CSV
-        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Skills', 'Responsibilities', 'Weekly Points', 'Joined At', 'Date of Birth', 'Blood Group', 'Phone Number', 'Emergency Contact', 'Address', 'Image URL', 'Last Updated'];
+        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Is HR', 'Skills', 'Responsibilities', 'Weekly Points', 'Joined At', 'Date of Birth', 'Blood Group', 'Phone Number', 'Emergency Contact', 'Address', 'Image URL', 'Last Updated'];
         const csvRows = [header.join(',')];
 
         users.forEach(user => {
@@ -472,6 +473,7 @@ const exportUsers = async (req, res, next) => {
                 `"${(user.email || '').replace(/"/g, '""')}"`,
                 `"${(user.position || '').replace(/"/g, '""')}"`,
                 user.role,
+                user.isHR ? 'YES' : 'NO',
                 `"${skills.replace(/"/g, '""')}"`,
                 `"${responsibilities.replace(/"/g, '""')}"`,
                 user.weeklyPoints,

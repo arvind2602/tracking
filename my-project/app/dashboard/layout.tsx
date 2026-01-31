@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, ChevronLeft, ChevronRight, User, Settings } from 'lucide-react';
+import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, ChevronLeft, ChevronRight, User, Settings, Users } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import axios from '@/lib/axios';
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 interface DecodedToken {
   user: {
     role: string;
+    is_hr: boolean;
   };
 }
 
@@ -27,6 +28,7 @@ export default function DashboardLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [orgSettings, setOrgSettings] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [isHRUser, setIsHRUser] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -36,6 +38,7 @@ export default function DashboardLayout({
       try {
         const payload: DecodedToken = jwtDecode(token);
         setUserRole(payload.user.role);
+        setIsHRUser(payload.user.is_hr || false);
       } catch (error) {
         console.error('Invalid token', error);
         router.push('/');

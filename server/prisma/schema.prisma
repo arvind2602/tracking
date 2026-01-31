@@ -9,36 +9,38 @@ datasource db {
 }
 
 model organiation {
-  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime?  @updatedAt
-  showBanner Boolean    @default(false)
-  logo       String?
-  Site       Site[]
-  employees  employee[]
-  projects   projects[]
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime?           @updatedAt
+  showBanner        Boolean             @default(false)
+  logo              String?
+  Site              Site[]
+  employees         employee[]
+  projects          projects[]
+  DocumentTemplate  DocumentTemplate[]
+  GeneratedDocument GeneratedDocument[]
 }
 
 model employee {
-  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id               String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   firstName        String
   lastName         String
   email            String
   position         String
   role             role
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime?      @updatedAt
-  is_archived      Boolean        @default(false)
-  organiationId    String         @db.Uuid
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime?           @updatedAt
+  is_archived      Boolean             @default(false)
+  organiationId    String              @db.Uuid
   password         String
   lastDeviceId     String?
   TimeLog          TimeLog[]
   comments         comment[]
-  organiation      organiation    @relation(fields: [organiationId], references: [id])
+  organiation      organiation         @relation(fields: [organiationId], references: [id])
   taskAssignees    TaskAssignee[]
-  skills           String[]       @default([])
-  responsibilities String[]       @default([])
+  skills           String[]            @default([])
+  responsibilities String[]            @default([])
   dob              DateTime?
   bloodGroup       String?
   image            String?
@@ -46,7 +48,11 @@ model employee {
   emergencyContact String?
   address          String?
   joiningDate      DateTime?
-  headedProjects   projects[]     @relation("ProjectHead")
+  headedProjects   projects[]          @relation("ProjectHead")
+  isHR             Boolean             @default(false)
+  createdTemplates DocumentTemplate[]  @relation("CreatedTemplates")
+  documents        GeneratedDocument[] @relation("EmployeeDocuments")
+  generatedDocs    GeneratedDocument[] @relation("GeneratedByEmployee")
 }
 
 model projects {
@@ -182,4 +188,65 @@ enum TaskType {
   SINGLE
   SHARED
   SEQUENTIAL
+}
+
+model DocumentTemplate {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  type           DocumentType
+  content        String
+  organizationId String       @db.Uuid
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime?    @updatedAt
+  createdBy      String       @db.Uuid
+  isDefault      Boolean      @default(false)
+
+  organization       organiation         @relation(fields: [organizationId], references: [id])
+  createdByUser      employee            @relation("CreatedTemplates", fields: [createdBy], references: [id])
+  generatedDocuments GeneratedDocument[]
+
+  @@index([organizationId, type])
+  @@index([organizationId, isDefault])
+}
+
+model GeneratedDocument {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId     String         @db.Uuid
+  employeeId     String         @db.Uuid
+  type           DocumentType
+  content        String
+  generatedAt    DateTime       @default(now())
+  generatedBy    String         @db.Uuid
+  organizationId String         @db.Uuid
+  status         DocumentStatus @default(DRAFT)
+  fileUrl        String?
+  notes          String?
+
+  template        DocumentTemplate @relation(fields: [templateId], references: [id])
+  employee        employee         @relation("EmployeeDocuments", fields: [employeeId], references: [id])
+  generatedByUser employee         @relation("GeneratedByEmployee", fields: [generatedBy], references: [id])
+  organization    organiation      @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@index([generatedBy])
+  @@index([status])
+}
+
+enum DocumentType {
+  OFFER_LETTER
+  JOINING_LETTER
+  PROMOTION_LETTER
+  TERMINATION_LETTER
+  APPRECIATION_LETTER
+  WARNING_LETTER
+  OTHER
+}
+
+enum DocumentStatus {
+  DRAFT
+  GENERATED
+  SENT
+  SIGNED
+  ARCHIVED
 }
