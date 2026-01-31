@@ -16,6 +16,7 @@ import { TaskPoints } from "@/components/reports/TaskPoints";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { KeyRound, Lock } from "lucide-react";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 interface UserProfile {
     id: string;
@@ -341,7 +342,7 @@ export default function ProfilePage() {
                             <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 p-[2px] shadow-lg mb-6 relative group/avatar">
                                 <div className="w-full h-full rounded-full bg-sidebar flex items-center justify-center overflow-hidden relative">
                                     <Avatar className="w-full h-full">
-                                        <AvatarImage src={imagePreview || profile.image} alt={profile.firstName} className="object-cover" />
+                                        <AvatarImage src={getProxiedImageUrl(imagePreview || profile.image || "")} alt={profile.firstName} className="object-cover" />
                                         <AvatarFallback className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-blue-400 to-purple-600">
                                             {profile.firstName[0]}{profile.lastName[0]}
                                         </AvatarFallback>

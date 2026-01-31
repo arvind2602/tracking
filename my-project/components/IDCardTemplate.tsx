@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { removeBackground } from "@imgly/background-removal";
+import { getProxiedImageUrl } from '@/lib/imageProxy';
 
 interface IDCardTemplateProps {
     profile: any;
@@ -107,7 +108,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                     <div style={{ padding: '28px' }}>
                         <div style={{ padding: '0 42px', margin: '10px 0 14px 0' }}>
                             <img
-                                src="https://images.weserv.nl/?url=https://admissionuploads.s3.ap-south-1.amazonaws.com//1769776403335_Vighno%20ID%20(1).png&v=1"
+                                src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769776403335_Vighno%20ID%20(1).png")}
                                 alt="logo"
                                 style={{ width: '100%', objectFit: 'cover' }}
                                 crossOrigin="anonymous"
@@ -134,10 +135,11 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                         left: '50%',
                         transform: 'translateX(-50%)',
                         width: '100%',
+                        height: '415px',
                         zIndex: 1,
                     }}>
                         <img
-                            src={displayImage || ""}
+                            src={getProxiedImageUrl(displayImage || "")}
                             alt="Profile"
                             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                             crossOrigin="anonymous"
@@ -147,7 +149,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                     {/* Decorative Bottom */}
                     <div style={{ width: '100%', position: 'absolute', bottom: '-4px', left: '0', right: '0' }}>
                         <img
-                            src="https://images.weserv.nl/?url=https://admissionuploads.s3.ap-south-1.amazonaws.com//1769778312732_Vighno%20ID.png&v=1"
+                            src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769778312732_Vighno%20ID.png")}
                             alt=""
                             style={{ width: '100%', objectFit: 'cover' }}
                             crossOrigin="anonymous"
@@ -167,7 +169,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                 }}>
                     {/* Background Image */}
                     <img
-                        src="https://images.weserv.nl/?url=https://admissionuploads.s3.ap-south-1.amazonaws.com//1769779682030_back.jpg.jpeg&v=1"
+                        src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769779682030_back.jpg.jpeg")}
                         alt=""
                         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
                         crossOrigin="anonymous"
@@ -196,7 +198,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
                             <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
                                 <img
-                                    src="https://images.weserv.nl/?url=https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png&v=1"
+                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png")}
                                     alt=""
                                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                     crossOrigin="anonymous"
@@ -207,7 +209,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
                             <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
                                 <img
-                                    src="https://images.weserv.nl/?url=https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back%20(1).png&v=1"
+                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back%20(1).png")}
                                     alt=""
                                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                     crossOrigin="anonymous"
@@ -218,7 +220,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
                             <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
                                 <img
-                                    src="https://images.weserv.nl/?url=https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781289822_back%20(2).png&v=1"
+                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781289822_back%20(2).png")}
                                     alt=""
                                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                     crossOrigin="anonymous"
@@ -229,7 +231,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
                             <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
                                 <img
-                                    src="https://images.weserv.nl/?url=https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781382352_back%20(3).png&v=1"
+                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781382352_back%20(3).png")}
                                     alt=""
                                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                     crossOrigin="anonymous"

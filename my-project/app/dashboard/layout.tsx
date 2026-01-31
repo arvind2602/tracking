@@ -9,6 +9,7 @@ import axios from '@/lib/axios';
 import { ModeToggle } from "@/components/mode-toggle";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { Button } from "@/components/ui/button";
+import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 interface DecodedToken {
   user: {
@@ -128,7 +129,7 @@ export default function DashboardLayout({
           {!isCollapsed && (
             <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 truncate">
               {orgSettings?.logo ? (
-                <img src={orgSettings.logo} alt="Logo" className="h-8 w-8 object-contain rounded-lg shrink-0" />
+                <img src={getProxiedImageUrl(orgSettings.logo)} alt="Logo" className="h-8 w-8 object-contain rounded-lg shrink-0" />
               ) : (
                 <Activity className="h-6 w-6 text-blue-500 dark:text-blue-400 shrink-0" />
               )}
@@ -138,7 +139,7 @@ export default function DashboardLayout({
           {isCollapsed && (
             <Link href="/dashboard">
               {orgSettings?.logo ? (
-                <img src={orgSettings.logo} alt="Logo" className="h-8 w-8 object-contain rounded-lg" />
+                <img src={getProxiedImageUrl(orgSettings.logo)} alt="Logo" className="h-8 w-8 object-contain rounded-lg" />
               ) : (
                 <Activity className="h-6 w-6 text-blue-500 dark:text-blue-400" />
               )}
@@ -209,7 +210,7 @@ export default function DashboardLayout({
           </button>
           <Link href="/dashboard" className="flex items-center gap-2 text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
             {orgSettings?.logo ? (
-              <img src={orgSettings.logo} alt="Logo" className="h-6 w-6 object-contain rounded" />
+              <img src={getProxiedImageUrl(orgSettings.logo)} alt="Logo" className="h-6 w-6 object-contain rounded" />
             ) : (
               <Activity className="h-5 w-5 text-blue-500 dark:text-blue-400" />
             )}

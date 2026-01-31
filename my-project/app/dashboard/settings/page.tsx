@@ -10,6 +10,7 @@ import { toast } from "react-hot-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useRouter } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
+import { getProxiedImageUrl } from '@/lib/imageProxy';
 
 export default function OrganizationSettings() {
     const router = useRouter();
@@ -161,7 +162,7 @@ export default function OrganizationSettings() {
                             <div className="flex gap-4 items-start">
                                 <div className="relative w-24 h-24 rounded-2xl bg-sidebar-accent flex items-center justify-center overflow-hidden border border-sidebar-border shadow-inner shrink-0 group-hover:border-purple-500/30 transition-all">
                                     {settings.logo ? (
-                                        <img src={settings.logo} alt="Preview" className="w-full h-full object-contain p-2" />
+                                        <img src={getProxiedImageUrl(settings.logo)} alt="Preview" className="w-full h-full object-contain p-2" />
                                     ) : (
                                         <Building className="h-10 w-10 text-muted-foreground/30" />
                                     )}
