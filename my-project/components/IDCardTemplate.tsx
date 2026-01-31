@@ -151,7 +151,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             src="https://admissionuploads.s3.ap-south-1.amazonaws.com//1769778312732_Vighno%20ID.png?v=1"
                             alt=""
                             style={{ width: '100%', objectFit: 'cover' }}
-                            crossOrigin="anonymous"
+
                         />
                     </div>
                 </div>
