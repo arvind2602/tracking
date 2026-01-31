@@ -276,7 +276,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             marginBottom: '4px',
                         }}>
                             90 feet road, Thakur Complex,<br />
-                            Kandivalli(E), Mumbai: 400101
+                            Kandivali(E), Mumbai: 400101
                         </div>
                     </div>
                 </div>
