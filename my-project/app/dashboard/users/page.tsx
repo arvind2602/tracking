@@ -40,6 +40,8 @@ interface User {
   skills?: string[];
   responsibilities?: string[];
   image?: string;
+  emergencyContact?: string;
+  joiningDate?: string;
 }
 
 export default function Users() {

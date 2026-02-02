@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { removeBackground } from "@imgly/background-removal";
 import { getProxiedImageUrl } from '@/lib/imageProxy';
+import { Phone, Mail, Droplets, Calendar, ShieldAlert, Award, Briefcase } from 'lucide-react';
 
 interface IDCardTemplateProps {
     profile: any;
@@ -194,50 +195,102 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                     </div>
 
                     {/* Info */}
-                    <div style={{ padding: '220px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                            <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
-                                <img
-                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png")}
-                                    alt=""
-                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                    crossOrigin="anonymous"
-                                />
+                    <div style={{ padding: '160px 48px 0', marginTop: '24px', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '40px' }}>
+                            <div style={{
+                                width: '30px',
+                                height: '30px',
+                                backgroundColor: '#fff',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                transform: 'translateY(6px)'
+                            }}>
+                                <Phone size={15} color="#fb923c" strokeWidth={3} />
                             </div>
-                            <p style={{ margin: 0 }}>{profile.phoneNumber || "+91 95944 94737"}</p>
+                            <p style={{ margin: 0, fontWeight: 500 }}>{profile.phoneNumber || "+91 95944 94737"}</p>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                            <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
-                                <img
-                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back%20(1).png")}
-                                    alt=""
-                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                    crossOrigin="anonymous"
-                                />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '40px' }}>
+                            <div style={{
+                                width: '30px',
+                                height: '30px',
+                                backgroundColor: '#fff',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                transform: 'translateY(6px)'
+                            }}>
+                                <Mail size={15} color="#fb923c" strokeWidth={3} />
                             </div>
-                            <p style={{ margin: 0 }}>{profile.email || ""}</p>
+                            <p style={{ margin: 0, fontWeight: 500 }}>{profile.email || ""}</p>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                            <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
-                                <img
-                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781289822_back%20(2).png")}
-                                    alt=""
-                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                    crossOrigin="anonymous"
-                                />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '40px' }}>
+                            <div style={{
+                                width: '30px',
+                                height: '30px',
+                                backgroundColor: '#fff',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                transform: 'translateY(6px)'
+                            }}>
+                                <Droplets size={15} color="#fb923c" strokeWidth={3} />
                             </div>
-                            <p style={{ margin: 0 }}>{profile.bloodGroup || "O Positive"}</p>
+                            <p style={{ margin: 0, fontWeight: 500 }}>Blood Group: {profile.bloodGroup || "O Positive"}</p>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                            <div style={{ width: '30px', height: '30px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'translateY(8px)' }}>
-                                <img
-                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781382352_back%20(3).png")}
-                                    alt=""
-                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                                    crossOrigin="anonymous"
-                                />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '40px' }}>
+                            <div style={{
+                                width: '30px',
+                                height: '30px',
+                                backgroundColor: '#fff',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                transform: 'translateY(6px)'
+                            }}>
+                                <ShieldAlert size={15} color="#fb923c" strokeWidth={3} />
                             </div>
-                            <p style={{ margin: 0 }}>{formatDate(profile.dob)}</p>
+                            <p style={{ margin: 0, fontWeight: 500 }}>Emergency: {profile.emergencyContact || "+91 00000 00000"}</p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '40px' }}>
+                            <div style={{
+                                width: '30px',
+                                height: '30px',
+                                backgroundColor: '#fff',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                transform: 'translateY(6px)'
+                            }}>
+                                <Calendar size={15} color="#fb923c" strokeWidth={3} />
+                            </div>
+                            <p style={{ margin: 0, fontWeight: 500 }}>DOB: {formatDate(profile.dob)}</p>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '40px' }}>
+                            <div style={{
+                                width: '30px',
+                                height: '30px',
+                                backgroundColor: '#fff',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                transform: 'translateY(6px)'
+                            }}>
+                                <Briefcase size={15} color="#fb923c" strokeWidth={3} />
+                            </div>
+                            <p style={{ margin: 0, fontWeight: 500 }}>DOJ: {formatDate(profile.joiningDate)}</p>
                         </div>
                     </div>
 
@@ -260,7 +313,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             borderRadius: '8px',
                         }}>
                             <QRCodeCanvas
-                                value={`https://vigtask.vercel.app/dashboard/users/${profile.id}/profile`}
+                                value="https://linktr.ee/vighnotech"
                                 size={104}
                                 bgColor={"#ffffff"}
                                 fgColor={"#000000"}
