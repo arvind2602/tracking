@@ -50,6 +50,7 @@ export interface Task {
   subtasks?: Task[];
   type?: 'SINGLE' | 'SHARED' | 'SEQUENTIAL';
   assignees?: TaskAssignee[];
+  latestComment?: string;
 }
 
 export interface Employee {

@@ -879,18 +879,29 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                         </td>
 
                         <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background">
-                          <div className={cn(
-                            "px-1 py-0.5 md:px-2 md:py-1 text-[11px] md:text-xs text-center border rounded-md w-full font-bold uppercase",
-                            task.status === "completed"
-                              ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50"
-                              : task.status === "in-progress"
-                                ? "bg-blue-500/10 text-blue-700 border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50"
-                                : task.status === "pending-review"
-                                  ? "bg-purple-500/10 text-purple-700 border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/50"
-                                  : "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
-                          )}>
-                            {task.status === 'pending-review' ? 'In Review' : task.status}
-                          </div>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className={cn(
+                                  "px-1 py-0.5 md:px-2 md:py-1 text-[11px] md:text-xs text-center border rounded-md w-full font-bold uppercase cursor-help",
+                                  task.status === "completed"
+                                    ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50"
+                                    : task.status === "in-progress"
+                                      ? "bg-blue-500/10 text-blue-700 border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50"
+                                      : task.status === "pending-review"
+                                        ? "bg-purple-500/10 text-purple-700 border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/50"
+                                        : "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
+                                )}>
+                                  {task.status === 'pending-review' ? 'In Review' : task.status}
+                                </div>
+                              </TooltipTrigger>
+                              {task.latestComment && (
+                                <TooltipContent className="max-w-[300px] bg-slate-900 border-slate-700 text-slate-200">
+                                  <p className="text-xs">{task.latestComment}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
                         </td>
 
                         <td className="px-1 py-1 md:px-2 md:py-1 border border-border bg-background font-medium text-xs text-center">
@@ -1076,17 +1087,26 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                 </div>
                               </td>
                               <td className="px-2 py-1 border border-slate-700/50 bg-secondary">
-                                <div className={cn(
-                                  "px-2 py-0.5 text-[10px] text-center border rounded-md w-full font-bold uppercase",
-                                  subtask.status === "completed" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50" :
-                                    "px-2 py-0.5 text-[10px] text-center border rounded-md w-full font-bold uppercase",
-                                  subtask.status === "completed" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50" :
-                                    subtask.status === "in-progress" ? "bg-blue-500/10 text-blue-700 border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50" :
-                                      subtask.status === "pending-review" ? "bg-purple-500/10 text-purple-700 border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/50" :
-                                        "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
-                                )}>
-                                  {subtask.status === 'pending-review' ? 'In Review' : subtask.status}
-                                </div>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className={cn(
+                                        "px-2 py-0.5 text-[10px] text-center border rounded-md w-full font-bold uppercase cursor-help",
+                                        subtask.status === "completed" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50" :
+                                          subtask.status === "in-progress" ? "bg-blue-500/10 text-blue-700 border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50" :
+                                            subtask.status === "pending-review" ? "bg-purple-500/10 text-purple-700 border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/50" :
+                                              "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
+                                      )}>
+                                        {subtask.status === 'pending-review' ? 'In Review' : subtask.status}
+                                      </div>
+                                    </TooltipTrigger>
+                                    {subtask.latestComment && (
+                                      <TooltipContent className="max-w-[300px] bg-slate-900 border-slate-700 text-slate-200">
+                                        <p className="text-xs">{subtask.latestComment}</p>
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                </TooltipProvider>
                               </td>
                               <td className="px-2 py-1 border border-slate-700/50 bg-secondary font-medium text-xs text-center">
                                 <span className={cn(

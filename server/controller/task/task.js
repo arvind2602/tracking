@@ -359,7 +359,8 @@ const getTaskByEmployee = async (req, res, next) => {
     console.log('Limit Index:', paramIdx, 'Offset Index:', paramIdx + 1);
 
     result = await pool.query(
-      `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
+      `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName",
+       (SELECT content FROM comment c WHERE c."taskId" = t.id ORDER BY "createdAt" DESC LIMIT 1) as "latestComment"
        FROM task t
        JOIN projects p ON t."projectId" = p.id
        LEFT JOIN employee e ON t."createdBy"::uuid = e.id
@@ -374,7 +375,8 @@ const getTaskByEmployee = async (req, res, next) => {
     if (tasks.length > 0) {
       const taskIds = tasks.map(t => t.id);
       const subtasksResult = await pool.query(
-        `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
+        `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName",
+         (SELECT content FROM comment c WHERE c."taskId" = t.id ORDER BY "createdAt" DESC LIMIT 1) as "latestComment"
          FROM task t
          LEFT JOIN employee e ON t."createdBy"::uuid = e.id
          WHERE t."parentId" = ANY($1::uuid[])
