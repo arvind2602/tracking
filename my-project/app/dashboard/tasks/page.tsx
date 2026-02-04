@@ -119,7 +119,8 @@ export default function Tasks() {
     pendingTasks: 0,
     inProgressTasks: 0,
     completedTasks: 0,
-    pointsToday: 0
+    pointsToday: 0,
+    pendingReviewTasks: 0
   });
 
   useEffect(() => {
@@ -236,6 +237,16 @@ export default function Tasks() {
           )}
         />
         <SummaryCard
+          title="Pending Review"
+          value={dashboardStats.pendingReviewTasks}
+          icon={<CheckCircle className="h-5 w-5 text-purple-400" />}
+          onClick={() => setStatusFilter("pending-review")}
+          className={cn(
+            "transition-all duration-300",
+            statusFilter === "pending-review" && "border-purple-500/50 bg-purple-500/10 shadow-lg shadow-purple-500/10"
+          )}
+        />
+        <SummaryCard
           title="Pending"
           value={dashboardStats.pendingTasks}
           icon={<Hourglass className="h-5 w-5 text-amber-400" />}
@@ -281,6 +292,7 @@ export default function Tasks() {
               { value: "all", label: "All Statuses" },
               { value: "pending", label: "Pending" },
               { value: "in-progress", label: "In Progress" },
+              { value: "pending-review", label: "Pending Review" },
               { value: "completed", label: "Completed" },
             ]}
             placeholder="Status"

@@ -8,7 +8,7 @@ const { get } = require('./_route');
 const createTask = async (req, res, next) => {
   const schema = Joi.object({
     description: Joi.string().required(),
-    status: Joi.string().valid('pending', 'in-progress', 'completed').default('pending'),
+    status: Joi.string().valid('pending', 'in-progress', 'completed', 'pending-review').default('pending'),
     assignedTo: Joi.string().optional().allow('').empty(''),
     points: Joi.number().min(0).required(),
     projectId: Joi.string().required(),
@@ -210,17 +210,19 @@ const getTaskByEmployee = async (req, res, next) => {
       contextWhere = 'WHERE p."organiationId" = $1';
       contextParams = [organiationId];
     } else {
-      // Show if assigned directly (Sequential current) OR if in assignees for Shared/Sequential
-      // Shared: all show up. Sequential: all show up (but only active one can act).
-      contextWhere = `WHERE (t."assignedTo" = $1 OR ((t.type = 'SHARED' OR t.type = 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid))) AND p."organiationId" = $2`;
+      // Show if:
+      // 1. Assigned directly (t."assignedTo" = $1)
+      // 2. Created by me (t."createdBy" = $1) - vital for reviewing tasks assigned to others
+      // 3. In assignees list for Shared/Sequential
+      contextWhere = `WHERE (t."assignedTo" = $1 OR t."createdBy" = $1 OR ((t.type = 'SHARED' OR t.type = 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid))) AND p."organiationId" = $2`;
       contextParams = [employeeId, organiationId];
     }
 
     // 2. Apply Context Filters (Project, User, Date) - These affect Stats AND Table
     let paramIdx = contextParams.length + 1;
 
-    // Filter to only show root tasks (parentId IS NULL) in the main list
-    contextWhere += ` AND t."parentId" IS NULL`;
+    // NOTE: We do NOT filter parentId IS NULL here anymore. 
+    // Stats (Cards) should include subtasks. Main List will explicitly filter for roots.
 
     if (projectId && projectId !== 'all') {
       contextWhere += ` AND t."projectId" = $${paramIdx}`;
@@ -248,14 +250,14 @@ const getTaskByEmployee = async (req, res, next) => {
 
     // 3. Get Stats (Using Context Filters, IGNORING Status Filter)
     // This ensures that when you click "Pending", the "Completed" card still shows the count of completed tasks in the current Project/Date view.
-    // 3. Get Stats (Using Context Filters, IGNORING Status Filter)
-    // This ensures that when you click "Pending", the "Completed" card still shows the count of completed tasks in the current Project/Date view.
     const statsResult = await pool.query(
       `SELECT
+         -- Global Stats (Including Subtasks)
          COUNT(*) as "totalTasks",
          COUNT(*) FILTER (WHERE t.status = 'completed') as "completedCount",
          COUNT(*) FILTER (WHERE t.status = 'pending') as "pendingCount",
          COUNT(*) FILTER (WHERE t.status = 'in-progress') as "inProgressCount",
+         COUNT(*) FILTER (WHERE t.status = 'pending-review') as "pendingReviewCount",
          COALESCE(SUM(
            CASE 
              WHEN t.type = 'SHARED' THEN 
@@ -263,7 +265,14 @@ const getTaskByEmployee = async (req, res, next) => {
              ELSE 
                t.points 
            END
-         ) FILTER (WHERE t.status = 'completed' AND t."updatedAt"::date = CURRENT_DATE), 0) as "pointsToday"
+         ) FILTER (WHERE t.status = 'completed' AND t."updatedAt"::date = CURRENT_DATE), 0) as "pointsToday",
+         
+         -- Root Stats (For Pagination)
+         COUNT(*) FILTER (WHERE t."parentId" IS NULL) as "rootTotal",
+         COUNT(*) FILTER (WHERE t."parentId" IS NULL AND t.status = 'completed') as "rootCompleted",
+         COUNT(*) FILTER (WHERE t."parentId" IS NULL AND t.status = 'pending') as "rootPending",
+         COUNT(*) FILTER (WHERE t."parentId" IS NULL AND t.status = 'in-progress') as "rootInProgress",
+         COUNT(*) FILTER (WHERE t."parentId" IS NULL AND t.status = 'pending-review') as "rootPendingReview"
        FROM task t
        JOIN projects p ON t."projectId" = p.id
        ${contextWhere}`,
@@ -271,28 +280,53 @@ const getTaskByEmployee = async (req, res, next) => {
     );
     stats = statsResult.rows[0];
 
-    // 4. Determine Total Count based on Status Filter (Optimization: Avoid extra Count Query)
+    // 4. Determine Total Count based on Status Filter for PAGINATION (Root Only)
     if (!status || status === 'all') {
-      totalCount = parseInt(stats.totalTasks);
+      totalCount = parseInt(stats.rootTotal);
     } else if (status === 'pending') {
-      totalCount = parseInt(stats.pendingCount);
+      totalCount = parseInt(stats.rootPending);
     } else if (status === 'in-progress') {
-      totalCount = parseInt(stats.inProgressCount);
+      totalCount = parseInt(stats.rootInProgress);
     } else if (status === 'completed') {
-      totalCount = parseInt(stats.completedCount);
+      totalCount = parseInt(stats.rootCompleted);
+    } else if (status === 'pending-review') {
+      totalCount = parseInt(stats.rootPendingReview);
     } else {
       totalCount = 0;
     }
 
     // 5. Get Data (Filtered by Status + Paginated)
-    let mainWhere = contextWhere;
+    // Explicitly enforce Root tasks for the list view
+    let mainWhere = contextWhere + ` AND t."parentId" IS NULL`;
     let mainParams = [...contextParams];
     // paramIdx is already incremented for contextParams. 
 
     if (status && status !== 'all') {
-      mainWhere += ` AND t.status = $${paramIdx}`;
+      // MODIFIED: Include Root tasks matching status OR having subtasks matching status
+      // This ensures that if a Parent is 'completed' but has a 'pending' subtask, 
+      // the Parent is still fetched (so the subtask can be shown).
+      mainWhere += ` AND (t.status = $${paramIdx} OR EXISTS (SELECT 1 FROM task st WHERE st."parentId" = t.id AND st.status = $${paramIdx}))`;
       mainParams.push(status);
       paramIdx++;
+
+      // MODIFIED: Recalculate Total Count for Pagination using the complex query
+      // The pre-calculated 'stats' object only counts exact status matches on roots.
+      const countResult = await pool.query(
+        `SELECT COUNT(DISTINCT t.id) 
+         FROM task t
+         JOIN projects p ON t."projectId" = p.id
+         LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+         ${mainWhere}`,
+        mainParams
+      );
+      totalCount = parseInt(countResult.rows[0].count);
+
+    } else {
+      // For 'all', we can rely on the stats object (rootTotal matches contextWhere + root)
+      // Recalculating here just to be safe and consistent with context filters
+      if (!totalCount && totalCount !== 0) {
+        totalCount = parseInt(stats.rootTotal);
+      }
     }
 
     // 6. Build ORDER BY clause
@@ -387,6 +421,7 @@ const getTaskByEmployee = async (req, res, next) => {
         pendingTasks: parseInt(stats.pendingCount),
         inProgressTasks: parseInt(stats.inProgressCount),
         completedTasks: parseInt(stats.completedCount),
+        pendingReviewTasks: parseInt(stats.pendingReviewCount) || 0,
         pointsToday: parseFloat(stats.pointsToday) || 0
       }
     });
@@ -421,13 +456,17 @@ const updateTask = async (req, res, next) => {
   const organiationId = req.user.organization_uuid;
 
   try {
+    await pool.query('BEGIN');
     // Check Task Type first
     const taskCheck = await pool.query(
       `SELECT type, "assignedTo" FROM task WHERE id = $1`,
       [id]
     );
 
-    if (taskCheck.rowCount === 0) return next(new NotFoundError('Task not found'));
+    if (taskCheck.rowCount === 0) {
+      await pool.query('ROLLBACK');
+      return next(new NotFoundError('Task not found'));
+    }
 
     const taskType = taskCheck.rows[0].type;
     const currentAssignedTo = taskCheck.rows[0].assignedTo;
@@ -468,6 +507,7 @@ const updateTask = async (req, res, next) => {
                  RETURNING t.*`,
           [nextAssignee.employeeId, id, organiationId]
         );
+        await pool.query('COMMIT');
         return res.json(result.rows[0]);
       }
       // If no next assignee, proceed to standard completion (final completion)
@@ -494,9 +534,16 @@ const updateTask = async (req, res, next) => {
              RETURNING t.*`,
       [description, status, assignedTo, points, priority, dueDate, id, organiationId, completedAt]
     );
-    if (result.rowCount === 0) return next(new NotFoundError('Task not found'));
+    if (result.rowCount === 0) {
+      await pool.query('ROLLBACK');
+      return next(new NotFoundError('Task not found'));
+    }
+    await pool.query('COMMIT');
     res.json(result.rows[0]);
-  } catch (error) { next(error); }
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    next(error);
+  }
 };
 
 // Delete Task
@@ -587,6 +634,9 @@ WHERE t.id = $2 AND p."organiationId" = $4
   } catch (error) { next(error); }
 };
 
+// Delete Task (Cascade: delete comments, subtasks, subtask-comments)
+
+
 // Get comments for a task
 const getCommentsByTask = async (req, res, next) => {
   const { taskId } = req.params;
@@ -621,18 +671,41 @@ const changeTaskStatus = async (req, res, next) => {
   const { id } = req.params;
   const { status } = req.body;
   const organiationId = req.user.organization_uuid;
+  const userId = req.user.user_uuid;
+  const userRole = req.user.role;
 
   try {
+    await pool.query('BEGIN');
     // Check Task Type first
     const taskCheck = await pool.query(
-      `SELECT type, "assignedTo" FROM task WHERE id = $1`,
+      `SELECT type, "assignedTo", "createdBy", status FROM task WHERE id = $1`,
       [id]
     );
 
-    if (taskCheck.rowCount === 0) return next(new NotFoundError('Task not found'));
+    if (taskCheck.rowCount === 0) {
+      await pool.query('ROLLBACK');
+      return next(new NotFoundError('Task not found'));
+    }
 
-    const taskType = taskCheck.rows[0].type;
-    const currentAssignedTo = taskCheck.rows[0].assignedTo;
+    const task = taskCheck.rows[0];
+    const taskType = task.type;
+    const currentAssignedTo = task.assignedTo;
+    const createdBy = task.createdBy;
+    const currentStatus = task.status;
+
+    // --- VERIFICATION FLOW LOGIC ---
+
+    // 1. Worker submitting for review (completed -> pending-review)
+    // No specific block needed if we just allow it, but we could enforce assignedTo check here.
+
+    // 2. Reviewer approving (pending-review -> completed)
+    if (status === 'completed' || status === 'done') {
+      const isReviewer = userId === createdBy || userRole === 'ADMIN';
+      // If it is 'pending-review', only Reviewer/Admin can complete it.
+      if (currentStatus === 'pending-review' && !isReviewer) {
+        // Optionally restrict: return next(new ForbiddenError('Only the task creator can approve this task.'));
+      }
+    }
 
     // Sequential Task Completion Logic
     if (taskType === 'SEQUENTIAL' && (status === 'completed' || status === 'done')) {
@@ -665,13 +738,14 @@ const changeTaskStatus = async (req, res, next) => {
           `UPDATE task t SET
                  "assignedTo" = $1,
                  "assigned_at" = NOW(),
-                 "status" = 'in-progress', -- BUFFER STATE: Keep in-progress
+                 "status" = 'pending', -- Reset status to pending for next user
                  "updatedAt" = NOW()
                  FROM projects p
                  WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
                  RETURNING t.*`,
           [nextAssignee.employeeId, id, organiationId]
         );
+        await pool.query('COMMIT');
         return res.json(result.rows[0]);
       }
       console.log('Sequential Debug: Logic Completed. Finishing Task.');
@@ -691,10 +765,17 @@ const changeTaskStatus = async (req, res, next) => {
                 RETURNING t.*`,
       [status, id, organiationId]
     );
-    if (result.rowCount === 0) return next(new NotFoundError('Task not found'));
+    if (result.rowCount === 0) {
+      await pool.query('ROLLBACK');
+      return next(new NotFoundError('Task not found'));
+    }
+    await pool.query('COMMIT');
     res.json(result.rows[0]);
   }
-  catch (error) { next(error); }
+  catch (error) {
+    await pool.query('ROLLBACK');
+    next(error);
+  }
 };
 
 

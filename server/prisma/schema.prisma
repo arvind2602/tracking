@@ -20,6 +20,8 @@ model organiation {
   projects          projects[]
   DocumentTemplate  DocumentTemplate[]
   GeneratedDocument GeneratedDocument[]
+
+  @@index([name])
 }
 
 model employee {
@@ -53,6 +55,10 @@ model employee {
   createdTemplates DocumentTemplate[]  @relation("CreatedTemplates")
   documents        GeneratedDocument[] @relation("EmployeeDocuments")
   generatedDocs    GeneratedDocument[] @relation("GeneratedByEmployee")
+
+  @@index([organiationId, is_archived])
+  @@index([organiationId, role])
+  @@index([email])
 }
 
 model projects {
@@ -70,6 +76,9 @@ model projects {
   task           task[]
   headId         String?     @db.Uuid
   head           employee?   @relation("ProjectHead", fields: [headId], references: [id])
+
+  @@index([organiationId, is_archived])
+  @@index([organiationId, priority_order])
 }
 
 model task {

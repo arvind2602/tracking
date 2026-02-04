@@ -45,6 +45,7 @@ export interface Task {
   creatorFirstName?: string;
   creatorLastName?: string;
   assigned_at?: string;
+  createdBy?: string;
   parentId?: string;
   subtasks?: Task[];
   type?: 'SINGLE' | 'SHARED' | 'SEQUENTIAL';

@@ -16,7 +16,7 @@ import toast from "react-hot-toast";
 import { User, Project } from "@/lib/types";
 import { Command, CommandGroup, CommandItem, CommandList, CommandInput, CommandEmpty } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { X, Check } from "lucide-react";
+import { X, Check, Loader } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AddTaskFormProps {
@@ -35,6 +35,7 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [assignDropdownOpen, setAssignDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [form, setForm] = useState<{
     description: string;
@@ -123,7 +124,8 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
   };
 
   const handleAddTask = async () => {
-    const toastId = toast.loading("Adding task...");
+    setIsLoading(true);
+    const toastId = toast.loading(parentTask ? "Adding subtask..." : "Adding task...");
     try {
       const payload: any = {
         ...form,
@@ -143,9 +145,11 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
       await axios.post("/tasks", payload);
       onTaskAdded();
       onClose();
-      toast.success("Task added", { id: toastId });
+      toast.success(parentTask ? "Subtask added successfully" : "Task added successfully", { id: toastId });
     } catch {
-      toast.error("Failed to add task", { id: toastId });
+      toast.error(parentTask ? "Failed to add subtask" : "Failed to add task", { id: toastId });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -338,12 +342,15 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
         <Button
           variant="outline"
           onClick={onClose}
+          disabled={isLoading}
         >
           Cancel
         </Button>
         <Button
           onClick={handleAddTask}
+          disabled={isLoading}
         >
+          {isLoading && <Loader className="animate-spin h-4 w-4 mr-2" />}
           Save
         </Button>
       </div>

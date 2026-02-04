@@ -14,7 +14,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { formatDateTimeIST, formatDateIST, formatDateLongIST, formatDateOnlyIST, cn } from "@/lib/utils";
-import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock, CalendarClock, Play } from "lucide-react";
+import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock, CalendarClock, Play, X, Pencil } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import React from 'react';
@@ -55,7 +55,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
-  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
   const [subtaskModalOpen, setSubtaskModalOpen] = useState(false);
   const [parentTaskForSubtask, setParentTaskForSubtask] = useState<Task | null>(null);
   const [loadingAddSubtaskId, setLoadingAddSubtaskId] = useState<string | null>(null);
@@ -66,6 +66,8 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [taskToComplete, setTaskToComplete] = useState<string | null>(null);
   const [completionComment, setCompletionComment] = useState("");
   const [isCompleting, setIsCompleting] = useState(false);
+  const [actionType, setActionType] = useState<'complete' | 'submit-review' | 'approve'>('complete');
+  const [editedPoints, setEditedPoints] = useState<number>(0);
 
   // In Progress Modal State
   const [inProgressModalOpen, setInProgressModalOpen] = useState(false);
@@ -74,20 +76,20 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [isInProgressSetting, setIsInProgressSetting] = useState(false);
 
   const toggleExpand = (taskId: string) => {
-    const newExpanded = new Set(expandedTasks);
-    if (newExpanded.has(taskId)) {
-      newExpanded.delete(taskId);
+    const newCollapsed = new Set(collapsedTasks);
+    if (newCollapsed.has(taskId)) {
+      newCollapsed.delete(taskId);
     } else {
-      newExpanded.add(taskId);
+      newCollapsed.add(taskId);
     }
-    setExpandedTasks(newExpanded);
+    setCollapsedTasks(newCollapsed);
   };
 
   const handleAddSubtask = (parentTask: Task) => {
     setLoadingAddSubtaskId(parentTask.id);
     setParentTaskForSubtask(parentTask);
     setSubtaskModalOpen(true);
-    setLoadingAddSubtaskId(null);
+    // Don't clear loader yet, wait for modal close
   };
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -117,7 +119,10 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     const toastId = toast.loading("Deleting...");
     try {
       await axios.delete(`/tasks/${taskToDelete}`);
-      setTasks((prev) => prev.filter((t) => t.id !== taskToDelete));
+      setTasks((prev) => prev.map(t => ({
+        ...t,
+        subtasks: t.subtasks ? t.subtasks.filter(st => st.id !== taskToDelete) : []
+      })).filter((t) => t.id !== taskToDelete));
       toast.success("Task deleted", { id: toastId });
     } catch {
       toast.error("Failed to delete", { id: toastId });
@@ -172,16 +177,31 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     }
   };
 
-  const handleMarkAsCompleted = (taskId: string) => {
-    setTaskToComplete(taskId);
+  const handleMarkAsCompleted = (task: Task) => {
+    setTaskToComplete(task.id);
     setCompletionComment("");
+
+    // Determine Action Type based on Status
+    if (task.status === 'pending-review') {
+      setActionType('approve');
+      setEditedPoints(task.points || 0);
+    } else if (task.status === 'in-progress' || task.status === 'pending') {
+      // If user is the assignee, they submit for review. 
+      // Note: logic assumes user can only act on their tasks. 
+      // We can refine this if needed, but for now 'complete' button triggers review if flow dictates.
+      // The user request implies checking is mandatory.
+      setActionType('submit-review');
+    } else {
+      setActionType('complete'); // Fallback
+    }
+
     setCompletionModalOpen(true);
   };
 
   const confirmCompletion = async () => {
     if (!taskToComplete) return;
     if (!completionComment.trim()) {
-      toast.error("Please add a comment to complete the task.");
+      toast.error("Please add a comment.");
       return;
     }
 
@@ -191,26 +211,40 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       // 1. Add Comment
       await axios.post(`/tasks/comments/${taskToComplete}`, { content: completionComment });
 
-      // 2. Mark as Completed
-      const response = await axios.put(`/tasks/${taskToComplete}/status`, { status: 'completed' });
+      // 2. Perform Action
+      let status = 'completed';
+      if (actionType === 'submit-review') status = 'pending-review';
+
+      const response = await axios.put(`/tasks/${taskToComplete}/status`, { status });
+
+      // 3. Update Points if Approved and Changed
+      let updatedTaskData = response.data;
+      if (actionType === 'approve' && editedPoints !== undefined) {
+        // Find original task points to compare (optional optimization)
+        const currentTask = tasks.find(t => t.id === taskToComplete);
+        if (currentTask && currentTask.points !== editedPoints) {
+          const uRes = await axios.put(`/tasks/${taskToComplete}`, { points: editedPoints });
+          updatedTaskData = uRes.data;
+        }
+      }
 
       setTasks(prev => prev.map(t => {
         if (t.id === taskToComplete) {
-          // Use the response data to handle status updates (e.g. Sequential -> in-progress)
-          return { ...t, ...response.data };
+          return { ...t, ...updatedTaskData };
         }
         if (t.subtasks) {
-          // Update subtasks if the completed task was a subtask
-          const updatedSubtasks = t.subtasks.map(s => s.id === taskToComplete ? { ...s, ...response.data } : s);
+          const updatedSubtasks = t.subtasks.map(s => s.id === taskToComplete ? { ...s, ...updatedTaskData } : s);
           return { ...t, subtasks: updatedSubtasks };
         }
         return t;
       }));
-      toast.success("Task completed successfully!");
+
+      const message = actionType === 'submit-review' ? "Submitted for review!" : "Task approved and completed!";
+      toast.success(message);
       setCompletionModalOpen(false);
     } catch (error) {
-      console.error("Error completing task:", error);
-      toast.error("Failed to complete task.");
+      console.error("Error updating task:", error);
+      toast.error("Failed to update task.");
     } finally {
       setIsCompleting(false);
       setLoadingTaskId(null);
@@ -466,7 +500,10 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
             // I'll assume we can reload or the parent context updates.
             window.location.reload();
           }}
-          onClose={() => setSubtaskModalOpen(false)}
+          onClose={() => {
+            setSubtaskModalOpen(false);
+            setLoadingAddSubtaskId(null);
+          }}
           parentId={parentTaskForSubtask.id}
           parentTask={parentTaskForSubtask}
           currentUserId={currentUserId}
@@ -475,7 +512,99 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     </div>
   );
 
+  const completionModalContent = completionModalOpen && taskToComplete && (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999]">
+      <div className="bg-card border border-border p-8 rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in duration-300 relative z-[10000]">
+        <h2 className="text-2xl font-bold text-foreground mb-4">
+          {actionType === 'submit-review' ? 'Submit for Review' :
+            actionType === 'approve' ? 'Approve & Complete' : 'Complete Task'}
+        </h2>
+        <div className="flex flex-col gap-4">
+          {actionType === 'approve' && (
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-400">Points</label>
+              <div className="relative">
+                <Pencil className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <input
+                  type="number"
+                  value={editedPoints}
+                  onChange={(e) => setEditedPoints(Number(e.target.value))}
+                  className="w-full bg-secondary border border-border rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-accent outline-none text-foreground"
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-slate-400">
+              {actionType === 'approve' ? 'Approval Note (Optional)' : 'Comment'}
+            </label>
+            <Textarea
+              value={completionComment}
+              onChange={(e) => setCompletionComment(e.target.value)}
+              placeholder={actionType === 'submit-review' ? "What did you complete?" : "Add a note..."}
+              className="bg-secondary border-border focus:ring-accent"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <Button variant="outline" onClick={() => setCompletionModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmCompletion}
+            disabled={isCompleting}
+            className={cn(
+              actionType === 'approve' ? "bg-emerald-500 hover:bg-emerald-600 text-white" :
+                actionType === 'submit-review' ? "bg-purple-500 hover:bg-purple-600 text-white" :
+                  "bg-primary text-primary-foreground"
+            )}
+          >
+            {isCompleting ? <Loader className="animate-spin h-4 w-4" /> : (
+              actionType === 'submit-review' ? 'Submit' :
+                actionType === 'approve' ? 'Approve' : 'Complete'
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 
+  const inProgressModalContent = inProgressModalOpen && taskToInProgress && (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999]">
+      <div className="bg-card border border-border p-8 rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in duration-300 relative z-[10000]">
+        <h2 className="text-2xl font-bold text-foreground mb-4">
+          {tasks.find(t => t.id === taskToInProgress)?.status === 'pending-review' ? 'Reject Task' : 'Mark as In Progress'}
+        </h2>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-slate-400">
+            {tasks.find(t => t.id === taskToInProgress)?.status === 'pending-review' ? 'Reason for Rejection *' : 'Comment *'}
+          </label>
+          <Textarea
+            value={inProgressComment}
+            onChange={(e) => setInProgressComment(e.target.value)}
+            placeholder="Add your comment..."
+            className="bg-secondary border-border focus:ring-accent min-h-[100px]"
+          />
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <Button variant="outline" onClick={() => setInProgressModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmInProgress}
+            disabled={isInProgressSetting}
+            className={cn(
+              tasks.find(t => t.id === taskToInProgress)?.status === 'pending-review' ? "bg-rose-500 hover:bg-rose-600 text-white" : "bg-blue-500 hover:bg-blue-600 text-white"
+            )}
+          >
+            {isInProgressSetting ? <Loader className="animate-spin h-4 w-4" /> : (
+              tasks.find(t => t.id === taskToInProgress)?.status === 'pending-review' ? 'Reject' : 'Start Task'
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg transition-all duration-300">
@@ -648,16 +777,56 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                   </Tooltip>
                                 </TooltipProvider>
                               ) : (
-                                task.status !== 'pending' && (
-                                  <Button
-                                    onClick={() => handleMarkAsCompleted(task.id)}
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-emerald-400"
-                                    disabled={loadingTaskId === task.id}
-                                  >
-                                    {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Check className="h-3.5 w-3.5 md:h-4 md:w-4" />}
-                                  </Button>
+                                task.status === 'pending-review' ? (
+                                  // PENDING REVIEW STATE
+                                  (userRole === 'ADMIN' || currentUserId === task.createdBy) ? (
+                                    <>
+                                      <Button
+                                        onClick={() => handleMarkAsCompleted(task)}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-emerald-400"
+                                        disabled={loadingTaskId === task.id}
+                                        title="Approve Task"
+                                      >
+                                        {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Check className="h-3.5 w-3.5 md:h-4 md:w-4" />}
+                                      </Button>
+                                      <Button
+                                        onClick={() => handleMarkAsInProgress(task.id)}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-rose-400"
+                                        disabled={loadingTaskId === task.id}
+                                        title="Reject Task"
+                                      >
+                                        {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <X className="h-3.5 w-3.5 md:h-4 md:w-4" />}
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 md:h-7 md:w-7 text-purple-400 cursor-wait">
+                                            <Clock className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Waiting for review</p></TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )
+                                ) : (
+                                  task.status !== 'pending' && (
+                                    <Button
+                                      onClick={() => handleMarkAsCompleted(task)}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 md:h-7 md:w-7 text-slate-400 hover:text-emerald-400"
+                                      disabled={loadingTaskId === task.id}
+                                      title="Submit for Review"
+                                    >
+                                      {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <Check className="h-3.5 w-3.5 md:h-4 md:w-4" />}
+                                    </Button>
+                                  )
                                 )
                               )
                             )}
@@ -697,7 +866,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                 onClick={(e) => { e.stopPropagation(); toggleExpand(task.id); }}
                                 className="p-0.5 rounded hover:bg-white/10 text-muted-foreground transition-colors"
                               >
-                                {expandedTasks.has(task.id) ? <ChevronDown className="h-3 w-3 md:h-4 md:w-4" /> : <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />}
+                                {!collapsedTasks.has(task.id) ? <ChevronDown className="h-3 w-3 md:h-4 md:w-4" /> : <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />}
                               </button>
                             )}
                             <div
@@ -716,9 +885,11 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                               ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50"
                               : task.status === "in-progress"
                                 ? "bg-blue-500/10 text-blue-700 border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50"
-                                : "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
+                                : task.status === "pending-review"
+                                  ? "bg-purple-500/10 text-purple-700 border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/50"
+                                  : "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
                           )}>
-                            {task.status}
+                            {task.status === 'pending-review' ? 'In Review' : task.status}
                           </div>
                         </td>
 
@@ -796,7 +967,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
                       </tr>
                       {
-                        expandedTasks.has(task.id) && task.subtasks && task.subtasks.map((subtask, stIndex) => {
+                        !collapsedTasks.has(task.id) && task.subtasks && task.subtasks.map((subtask, stIndex) => {
                           const stAssignedUser = users.find((u) => u.id === subtask.assignedTo);
                           return (
                             <tr key={subtask.id} className="bg-secondary/50 relative">
@@ -815,16 +986,60 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                     </Button>
                                   )}
 
-                                  {subtask.status !== "completed" && subtask.status !== "pending" && (
-                                    <Button
-                                      onClick={() => handleMarkAsCompleted(subtask.id)}
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-slate-500 hover:text-emerald-400"
-                                    >
-                                      <Check className="h-3 w-3" />
-                                    </Button>
-                                  )}
+                                  {/* Subtask Action Logic */
+                                    subtask.status !== "completed" && (
+                                      subtask.status === 'pending-review' ? (
+                                        // PENDING REVIEW STATE - Check Parent task creator
+                                        (userRole === 'ADMIN' || currentUserId === task.createdBy) ? (
+                                          <>
+                                            <Button
+                                              onClick={() => handleMarkAsCompleted(subtask)}
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 text-slate-400 hover:text-emerald-400"
+                                              disabled={loadingTaskId === subtask.id}
+                                              title="Approve Task"
+                                            >
+                                              {loadingTaskId === subtask.id ? <Loader className="animate-spin h-3 w-3" /> : <Check className="h-3 w-3" />}
+                                            </Button>
+                                            <Button
+                                              onClick={() => handleMarkAsInProgress(subtask.id)}
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 text-slate-400 hover:text-rose-400"
+                                              disabled={loadingTaskId === subtask.id}
+                                              title="Reject Task"
+                                            >
+                                              {loadingTaskId === subtask.id ? <Loader className="animate-spin h-3 w-3" /> : <X className="h-3 w-3" />}
+                                            </Button>
+                                          </>
+                                        ) : (
+                                          <TooltipProvider>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-purple-400 cursor-wait">
+                                                  <Clock className="h-3 w-3" />
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent><p>Waiting for review</p></TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        )
+                                      ) : (
+                                        subtask.status !== 'pending' && (
+                                          <Button
+                                            onClick={() => handleMarkAsCompleted(subtask)}
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-slate-500 hover:text-emerald-400"
+                                            disabled={loadingTaskId === subtask.id}
+                                            title="Submit for Review"
+                                          >
+                                            {loadingTaskId === subtask.id ? <Loader className="animate-spin h-3 w-3" /> : <Check className="h-3 w-3" />}
+                                          </Button>
+                                        )
+                                      )
+                                    )}
                                   {userRole === "ADMIN" && (
                                     <Button
                                       onClick={() => handleAssignClick(subtask)}
@@ -864,9 +1079,13 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                 <div className={cn(
                                   "px-2 py-0.5 text-[10px] text-center border rounded-md w-full font-bold uppercase",
                                   subtask.status === "completed" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50" :
-                                    subtask.status === "in-progress" ? "bg-blue-500/10 text-blue-700 border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50" : "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
+                                    "px-2 py-0.5 text-[10px] text-center border rounded-md w-full font-bold uppercase",
+                                  subtask.status === "completed" ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/50 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/50" :
+                                    subtask.status === "in-progress" ? "bg-blue-500/10 text-blue-700 border-blue-500/50 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/50" :
+                                      subtask.status === "pending-review" ? "bg-purple-500/10 text-purple-700 border-purple-500/50 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/50" :
+                                        "bg-slate-500/10 text-slate-700 border-slate-500/50 dark:bg-slate-500/20 dark:text-slate-400 dark:border-slate-500/50"
                                 )}>
-                                  {subtask.status}
+                                  {subtask.status === 'pending-review' ? 'In Review' : subtask.status}
                                 </div>
                               </td>
                               <td className="px-2 py-1 border border-slate-700/50 bg-secondary font-medium text-xs text-center">
@@ -941,6 +1160,8 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       }
 
       {typeof document !== 'undefined' && ReactDOM.createPortal(modalContent, document.getElementById('modal-root') as HTMLElement)}
+      {typeof document !== 'undefined' && ReactDOM.createPortal(completionModalContent, document.getElementById('modal-root') as HTMLElement)}
+      {typeof document !== 'undefined' && ReactDOM.createPortal(inProgressModalContent, document.getElementById('modal-root') as HTMLElement)}
       {typeof document !== 'undefined' && ReactDOM.createPortal(subtaskModalContent, document.getElementById('modal-root') as HTMLElement)}
 
       {typeof document !== 'undefined' && ReactDOM.createPortal(
@@ -956,71 +1177,6 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
         document.getElementById('modal-root') as HTMLElement
       )}
 
-      {/* Completion Comment Modal */}
-      <Dialog open={completionModalOpen} onOpenChange={setCompletionModalOpen}>
-        <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-700 text-slate-100">
-          <DialogHeader>
-            <DialogTitle>Complete Task</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Please add a comment to mark this task as completed.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label htmlFor="complete-comment" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-200">Comment</label>
-              <Textarea
-                id="complete-comment"
-                placeholder="Work done details..."
-                value={completionComment}
-                onChange={(e) => setCompletionComment(e.target.value)}
-                className="bg-slate-800 border-slate-700 text-slate-100 min-h-[100px]"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCompletionModalOpen(false)} disabled={isCompleting} className="text-slate-400 hover:text-white hover:bg-white/10">
-              Cancel
-            </Button>
-            <Button onClick={confirmCompletion} disabled={isCompleting || !completionComment.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-              {isCompleting ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
-              Complete Task
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* In Progress Comment Modal */}
-      <Dialog open={inProgressModalOpen} onOpenChange={setInProgressModalOpen}>
-        <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-700 text-slate-100">
-          <DialogHeader>
-            <DialogTitle>Start Task</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Please add a comment to start working on this task.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label htmlFor="inprogress-comment" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-200">Comment</label>
-              <Textarea
-                id="inprogress-comment"
-                placeholder="Starting work on..."
-                value={inProgressComment}
-                onChange={(e) => setInProgressComment(e.target.value)}
-                className="bg-slate-800 border-slate-700 text-slate-100 min-h-[100px]"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setInProgressModalOpen(false)} disabled={isInProgressSetting} className="text-slate-400 hover:text-white hover:bg-white/10">
-              Cancel
-            </Button>
-            <Button onClick={confirmInProgress} disabled={isInProgressSetting || !inProgressComment.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
-              {isInProgressSetting ? <Loader className="w-4 h-4 animate-spin mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-              Start Task
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div >
   );
 }
