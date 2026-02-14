@@ -62,3 +62,14 @@ export function formatDateLongIST(date: string | Date | undefined | null) {
     return 'Unassigned Date';
   }
 }
+
+export function formatFullDateTimeIST(date: string | Date | undefined | null) {
+  if (!date) return '-';
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '-';
+    return formatInTimeZone(d, TIMEZONE_IST, 'EEEE, dd MMMM yyyy, hh:mm a');
+  } catch {
+    return '-';
+  }
+}

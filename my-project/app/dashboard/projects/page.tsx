@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
-import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download, GripVertical, List, BarChart3, Pencil } from 'lucide-react';
+import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download, GripVertical, List, BarChart3, Pencil, Pause, Play } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { jwtDecode } from 'jwt-decode';
 import { cn } from '@/lib/utils';
@@ -54,6 +54,7 @@ const ProjectsPage = () => {
     topPerformers: { name: string; initial: string; points: number }[];
     headId?: string;
     headName?: string;
+    status: 'ACTIVE' | 'ON_HOLD' | 'COMPLETED';
   }
 
   interface Employee {
@@ -463,6 +464,7 @@ const ProjectsPage = () => {
                     </div>
                   </th>
                   <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Desc</th>
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Status</th>
 
                   <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Head</th>
                   <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Top</th>
@@ -517,6 +519,20 @@ const ProjectsPage = () => {
                       <p className="line-clamp-1 md:line-clamp-2 text-slate-400 text-xs md:text-sm" title={project.description}>
                         {project.description}
                       </p>
+                    </td>
+                    <td className="px-2 py-2 md:px-4 md:py-4 align-top">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] md:text-xs font-bold",
+                          project.status === 'ACTIVE' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                            project.status === 'ON_HOLD' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                              "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                        )}
+                      >
+                        {project.status === 'ON_HOLD' && <Pause className="h-2.5 w-2.5 mr-1" />}
+                        {project.status.replace('_', ' ')}
+                      </Badge>
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
                       <span className="font-medium text-foreground text-xs md:text-sm">

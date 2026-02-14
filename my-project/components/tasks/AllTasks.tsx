@@ -13,7 +13,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { formatDateTimeIST, formatDateIST, formatDateLongIST, formatDateOnlyIST, cn } from "@/lib/utils";
+import { formatDateTimeIST, formatDateIST, formatDateLongIST, formatDateOnlyIST, formatFullDateTimeIST, cn } from "@/lib/utils";
 import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock, CalendarClock, Play, X, Pencil } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
@@ -75,6 +75,22 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [inProgressComment, setInProgressComment] = useState("");
   const [isInProgressSetting, setIsInProgressSetting] = useState(false);
 
+  const [taskComments, setTaskComments] = useState<any[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+
+  const fetchTaskComments = async (taskId: string) => {
+    setIsLoadingComments(true);
+    try {
+      const response = await axios.get(`/tasks/comments/${taskId}`);
+      setTaskComments(response.data);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      toast.error("Failed to load comments");
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
   const toggleExpand = (taskId: string) => {
     const newCollapsed = new Set(collapsedTasks);
     if (newCollapsed.has(taskId)) {
@@ -107,6 +123,18 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       }
     }
   }, []);
+
+  const findTaskById = (id: string | null) => {
+    if (!id) return null;
+    for (const task of tasks) {
+      if (task.id === id) return task;
+      if (task.subtasks) {
+        const found = task.subtasks.find(st => st.id === id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
 
   const initiateDeleteTask = (taskId: string) => {
     setTaskToDelete(taskId);
@@ -180,6 +208,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const handleMarkAsCompleted = (task: Task) => {
     setTaskToComplete(task.id);
     setCompletionComment("");
+    fetchTaskComments(task.id);
 
     // Determine Action Type based on Status
     if (task.status === 'pending-review') {
@@ -255,6 +284,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const handleMarkAsInProgress = (taskId: string) => {
     setTaskToInProgress(taskId);
     setInProgressComment("");
+    fetchTaskComments(taskId);
     setInProgressModalOpen(true);
   };
 
@@ -513,16 +543,70 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   );
 
   const completionModalContent = completionModalOpen && taskToComplete && (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999]">
-      <div className="bg-card border border-border p-8 rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in duration-300 relative z-[10000]">
-        <h2 className="text-2xl font-bold text-foreground mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4">
+      <div className="bg-card border border-border p-8 rounded-2xl shadow-xl w-full max-w-lg animate-in zoom-in duration-300 relative z-[10000] max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <h2 className="text-2xl font-bold text-foreground mb-6">
           {actionType === 'submit-review' ? 'Submit for Review' :
             actionType === 'approve' ? 'Approve & Complete' : 'Complete Task'}
         </h2>
+
+        {/* Task Details Section */}
+        {findTaskById(taskToComplete) && (() => {
+          const t = findTaskById(taskToComplete)!;
+          return (
+            <div className="mb-6 p-4 bg-secondary/50 rounded-xl border border-border space-y-3">
+              <div>
+                <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Task Description</label>
+                <div className="text-sm font-semibold text-foreground leading-relaxed">{t.description}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Assigned At</label>
+                  <div className="text-sm font-semibold text-foreground/80">{t.assigned_at ? formatFullDateTimeIST(t.assigned_at) : 'N/A'}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Due Date</label>
+                  <div className="text-sm font-semibold text-foreground/80">{t.dueDate ? formatFullDateTimeIST(t.dueDate) : 'N/A'}</div>
+                </div>
+              </div>
+              {t.status === 'pending-review' && (
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Applied for Review</label>
+                  <div className="text-sm font-bold text-amber-500">
+                    {t.updatedAt ? formatFullDateTimeIST(t.updatedAt as any) : 'N/A'}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Existing Comments Section */}
+        <div className="mb-6">
+          <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">Previous Comments</label>
+          <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar bg-secondary/20 rounded-lg p-2 border border-border/50">
+            {isLoadingComments ? (
+              <div className="flex justify-center p-4"><Loader className="animate-spin h-5 w-5 text-slate-500" /></div>
+            ) : taskComments.length > 0 ? (
+              taskComments.map((c, i) => (
+                <div key={i} className="bg-secondary/40 p-3 rounded-lg text-xs border border-border/30">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-blue-400">{c.userName}</span>
+                    <span className="text-[10px] text-slate-500">{formatDateTimeIST(c.createdAt)}</span>
+                  </div>
+                  <p className="text-slate-200">{c.content}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-500 italic text-center py-4">No comments found</p>
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-col gap-4">
           {actionType === 'approve' && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-400">Points</label>
+              <label className="text-sm font-medium text-slate-400">Points Awarded</label>
               <div className="relative">
                 <Pencil className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <input
@@ -536,17 +620,17 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
           )}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-slate-400">
-              {actionType === 'approve' ? 'Approval Note (Optional)' : 'Comment'}
+              {actionType === 'approve' ? 'Approval Note (Optional)' : 'Add New Comment *'}
             </label>
             <Textarea
               value={completionComment}
               onChange={(e) => setCompletionComment(e.target.value)}
               placeholder={actionType === 'submit-review' ? "What did you complete?" : "Add a note..."}
-              className="bg-secondary border-border focus:ring-accent"
+              className="bg-secondary border-border focus:ring-accent min-h-[80px]"
             />
           </div>
         </div>
-        <div className="flex justify-end gap-3 mt-6">
+        <div className="flex justify-end gap-3 mt-8">
           <Button variant="outline" onClick={() => setCompletionModalOpen(false)}>
             Cancel
           </Button>
@@ -554,14 +638,15 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
             onClick={confirmCompletion}
             disabled={isCompleting}
             className={cn(
+              "px-6",
               actionType === 'approve' ? "bg-emerald-500 hover:bg-emerald-600 text-white" :
                 actionType === 'submit-review' ? "bg-purple-500 hover:bg-purple-600 text-white" :
                   "bg-primary text-primary-foreground"
             )}
           >
             {isCompleting ? <Loader className="animate-spin h-4 w-4" /> : (
-              actionType === 'submit-review' ? 'Submit' :
-                actionType === 'approve' ? 'Approve' : 'Complete'
+              actionType === 'submit-review' ? 'Submit & Close' :
+                actionType === 'approve' ? 'Approve Task' : 'Complete'
             )}
           </Button>
         </div>
@@ -570,14 +655,68 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   );
 
   const inProgressModalContent = inProgressModalOpen && taskToInProgress && (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999]">
-      <div className="bg-card border border-border p-8 rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in duration-300 relative z-[10000]">
-        <h2 className="text-2xl font-bold text-foreground mb-4">
-          {tasks.find(t => t.id === taskToInProgress)?.status === 'pending-review' ? 'Reject Task' : 'Mark as In Progress'}
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4">
+      <div className="bg-card border border-border p-8 rounded-2xl shadow-xl w-full max-w-lg animate-in zoom-in duration-300 relative z-[10000] max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <h2 className="text-2xl font-bold text-foreground mb-6">
+          {findTaskById(taskToInProgress)?.status === 'pending-review' ? 'Reject Task' : 'Mark as In Progress'}
         </h2>
+
+        {/* Task Details Section */}
+        {findTaskById(taskToInProgress) && (() => {
+          const t = findTaskById(taskToInProgress)!;
+          return (
+            <div className="mb-6 p-4 bg-secondary/50 rounded-xl border border-border space-y-3">
+              <div>
+                <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Task Description</label>
+                <div className="text-sm font-semibold text-foreground leading-relaxed">{t.description}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Assigned At</label>
+                  <div className="text-sm font-semibold text-foreground/80">{t.assigned_at ? formatFullDateTimeIST(t.assigned_at) : 'N/A'}</div>
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Due Date</label>
+                  <div className="text-sm font-semibold text-foreground/80">{t.dueDate ? formatFullDateTimeIST(t.dueDate) : 'N/A'}</div>
+                </div>
+              </div>
+              {t.status === 'pending-review' && (
+                <div>
+                  <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Applied for Review</label>
+                  <div className="text-sm font-bold text-amber-500">
+                    {t.updatedAt ? formatFullDateTimeIST(t.updatedAt as any) : 'N/A'}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Existing Comments Section */}
+        <div className="mb-6">
+          <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2 block">Previous Comments</label>
+          <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar bg-secondary/20 rounded-lg p-2 border border-border/50">
+            {isLoadingComments ? (
+              <div className="flex justify-center p-4"><Loader className="animate-spin h-5 w-5 text-slate-500" /></div>
+            ) : taskComments.length > 0 ? (
+              taskComments.map((c, i) => (
+                <div key={i} className="bg-secondary/40 p-3 rounded-lg text-xs border border-border/30">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-blue-400">{c.userName}</span>
+                    <span className="text-[10px] text-slate-500">{formatDateTimeIST(c.createdAt)}</span>
+                  </div>
+                  <p className="text-slate-200">{c.content}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-slate-500 italic text-center py-4">No comments found</p>
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium text-slate-400">
-            {tasks.find(t => t.id === taskToInProgress)?.status === 'pending-review' ? 'Reason for Rejection *' : 'Comment *'}
+            {findTaskById(taskToInProgress)?.status === 'pending-review' ? 'Reason for Rejection *' : 'Comment *'}
           </label>
           <Textarea
             value={inProgressComment}
@@ -586,7 +725,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
             className="bg-secondary border-border focus:ring-accent min-h-[100px]"
           />
         </div>
-        <div className="flex justify-end gap-3 mt-6">
+        <div className="flex justify-end gap-3 mt-8">
           <Button variant="outline" onClick={() => setInProgressModalOpen(false)}>
             Cancel
           </Button>
@@ -594,11 +733,12 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
             onClick={confirmInProgress}
             disabled={isInProgressSetting}
             className={cn(
-              tasks.find(t => t.id === taskToInProgress)?.status === 'pending-review' ? "bg-rose-500 hover:bg-rose-600 text-white" : "bg-blue-500 hover:bg-blue-600 text-white"
+              "px-6",
+              findTaskById(taskToInProgress)?.status === 'pending-review' ? "bg-rose-500 hover:bg-rose-600 text-white" : "bg-blue-500 hover:bg-blue-600 text-white"
             )}
           >
             {isInProgressSetting ? <Loader className="animate-spin h-4 w-4" /> : (
-              tasks.find(t => t.id === taskToInProgress)?.status === 'pending-review' ? 'Reject' : 'Start Task'
+              findTaskById(taskToInProgress)?.status === 'pending-review' ? 'Reject Task' : 'Start Task'
             )}
           </Button>
         </div>

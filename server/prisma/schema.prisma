@@ -77,8 +77,30 @@ model projects {
   headId         String?     @db.Uuid
   head           employee?   @relation("ProjectHead", fields: [headId], references: [id])
 
+  status      ProjectStatus        @default(ACTIVE)
+  holdHistory ProjectHoldHistory[]
+
   @@index([organiationId, is_archived])
   @@index([organiationId, priority_order])
+  @@index([organiationId, status])
+}
+
+model ProjectHoldHistory {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId String    @db.Uuid
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  reason    String?
+  createdAt DateTime  @default(now())
+  project   projects  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
 }
 
 model task {

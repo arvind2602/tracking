@@ -14,6 +14,8 @@ projects.put('/priority/update', projectsController.updateProjectsPriority); // 
 projects.get('/:id/export', projectsController.exportProjectTasks);
 projects.get('/:id', projectsController.getProject);
 projects.put('/:id', projectsController.updateProject);
+projects.put('/:id/hold', projectsController.holdProject);
+projects.put('/:id/resume', projectsController.resumeProject);
 projects.delete('/:id', projectsController.deleteProject);
 
 module.exports = projects;

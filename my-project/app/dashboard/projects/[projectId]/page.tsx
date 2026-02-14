@@ -10,7 +10,17 @@ import { Loader } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { CalendarDays, CheckCircle2, Circle, Clock, Target, Download } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Circle, Clock, Target, Download, Pause, Play, History } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { jwtDecode } from 'jwt-decode';
+import { formatFullDateTimeIST, cn } from '@/lib/utils';
 
 interface Task {
   id: string;
@@ -37,6 +47,8 @@ interface Project {
   description: string;
   startDate: string;
   tasks: Task[];
+  status: 'ACTIVE' | 'ON_HOLD' | 'COMPLETED';
+  holdHistory?: { startDate: string; endDate: string | null; reason: string }[];
   pagination?: Pagination;
 }
 
@@ -47,6 +59,22 @@ const ProjectDetailsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isHoldModalOpen, setIsHoldModalOpen] = useState(false);
+  const [holdReason, setHoldReason] = useState('');
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload: any = jwtDecode(token);
+        setUserRole(payload.user.role);
+      } catch (error) {
+        console.error('Invalid token', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -85,6 +113,49 @@ const ProjectDetailsPage = () => {
     }
   };
 
+  const reloadProject = async () => {
+    try {
+      const response = await axios.get(`/projects/${projectId}`, {
+        params: { page: currentPage, limit: pageSize }
+      });
+      setProject(response.data);
+    } catch (error) {
+      toast.error('Failed to refresh project details');
+    }
+  };
+
+  const handleHoldProject = async () => {
+    if (!holdReason.trim()) {
+      toast.error('Reason for hold is required');
+      return;
+    }
+    setIsActionLoading(true);
+    try {
+      await axios.put(`/projects/${projectId}/hold`, { reason: holdReason });
+      toast.success('Project put on hold');
+      setIsHoldModalOpen(false);
+      setHoldReason('');
+      reloadProject();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to put project on hold');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleResumeProject = async () => {
+    setIsActionLoading(true);
+    try {
+      await axios.put(`/projects/${projectId}/resume`);
+      toast.success('Project resumed');
+      reloadProject();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to resume project');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -120,13 +191,52 @@ const ProjectDetailsPage = () => {
       <div className="flex flex-col gap-2 border-b pb-6">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">{project.name}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">{project.name}</h1>
+              <Badge
+                className={cn(
+                  "font-bold px-3 py-1",
+                  project.status === 'ACTIVE' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                    project.status === 'ON_HOLD' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                      "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                )}
+                variant="outline"
+              >
+                {project.status.replace('_', ' ')}
+              </Badge>
+            </div>
             <p className="text-muted-foreground mt-2 max-w-2xl text-lg">{project.description}</p>
           </div>
-          <Badge variant="outline" className="px-3 py-1 text-sm bg-muted/50 gap-2 font-mono">
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-            {new Date(project.startDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
-          </Badge>
+          <div className="flex flex-col items-end gap-3">
+            <Badge variant="outline" className="px-3 py-1 text-sm bg-muted/50 gap-2 font-mono">
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              {new Date(project.startDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
+            </Badge>
+            {userRole === 'ADMIN' && (
+              <div className="flex gap-2">
+                {project.status === 'ACTIVE' ? (
+                  <Button
+                    onClick={() => setIsHoldModalOpen(true)}
+                    variant="outline"
+                    className="border-amber-500/50 text-amber-500 hover:bg-amber-500/10 gap-2"
+                  >
+                    <Pause className="h-4 w-4" />
+                    Put on Hold
+                  </Button>
+                ) : project.status === 'ON_HOLD' ? (
+                  <Button
+                    onClick={handleResumeProject}
+                    disabled={isActionLoading}
+                    variant="outline"
+                    className="border-emerald-500/50 text-emerald-500 hover:bg-emerald-600/10 gap-2"
+                  >
+                    {isActionLoading ? <Loader className="animate-spin h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    Resume Project
+                  </Button>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -226,6 +336,79 @@ const ProjectDetailsPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Hold History Section */}
+      {project.holdHistory && project.holdHistory.length > 0 && (
+        <Card className="border-amber-500/20 shadow-sm bg-amber-500/[0.02] backdrop-blur-sm">
+          <CardHeader className="border-b border-amber-500/10 bg-amber-500/5 px-6 py-4 flex flex-row items-center gap-2">
+            <History className="h-5 w-5 text-amber-500" />
+            <CardTitle className="text-lg font-medium text-amber-500">Hold History</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-amber-500/10">
+              {project.holdHistory.map((entry, idx) => (
+                <div key={idx} className="p-4 md:p-6 space-y-3">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-amber-600/70 tracking-tight">Pause Started</span>
+                        <span className="text-sm font-semibold text-foreground/80">{formatFullDateTimeIST(entry.startDate)}</span>
+                      </div>
+                      <div className="h-8 w-px bg-amber-500/20" />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-amber-600/70 tracking-tight">Pause Ended</span>
+                        <span className="text-sm font-semibold text-foreground/80">
+                          {entry.endDate ? formatFullDateTimeIST(entry.endDate) : <Badge variant="secondary" className="bg-amber-500/20 text-amber-700 dark:text-amber-400">Still on Hold</Badge>}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {entry.reason && (
+                    <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-3">
+                      <span className="text-[10px] uppercase font-bold text-amber-600/70 tracking-tight block mb-1">Reason for Hold</span>
+                      <p className="text-sm text-foreground/70 italic italic leading-relaxed">"{entry.reason}"</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Hold Project Modal */}
+      <Dialog open={isHoldModalOpen} onOpenChange={setIsHoldModalOpen}>
+        <DialogContent className="sm:max-w-lg bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Put Project on Hold</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-muted-foreground text-sm">
+              Putting a project on hold will track the duration and reason. Only admins can resume the project later.
+            </p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-400">Reason for Hold *</label>
+              <Textarea
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+                placeholder="Explain why this project is being paused..."
+                className="bg-secondary border-border focus:ring-accent min-h-[120px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsHoldModalOpen(false)}>Cancel</Button>
+            <Button
+              disabled={isActionLoading || !holdReason.trim()}
+              onClick={handleHoldProject}
+              className="bg-amber-500 hover:bg-amber-600 text-white gap-2"
+            >
+              {isActionLoading ? <Loader className="animate-spin h-4 w-4" /> : <Pause className="h-4 w-4" />}
+              Confirm Hold
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

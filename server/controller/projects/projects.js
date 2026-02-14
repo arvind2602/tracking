@@ -49,6 +49,7 @@ const getProject = async (req, res, next) => {
          p."createdAt", 
          p."updatedAt",
          p."headId",
+         p.status,
          COALESCE(e."firstName" || ' ' || e."lastName", 'Unassigned') as "headName"
        FROM projects p
        LEFT JOIN employee e ON p."headId" = e.id
@@ -97,7 +98,11 @@ const getProject = async (req, res, next) => {
         totalPages,
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1
-      }
+      },
+      holdHistory: (await pool.query(
+        'SELECT "startDate", "endDate", reason FROM "ProjectHoldHistory" WHERE "projectId" = $1 ORDER BY "startDate" DESC',
+        [id]
+      )).rows
     });
   } catch (error) {
     next(error);
@@ -178,6 +183,7 @@ const getProjects = async (req, res, next) => {
          p."createdAt",
          p.priority_order,
          p."headId",
+         p.status,
          COALESCE(ph."firstName" || ' ' || ph."lastName", 'Unassigned') as "headName",
          ps."totalPoints",
          ps."yesterdayPoints",
@@ -426,6 +432,85 @@ const updateProjectsPriority = async (req, res, next) => {
   }
 };
 
+const holdProject = async (req, res, next) => {
+  if (req.user.role !== 'ADMIN') return next(new BadRequestError('Only admins can put projects on hold'));
+  const { id } = req.params;
+  const { reason } = req.body;
+  const organiationId = req.user.organization_uuid;
+
+  try {
+    const client = await pool.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const project = await client.query(
+        'SELECT status FROM projects WHERE id = $1 AND "organiationId" = $2',
+        [id, organiationId]
+      );
+
+      if (project.rowCount === 0) throw new NotFoundError('Project not found');
+      if (project.rows[0].status === 'ON_HOLD') throw new BadRequestError('Project is already on hold');
+
+      await client.query(
+        'UPDATE projects SET status = \'ON_HOLD\', "updatedAt" = NOW() WHERE id = $1',
+        [id]
+      );
+
+      await client.query(
+        'INSERT INTO "ProjectHoldHistory" ("projectId", reason, "startDate") VALUES ($1, $2, NOW())',
+        [id, reason || '']
+      );
+
+      await client.query('COMMIT');
+      res.json({ message: 'Project put on hold successfully' });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) { next(error); }
+};
+
+const resumeProject = async (req, res, next) => {
+  if (req.user.role !== 'ADMIN') return next(new BadRequestError('Only admins can resume projects'));
+  const { id } = req.params;
+  const organiationId = req.user.organization_uuid;
+
+  try {
+    const client = await pool.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const project = await client.query(
+        'SELECT status FROM projects WHERE id = $1 AND "organiationId" = $2',
+        [id, organiationId]
+      );
+
+      if (project.rowCount === 0) throw new NotFoundError('Project not found');
+      if (project.rows[0].status !== 'ON_HOLD') throw new BadRequestError('Project is not on hold');
+
+      await client.query(
+        'UPDATE projects SET status = \'ACTIVE\', "updatedAt" = NOW() WHERE id = $1',
+        [id]
+      );
+
+      await client.query(
+        'UPDATE "ProjectHoldHistory" SET "endDate" = NOW() WHERE "projectId" = $1 AND "endDate" IS NULL',
+        [id]
+      );
+
+      await client.query('COMMIT');
+      res.json({ message: 'Project resumed successfully' });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) { next(error); }
+};
+
 module.exports = {
   createProject,
   getProject,
@@ -434,5 +519,7 @@ module.exports = {
   deleteProject,
   exportProjects,
   exportProjectTasks,
-  updateProjectsPriority
+  updateProjectsPriority,
+  holdProject,
+  resumeProject
 };
