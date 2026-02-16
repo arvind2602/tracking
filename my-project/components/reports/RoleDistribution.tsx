@@ -13,6 +13,7 @@ async function getRoleDistribution() {
 interface Role {
   name: string;
   value: number;
+  [key: string]: string | number;
 }
 
 const COLORS = ['#FFBB28', '#FF8042'];

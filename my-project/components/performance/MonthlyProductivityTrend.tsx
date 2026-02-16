@@ -20,7 +20,7 @@ interface AnalysisData {
 }
 
 interface ProductivityData {
-    data: Array<{ name: string; points: number; taskCount: number }>;
+    data: Array<{ name: string; points: number; taskCount: number;[key: string]: string | number }>;
     analysis: AnalysisData | null;
 }
 
@@ -129,10 +129,10 @@ export function MonthlyProductivityTrend() {
                             <span className="text-xs font-medium">Trend</span>
                         </div>
                         <p className={`text-lg font-bold ${analysis.trend > 0
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : analysis.trend < 0
-                                    ? 'text-rose-600 dark:text-rose-400'
-                                    : 'text-muted-foreground'
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : analysis.trend < 0
+                                ? 'text-rose-600 dark:text-rose-400'
+                                : 'text-muted-foreground'
                             }`}>
                             {analysis.trend > 0 ? '+' : ''}{analysis.trend}%
                         </p>

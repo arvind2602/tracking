@@ -13,6 +13,7 @@ async function getActiveVsArchivedEmployees() {
 interface EmployeeStatus {
   name: string;
   value: number;
+  [key: string]: string | number;
 }
 
 const COLORS = ['#0088FE', '#00C49F'];

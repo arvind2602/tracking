@@ -14,6 +14,7 @@ async function getEmployeeCountPerOrg() {
 interface EmployeeCount {
   name: string;
   employeeCount: number;
+  [key: string]: string | number;
 }
 
 export function EmployeeCountPerOrg() {
