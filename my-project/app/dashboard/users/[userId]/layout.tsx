@@ -8,7 +8,7 @@ import axios from "@/lib/axios";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function UserLayout({ children, params }: { children: React.ReactNode; params: { userId: string } }) {
+export default function UserLayout({ children, params }: { children: React.ReactNode; params: Promise<{ userId: string }> }) {
     const router = useRouter();
     const pathname = usePathname();
     const { userId } = React.use(params);
