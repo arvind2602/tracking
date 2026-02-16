@@ -35,29 +35,29 @@ export function ProjectsPerOrg() {
     <div>
       <h3 className="text-lg font-medium">Projects per Organization</h3>
       <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Organization</TableHead>
-            <TableHead>Project</TableHead>
-            <TableHead>Progress</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data?.map((org: Organization) =>
-            {(org.projects || []).map((proj: Project) => (
-              <TableRow key={proj.id}>
-                <TableCell>{org.name}</TableCell>
-                <TableCell>{proj.name}</TableCell>
-                <TableCell>
-                  <Progress value={proj.progress} />
-                </TableCell>
-              </TableRow>
-            ))}
-          )}
-        </TableBody>
-      </Table>
-    </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Organization</TableHead>
+              <TableHead>Project</TableHead>
+              <TableHead>Progress</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data?.map((org: Organization) =>
+              (org.projects || []).map((proj: Project) => (
+                <TableRow key={proj.id}>
+                  <TableCell>{org.name}</TableCell>
+                  <TableCell>{proj.name}</TableCell>
+                  <TableCell>
+                    <Progress value={proj.progress} />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
