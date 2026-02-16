@@ -1,23 +1,30 @@
 const Joi = require("joi");
-const { pool } = require("../config/db");
 const { BadRequestError } = require("../utils/errors");
 
+/**
+ * Middleware that logs request activity and validates date parameters.
+ * Runs on mutating routes to track user activity timestamps.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
 const activityMiddleware = async (req, res, next) => {
   try {
-    //Client sends any of the key through req.query or req.body
     const keys = ["updated_at", "created_at", "read_at"];
-    let date = undefined;
-    for (let key of keys) {
+    let date;
+    for (const key of keys) {
       date = req.query?.[key] || req.body?.[key];
-      if(date) break;
+      if (date) break;
     }
-    // const { error } = Joi.date().iso().required().validate(date);
-    // if (error)
-    //   throw new BadRequestError(
-    //     "Failed to update activity of user. Invalid or missing date"
-    //   );
 
-    console.log(req.method, req.url, "triggered activity middleware");
+    // Validate date if provided (optional — allows requests without activity dates)
+    if (date) {
+      const { error } = Joi.date().iso().validate(date);
+      if (error) {
+        return next(new BadRequestError("Invalid activity date format. Expected ISO 8601."));
+      }
+    }
+
     next();
   } catch (error) {
     next(error);

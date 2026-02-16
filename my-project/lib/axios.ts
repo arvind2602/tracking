@@ -1,29 +1,29 @@
 import axios from 'axios';
 
-
+/**
+ * Centralized Axios instance for all API requests.
+ * Base URL is read from the NEXT_PUBLIC_API_URL environment variable.
+ * Falls back to production URL if not set.
+ */
 const instance = axios.create({
-  // baseURL: 'http://localhost:5000/api',
-  // baseURL: 'https://89q8wp9g-5000.inc1.devtunnels.ms/api',
-  baseURL: 'https://tasksb.vercel.app/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://tasksb.vercel.app/api',
 });
 
+/** Attach JWT token from localStorage to every outgoing request. */
 instance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
 
+/** Global response error handling — rejects with the original error. */
 instance.interceptors.response.use(
-  (response) => {
-    // toast.success('API call successful!');
-    return response;
-  },
-  (error) => {
-    // toast.error(error.response?.data?.message || 'Something went wrong!');
-    return Promise.reject(error);
-  }
+  (response) => response,
+  (error) => Promise.reject(error)
 );
 
 export default instance;

@@ -1,7 +1,9 @@
 const Joi = require('joi');
+const jwt = require('jsonwebtoken');
 const pool = require('../../config/db');
-const { BadRequestError, UnprocessableEntityError } = require('../../utils/errors');
+const { BadRequestError, UnprocessableEntityError, NotFoundError } = require('../../utils/errors');
 const { generateJwtToken } = require('../../utils/jwtGenerator');
+const { jwtConfig } = require('../../config/jwtConfig');
 const bcrypt = require('bcryptjs');
 
 
@@ -74,7 +76,6 @@ const register = async (req, res, next) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 12);
-        console.log('Registering user in organization:', req.user.organization_uuid);
         const organiationId = req.user.organization_uuid;
 
         const insertResult = await pool.query(
@@ -94,7 +95,6 @@ const register = async (req, res, next) => {
 // View single employee
 const getEmployee = async (req, res, next) => {
     const { user_uuid } = req.user;
-    console.log('Fetching employee with ID:', user_uuid);
     try {
         const result = await pool.query(
             `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate", e."isHR", o.name as "organizationName"
@@ -131,7 +131,7 @@ const getEmployeesByOrg = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
     const { sortBy, sortOrder } = req.query;
 
-    console.log('Fetching employees for organization:', organizationId);
+
 
     // Build ORDER BY clause
     const validSortColumns = {
@@ -280,7 +280,7 @@ const forgetPassword = async (req, res, next) => {
         if (result.rowCount === 0) return res.json({ message: 'If email exists, reset link sent' });
 
         const user = result.rows[0];
-        const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+        const resetToken = jwt.sign({ id: user.id }, jwtConfig.secret, { expiresIn: '15m' });
         // TODO: Send email with resetToken
         res.json({ message: 'Reset link sent' });
     } catch (error) { next(error); }

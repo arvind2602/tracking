@@ -1,8 +1,19 @@
 node_modules
 # Keep environment variables out of version control
 .env
+.env.local
 
+# Generated files
 /generated/prisma
-node_modules
+
+# OS files
 .DS_Store
+
+# Lock files (using npm)
 pnpm-lock.yaml
+
+# Log files — never commit
+*.log
+combined.log
+error.log
+output.txt

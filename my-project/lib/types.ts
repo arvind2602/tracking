@@ -1,5 +1,9 @@
 import { ReactNode } from "react";
 
+/** All valid task statuses matching the backend enum/string values. */
+export type TaskStatus = 'pending' | 'in-progress' | 'completed' | 'pending-review';
+
+/** Legacy alias kept for backward compatibility. */
 export type Status = 'TODO' | 'IN_PROGRESS' | 'DONE';
 
 export interface Comment {
@@ -14,7 +18,7 @@ export interface Comment {
 }
 
 export interface TaskAssignee {
-  id: string; // TaskAssignee ID
+  id: string;
   taskId: string;
   employeeId: string;
   order?: number;
@@ -27,11 +31,11 @@ export interface TaskAssignee {
 }
 
 export interface Task {
-  description: ReactNode;
-  assignedTo: any;
   id: string;
   title: string;
-  status: string; // Changed to string to match backend
+  description: string;
+  assignedTo: string | null;
+  status: TaskStatus | string;
   points: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -56,6 +60,8 @@ export interface Task {
 export interface Employee {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   archived: boolean;
   organizationId: string;

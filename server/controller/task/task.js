@@ -1,7 +1,7 @@
 const pool = require('../../config/db');
 const Joi = require('joi');
 const { BadRequestError, NotFoundError } = require('../../utils/errors');
-const { get } = require('./_route');
+const { withTransaction } = require('../../utils/queryBuilders');
 
 
 // Create Task
@@ -45,42 +45,40 @@ const createTask = async (req, res, next) => {
     );
     if (projectCheck.rowCount === 0) return next(new NotFoundError('Project not found'));
 
-    // Start Transaction
-    await pool.query('BEGIN');
+    // Transaction with dedicated client for safety
+    const task = await withTransaction(pool.pool, async (client) => {
+      const result = await client.query(
+        `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "parentId", "type")
+               VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10)
+               RETURNING *`,
+        [description, status, createdBy, finalAssignedTo, points, projectId, priority, dueDate, parentId, type]
+      );
+      const newTask = result.rows[0];
 
-    const result = await pool.query(
-      `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "parentId", "type")
-             VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10)
-             RETURNING *`,
-      [description, status, createdBy, finalAssignedTo, points, projectId, priority, dueDate, parentId, type]
-    );
-    const task = result.rows[0];
-
-    // Create TaskAssignee records if applicable
-    if ((type === 'SHARED' || type === 'SEQUENTIAL') && assignees && assignees.length > 0) {
-      let order = 1;
-      for (const assigneeId of assignees) {
-        await pool.query(
+      // Create TaskAssignee records if applicable
+      if ((type === 'SHARED' || type === 'SEQUENTIAL') && assignees && assignees.length > 0) {
+        let order = 1;
+        for (const assigneeId of assignees) {
+          await client.query(
+            `INSERT INTO "TaskAssignee" ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+                   VALUES ($1, $2, $3, $4, NOW())`,
+            [newTask.id, assigneeId, type === 'SEQUENTIAL' ? order++ : null, false]
+          );
+        }
+      } else if (finalAssignedTo) {
+        // Populate TaskAssignee for SINGLE tasks too for consistency
+        await client.query(
           `INSERT INTO "TaskAssignee" ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
-                 VALUES ($1, $2, $3, $4, NOW())`,
-          [task.id, assigneeId, type === 'SEQUENTIAL' ? order++ : null, false]
+               VALUES ($1, $2, $3, $4, NOW())`,
+          [newTask.id, finalAssignedTo, 1, false]
         );
       }
-    } else if (finalAssignedTo) {
-      // Even for Single task, let's try to populate TaskAssignee for consistency if we want, 
-      // OR just leave it as is for legacy. 
-      // Let's populate it to enable future migration/consistency.
-      await pool.query(
-        `INSERT INTO "TaskAssignee" ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
-             VALUES ($1, $2, $3, $4, NOW())`,
-        [task.id, finalAssignedTo, 1, false]
-      );
-    }
 
-    await pool.query('COMMIT');
+      return newTask;
+    });
+
     res.status(201).json(task);
   } catch (error) {
-    await pool.query('ROLLBACK');
     next(error);
   }
 };
@@ -143,44 +141,40 @@ const getTask = async (req, res, next) => {
   const organiationId = req.user.organization_uuid;
 
   try {
-    try {
-      // Fetch the main task
-      const taskResult = await pool.query(
-        `SELECT t.* FROM task t
-             JOIN projects p ON t."projectId" = p.id
-             WHERE t.id = $1 AND p."organiationId" = $2`,
-        [id, organiationId]
-      );
-      if (taskResult.rowCount === 0) return next(new NotFoundError('Task not found'));
+    // Fetch the main task
+    const taskResult = await pool.query(
+      `SELECT t.* FROM task t
+           JOIN projects p ON t."projectId" = p.id
+           WHERE t.id = $1 AND p."organiationId" = $2`,
+      [id, organiationId]
+    );
+    if (taskResult.rowCount === 0) return next(new NotFoundError('Task not found'));
 
-      const task = taskResult.rows[0];
+    const task = taskResult.rows[0];
 
-      // Fetch subtasks for this task
-      const subResult = await pool.query(
-        `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
-         FROM task t
-         LEFT JOIN employee e ON t."createdBy"::uuid = e.id
-         WHERE t."parentId" = $1
-         ORDER BY t."order" ASC, t."createdAt" ASC`,
-        [id]
-      );
-      task.subtasks = subResult.rows;
+    // Fetch subtasks for this task
+    const subResult = await pool.query(
+      `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
+       FROM task t
+       LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+       WHERE t."parentId" = $1
+       ORDER BY t."order" ASC, t."createdAt" ASC`,
+      [id]
+    );
+    task.subtasks = subResult.rows;
 
-      task.subtasks = subResult.rows;
+    // Fetch assignees for this task
+    const assigneeResult = await pool.query(
+      `SELECT ta.*, e."firstName", e."lastName", e.email
+       FROM "TaskAssignee" ta
+       JOIN employee e ON ta."employeeId" = e.id
+       WHERE ta."taskId" = $1
+       ORDER BY ta."order" ASC`,
+      [id]
+    );
+    task.assignees = assigneeResult.rows;
 
-      // Fetch assignees for this task
-      const assigneeResult = await pool.query(
-        `SELECT ta.*, e."firstName", e."lastName", e.email
-         FROM "TaskAssignee" ta
-         JOIN employee e ON ta."employeeId" = e.id
-         WHERE ta."taskId" = $1
-         ORDER BY ta."order" ASC`,
-        [id]
-      );
-      task.assignees = assigneeResult.rows;
-
-      res.json(task);
-    } catch (error) { next(error); }
+    res.json(task);
   } catch (error) { next(error); }
 };
 
@@ -354,9 +348,7 @@ const getTaskByEmployee = async (req, res, next) => {
     const pagingParams = [...mainParams, limit, offset];
     // paramIdx is now mainParams.length + 1
 
-    console.log('Main Where:', mainWhere);
-    console.log('Paging Params:', pagingParams);
-    console.log('Limit Index:', paramIdx, 'Offset Index:', paramIdx + 1);
+
 
     result = await pool.query(
       `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName",
@@ -458,159 +450,168 @@ const updateTask = async (req, res, next) => {
   const organiationId = req.user.organization_uuid;
 
   try {
-    await pool.query('BEGIN');
-    // Check Task Type first
-    const taskCheck = await pool.query(
-      `SELECT type, "assignedTo" FROM task WHERE id = $1`,
-      [id]
-    );
-
-    if (taskCheck.rowCount === 0) {
-      await pool.query('ROLLBACK');
-      return next(new NotFoundError('Task not found'));
-    }
-
-    const taskType = taskCheck.rows[0].type;
-    const currentAssignedTo = taskCheck.rows[0].assignedTo;
-
-    // Sequential Task Completion Logic
-    if (taskType === 'SEQUENTIAL' && (status === 'completed' || status === 'done')) {
-      // Find assignees
-      const assigneesRes = await pool.query(
-        `SELECT * FROM "TaskAssignee" WHERE "taskId" = $1 ORDER BY "order" ASC`,
+    const result = await withTransaction(pool.pool, async (client) => {
+      // Check Task Type first
+      const taskCheck = await client.query(
+        `SELECT type, "assignedTo" FROM task WHERE id = $1`,
         [id]
       );
-      const assignees = assigneesRes.rows;
 
-      // Find current assignee index
-      const currentIndex = assignees.findIndex(a => a.employeeId === currentAssignedTo);
-
-      // Mark current/active assignee as completed
-      if (currentIndex !== -1) {
-        await pool.query(
-          `UPDATE "TaskAssignee" SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
-          [assignees[currentIndex].id]
-        );
+      if (taskCheck.rowCount === 0) {
+        throw new NotFoundError('Task not found');
       }
 
-      // Check for next assignee
-      if (currentIndex !== -1 && currentIndex < assignees.length - 1) {
-        const nextAssignee = assignees[currentIndex + 1];
+      const taskType = taskCheck.rows[0].type;
+      const currentAssignedTo = taskCheck.rows[0].assignedTo;
 
-        // Move to next assignee
-        const result = await pool.query(
-          `UPDATE task t SET
-                 "assignedTo" = $1,
-                 "assigned_at" = NOW(),
-                 "status" = 'pending', -- Reset status to pending for next user
-                 "updatedAt" = NOW()
-                 FROM projects p
-                 WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
-                 RETURNING t.*`,
-          [nextAssignee.employeeId, id, organiationId]
+      // Sequential Task Completion Logic
+      if (taskType === 'SEQUENTIAL' && (status === 'completed' || status === 'done')) {
+        const assigneesRes = await client.query(
+          `SELECT * FROM "TaskAssignee" WHERE "taskId" = $1 ORDER BY "order" ASC`,
+          [id]
         );
-        await pool.query('COMMIT');
-        return res.json(result.rows[0]);
-      }
-      // If no next assignee, proceed to standard completion (final completion)
-    }
+        const assignees = assigneesRes.rows;
+        const currentIndex = assignees.findIndex(a => a.employeeId === currentAssignedTo);
 
-    // Standard Update
-    const result = await pool.query(
-      `UPDATE task t SET
-             description = COALESCE($1, t.description),
-             status = COALESCE($2, t.status),
-             "assignedTo" = COALESCE($3, t."assignedTo"),
-             points = COALESCE($4, t.points),
-             priority = COALESCE($5, t.priority),
-             "dueDate" = COALESCE($6, t."dueDate"),
-             "assigned_at" = CASE WHEN $3 IS NOT NULL THEN NOW() ELSE t."assigned_at" END,
-             "completedAt" = COALESCE($9, CASE 
-                WHEN $2::text IS NOT NULL AND LOWER($2) IN ('done', 'completed') THEN NOW()
-                WHEN $2::text IS NOT NULL AND LOWER($2) NOT IN ('done', 'completed') THEN NULL
-                ELSE t."completedAt"
-             END),
-             "updatedAt" = NOW()
-             FROM projects p
-             WHERE t.id = $7 AND t."projectId" = p.id AND p."organiationId" = $8
-             RETURNING t.*`,
-      [description, status, assignedTo, points, priority, dueDate, id, organiationId, completedAt]
-    );
-    if (result.rowCount === 0) {
-      await pool.query('ROLLBACK');
-      return next(new NotFoundError('Task not found'));
-    }
-    await pool.query('COMMIT');
-    res.json(result.rows[0]);
+        if (currentIndex !== -1) {
+          await client.query(
+            `UPDATE "TaskAssignee" SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
+            [assignees[currentIndex].id]
+          );
+        }
+
+        if (currentIndex !== -1 && currentIndex < assignees.length - 1) {
+          const nextAssignee = assignees[currentIndex + 1];
+          const moveResult = await client.query(
+            `UPDATE task t SET
+                   "assignedTo" = $1,
+                   "assigned_at" = NOW(),
+                   "status" = 'pending',
+                   "updatedAt" = NOW()
+                   FROM projects p
+                   WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
+                   RETURNING t.*`,
+            [nextAssignee.employeeId, id, organiationId]
+          );
+          return moveResult.rows[0];
+        }
+      }
+
+      // Standard Update
+      const updateResult = await client.query(
+        `UPDATE task t SET
+               description = COALESCE($1, t.description),
+               status = COALESCE($2, t.status),
+               "assignedTo" = COALESCE($3, t."assignedTo"),
+               points = COALESCE($4, t.points),
+               priority = COALESCE($5, t.priority),
+               "dueDate" = COALESCE($6, t."dueDate"),
+               "assigned_at" = CASE WHEN $3 IS NOT NULL THEN NOW() ELSE t."assigned_at" END,
+               "completedAt" = COALESCE($9, CASE 
+                  WHEN $2::text IS NOT NULL AND LOWER($2) IN ('done', 'completed') THEN NOW()
+                  WHEN $2::text IS NOT NULL AND LOWER($2) NOT IN ('done', 'completed') THEN NULL
+                  ELSE t."completedAt"
+               END),
+               "updatedAt" = NOW()
+               FROM projects p
+               WHERE t.id = $7 AND t."projectId" = p.id AND p."organiationId" = $8
+               RETURNING t.*`,
+        [description, status, assignedTo, points, priority, dueDate, id, organiationId, completedAt]
+      );
+      if (updateResult.rowCount === 0) {
+        throw new NotFoundError('Task not found');
+      }
+      return updateResult.rows[0];
+    });
+
+    res.json(result);
   } catch (error) {
-    await pool.query('ROLLBACK');
     next(error);
   }
 };
 
-// Delete Task
-// task/task.js (fixed deleteTask)
+/**
+ * Delete Task (Cascade: delete comments, subtask assignees, subtask comments, subtasks, task assignees, task).
+ * Uses a dedicated client for transaction safety.
+ */
 const deleteTask = async (req, res, next) => {
   const { id } = req.params;
   const organiationId = req.user.organization_uuid;
 
   try {
-    // Start transaction
-    await pool.query('BEGIN');
-
-    // Delete comments first
-    await pool.query(
-      `DELETE FROM comment c 
-       USING task t, projects p 
-       WHERE c."taskId" = t.id 
-         AND t.id = $1 
-         AND t."projectId" = p.id 
+    await withTransaction(pool.pool, async (client) => {
+      // Delete assignees of subtasks
+      await client.query(
+        `DELETE FROM "TaskAssignee" ta
+         USING task t, projects p
+         WHERE ta."taskId" = t.id
+         AND t."parentId" = $1
+         AND t."projectId" = p.id
          AND p."organiationId" = $2`,
-      [id, organiationId]
-    );
+        [id, organiationId]
+      );
 
-    // Unlink subtasks (or delete them? Let's delete them for now to avoid orphans)
-    // First delete comments of subtasks
-    await pool.query(
-      `DELETE FROM comment c
-       USING task t, projects p
-       WHERE c."taskId" = t.id
-       AND t."parentId" = $1
-       AND t."projectId" = p.id
-       AND p."organiationId" = $2`,
-      [id, organiationId]
-    );
+      // Delete comments of subtasks
+      await client.query(
+        `DELETE FROM comment c
+         USING task t, projects p
+         WHERE c."taskId" = t.id
+         AND t."parentId" = $1
+         AND t."projectId" = p.id
+         AND p."organiationId" = $2`,
+        [id, organiationId]
+      );
 
-    // Delete subtasks
-    await pool.query(
-      `DELETE FROM task t
-       USING projects p
-       WHERE t."parentId" = $1
-       AND t."projectId" = p.id
-       AND p."organiationId" = $2`,
-      [id, organiationId]
-    );
+      // Delete subtasks
+      await client.query(
+        `DELETE FROM task t
+         USING projects p
+         WHERE t."parentId" = $1
+         AND t."projectId" = p.id
+         AND p."organiationId" = $2`,
+        [id, organiationId]
+      );
 
-    // Now delete task
-    const result = await pool.query(
-      `DELETE FROM task t 
-       USING projects p 
-       WHERE t.id = $1 
-         AND t."projectId" = p.id 
-         AND p."organiationId" = $2 
-       RETURNING t.id`,
-      [id, organiationId]
-    );
+      // Delete task assignees
+      await client.query(
+        `DELETE FROM "TaskAssignee" ta
+         USING task t, projects p
+         WHERE ta."taskId" = t.id
+         AND t.id = $1
+         AND t."projectId" = p.id
+         AND p."organiationId" = $2`,
+        [id, organiationId]
+      );
 
-    if (result.rowCount === 0) {
-      await pool.query('ROLLBACK');
-      return next(new NotFoundError('Task not found'));
-    }
+      // Delete task comments
+      await client.query(
+        `DELETE FROM comment c 
+         USING task t, projects p 
+         WHERE c."taskId" = t.id 
+           AND t.id = $1 
+           AND t."projectId" = p.id 
+           AND p."organiationId" = $2`,
+        [id, organiationId]
+      );
 
-    await pool.query('COMMIT');
+      // Delete the task itself
+      const result = await client.query(
+        `DELETE FROM task t 
+         USING projects p 
+         WHERE t.id = $1 
+           AND t."projectId" = p.id 
+           AND p."organiationId" = $2 
+         RETURNING t.id`,
+        [id, organiationId]
+      );
+
+      if (result.rowCount === 0) {
+        throw new NotFoundError('Task not found');
+      }
+    });
+
     res.json({ message: 'Task and comments deleted' });
   } catch (error) {
-    await pool.query('ROLLBACK');
     next(error);
   }
 };
@@ -668,7 +669,7 @@ const getCommentsByTask = async (req, res, next) => {
   }
 };
 
-// Chnage the status of the task
+/** Change the status of a task. Handles sequential task hand-off logic. */
 const changeTaskStatus = async (req, res, next) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -677,105 +678,85 @@ const changeTaskStatus = async (req, res, next) => {
   const userRole = req.user.role;
 
   try {
-    await pool.query('BEGIN');
-    // Check Task Type first
-    const taskCheck = await pool.query(
-      `SELECT type, "assignedTo", "createdBy", status FROM task WHERE id = $1`,
-      [id]
-    );
-
-    if (taskCheck.rowCount === 0) {
-      await pool.query('ROLLBACK');
-      return next(new NotFoundError('Task not found'));
-    }
-
-    const task = taskCheck.rows[0];
-    const taskType = task.type;
-    const currentAssignedTo = task.assignedTo;
-    const createdBy = task.createdBy;
-    const currentStatus = task.status;
-
-    // --- VERIFICATION FLOW LOGIC ---
-
-    // 1. Worker submitting for review (completed -> pending-review)
-    // No specific block needed if we just allow it, but we could enforce assignedTo check here.
-
-    // 2. Reviewer approving (pending-review -> completed)
-    if (status === 'completed' || status === 'done') {
-      const isReviewer = userId === createdBy || userRole === 'ADMIN';
-      // If it is 'pending-review', only Reviewer/Admin can complete it.
-      if (currentStatus === 'pending-review' && !isReviewer) {
-        // Optionally restrict: return next(new ForbiddenError('Only the task creator can approve this task.'));
-      }
-    }
-
-    // Sequential Task Completion Logic
-    if (taskType === 'SEQUENTIAL' && (status === 'completed' || status === 'done')) {
-      // Find assignees
-      const assigneesRes = await pool.query(
-        `SELECT * FROM "TaskAssignee" WHERE "taskId" = $1 ORDER BY "order" ASC`,
+    const result = await withTransaction(pool.pool, async (client) => {
+      const taskCheck = await client.query(
+        `SELECT type, "assignedTo", "createdBy", status FROM task WHERE id = $1`,
         [id]
       );
-      const assignees = assigneesRes.rows;
 
-      // Find current assignee index
-      const currentIndex = assignees.findIndex(a => a.employeeId == currentAssignedTo);
-      console.log('Sequential Debug: Current Assignee:', currentAssignedTo, 'Found Index:', currentIndex);
-
-      // Mark current/active assignee as completed
-      if (currentIndex !== -1) {
-        await pool.query(
-          `UPDATE "TaskAssignee" SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
-          [assignees[currentIndex].id]
-        );
+      if (taskCheck.rowCount === 0) {
+        throw new NotFoundError('Task not found');
       }
 
-      // Check for next assignee
-      if (currentIndex !== -1 && currentIndex < assignees.length - 1) {
-        const nextAssignee = assignees[currentIndex + 1];
-        console.log('Sequential Debug: Moving to next assignee:', nextAssignee.employeeId);
+      const task = taskCheck.rows[0];
+      const taskType = task.type;
+      const currentAssignedTo = task.assignedTo;
+      const createdBy = task.createdBy;
+      const currentStatus = task.status;
 
-        // Move to next assignee
-        const result = await pool.query(
-          `UPDATE task t SET
-                 "assignedTo" = $1,
-                 "assigned_at" = NOW(),
-                 "status" = 'pending', -- Reset status to pending for next user
-                 "updatedAt" = NOW()
-                 FROM projects p
-                 WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
-                 RETURNING t.*`,
-          [nextAssignee.employeeId, id, organiationId]
-        );
-        await pool.query('COMMIT');
-        return res.json(result.rows[0]);
+      // Reviewer approval check (pending-review -> completed)
+      if (status === 'completed' || status === 'done') {
+        const isReviewer = userId === createdBy || userRole === 'ADMIN';
+        if (currentStatus === 'pending-review' && !isReviewer) {
+          // Future: throw new AuthorizationError('Only the task creator can approve this task.');
+        }
       }
-      console.log('Sequential Debug: Logic Completed. Finishing Task.');
-      // If no next assignee, proceed to standard completion (final completion)
-    }
 
-    const result = await pool.query(
-      `UPDATE task t SET
-                status = $1,
-                "completedAt" = CASE 
-                   WHEN LOWER($1) IN ('done', 'completed') THEN NOW() 
-                   ELSE NULL 
-                END,
-                "updatedAt" = NOW()
-                FROM projects p
-                WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
-                RETURNING t.*`,
-      [status, id, organiationId]
-    );
-    if (result.rowCount === 0) {
-      await pool.query('ROLLBACK');
-      return next(new NotFoundError('Task not found'));
-    }
-    await pool.query('COMMIT');
-    res.json(result.rows[0]);
-  }
-  catch (error) {
-    await pool.query('ROLLBACK');
+      // Sequential Task Completion Logic
+      if (taskType === 'SEQUENTIAL' && (status === 'completed' || status === 'done')) {
+        const assigneesRes = await client.query(
+          `SELECT * FROM "TaskAssignee" WHERE "taskId" = $1 ORDER BY "order" ASC`,
+          [id]
+        );
+        const assignees = assigneesRes.rows;
+        const currentIndex = assignees.findIndex(a => a.employeeId === currentAssignedTo);
+
+        if (currentIndex !== -1) {
+          await client.query(
+            `UPDATE "TaskAssignee" SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
+            [assignees[currentIndex].id]
+          );
+        }
+
+        if (currentIndex !== -1 && currentIndex < assignees.length - 1) {
+          const nextAssignee = assignees[currentIndex + 1];
+          const moveResult = await client.query(
+            `UPDATE task t SET
+                   "assignedTo" = $1,
+                   "assigned_at" = NOW(),
+                   "status" = 'pending',
+                   "updatedAt" = NOW()
+                   FROM projects p
+                   WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
+                   RETURNING t.*`,
+            [nextAssignee.employeeId, id, organiationId]
+          );
+          return moveResult.rows[0];
+        }
+      }
+
+      // Standard status update
+      const statusResult = await client.query(
+        `UPDATE task t SET
+                  status = $1,
+                  "completedAt" = CASE 
+                     WHEN LOWER($1) IN ('done', 'completed') THEN NOW() 
+                     ELSE NULL 
+                  END,
+                  "updatedAt" = NOW()
+                  FROM projects p
+                  WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
+                  RETURNING t.*`,
+        [status, id, organiationId]
+      );
+      if (statusResult.rowCount === 0) {
+        throw new NotFoundError('Task not found');
+      }
+      return statusResult.rows[0];
+    });
+
+    res.json(result);
+  } catch (error) {
     next(error);
   }
 };
@@ -804,16 +785,22 @@ const assignTask = async (req, res, next) => {
 };
 
 
+/**
+ * Get all tasks assigned to a specific employee.
+ * Scoped to the requesting user's organization to prevent cross-org data leaks.
+ */
 const getTasksPerEmployee = async (req, res, next) => {
   try {
     const userId = req.params.id;
-    console.log("Getting tasks for user:", userId);
+    const organiationId = req.user.organization_uuid;
     const result = await pool.query(`
       SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
-      from task t
+      FROM task t
+      JOIN projects p ON t."projectId" = p.id
       LEFT JOIN employee e ON t."createdBy"::uuid = e.id
-      where t."assignedTo" = $1 
-    `, [userId]);
+      WHERE t."assignedTo" = $1 AND p."organiationId" = $2
+      ORDER BY t."createdAt" DESC
+    `, [userId, organiationId]);
 
     res.json(result.rows);
   } catch (error) {
@@ -821,24 +808,24 @@ const getTasksPerEmployee = async (req, res, next) => {
   }
 };
 
+/** Reorder tasks by updating their order field in a single transaction. */
 const reorderTasks = async (req, res, next) => {
-  const { tasks } = req.body; // Array of { id, order }
+  const { tasks } = req.body;
   const organiationId = req.user.organization_uuid;
 
   try {
-    await pool.query('BEGIN');
-    for (const task of tasks) {
-      await pool.query(
-        `UPDATE task t SET "order" = $1, "updatedAt" = NOW()
-         FROM projects p
-         WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3`,
-        [task.order, task.id, organiationId]
-      );
-    }
-    await pool.query('COMMIT');
+    await withTransaction(pool.pool, async (client) => {
+      for (const task of tasks) {
+        await client.query(
+          `UPDATE task t SET "order" = $1, "updatedAt" = NOW()
+           FROM projects p
+           WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3`,
+          [task.order, task.id, organiationId]
+        );
+      }
+    });
     res.json({ message: 'Tasks reordered' });
   } catch (error) {
-    await pool.query('ROLLBACK');
     next(error);
   }
 };
