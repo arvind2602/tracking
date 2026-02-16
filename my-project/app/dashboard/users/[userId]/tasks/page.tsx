@@ -70,7 +70,7 @@ export default function UserTasksPage() {
       </div>
 
       {/*  Create a list of the tasks */}
-      <AllTasks tasks={tasks} users={users} projects={projects} />
+      <AllTasks tasks={tasks} users={users} projects={projects} setTasks={setTasks} />
     </div>
   );
 }
