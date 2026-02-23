@@ -292,7 +292,7 @@ const getTaskByEmployee = async (req, res, next) => {
     // 5. Get Data (Filtered by Status + Paginated)
     // Explicitly enforce Root tasks for the list view
     let mainWhere = contextWhere + ` AND t."parentId" IS NULL`;
-    let mainParams = [...contextParams];
+    const mainParams = [...contextParams];
     // paramIdx is already incremented for contextParams. 
 
     if (status && status !== 'all') {

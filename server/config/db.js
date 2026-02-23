@@ -26,7 +26,7 @@ const createPool = () => {
     const pool = new Pool(dbConfig);
 
     // Error handling for idle clients
-    pool.on('error', (err, client) => {
+    pool.on('error', (err, _client) => {
         console.error('Unexpected error on idle client:', err.message);
     });
 
@@ -61,7 +61,7 @@ const query = async (text, params) => {
         const result = await dbPool.query(text, params);
         return result;
     } catch (err) {
-        throw new Error(`Database query failed: ${err.message}`);
+        throw new Error(`Database query failed: ${err.message}`, { cause: err });
     }
 };
 

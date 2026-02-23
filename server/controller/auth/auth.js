@@ -10,14 +10,13 @@ const bcrypt = require('bcryptjs');
 const login = async (req, res, next) => {
     const schema = Joi.object({
         email: Joi.string().email().required(),
-        password: Joi.string().min(4).required(),
-        datetime: Joi.date().iso().required()
+        password: Joi.string().min(4).required()
     });
 
     const { error } = schema.validate(req.body);
     if (error) return next(new BadRequestError(error.details[0].message));
 
-    const { email, password, datetime } = req.body;
+    const { email, password } = req.body;
 
     try {
         const result = await pool.query(
@@ -280,7 +279,7 @@ const forgetPassword = async (req, res, next) => {
         if (result.rowCount === 0) return res.json({ message: 'If email exists, reset link sent' });
 
         const user = result.rows[0];
-        const resetToken = jwt.sign({ id: user.id }, jwtConfig.secret, { expiresIn: '15m' });
+        jwt.sign({ id: user.id }, jwtConfig.secret, { expiresIn: '15m' });
         // TODO: Send email with resetToken
         res.json({ message: 'Reset link sent' });
     } catch (error) { next(error); }
@@ -314,14 +313,16 @@ const updateEmployee = async (req, res, next) => {
     // appending arrays to FormData can be tricky).
     // For now assuming direct fields or simple parsing if needed.
 
-    let { firstName, lastName, email, position, role, skills, responsibilities, dob, bloodGroup, phoneNumber, emergencyContact, address, joiningDate, removeImage, isHR } = req.body;
+    const { firstName, lastName, email, position, role, skills: rawSkills, responsibilities: rawResponsibilities, dob, bloodGroup, phoneNumber, emergencyContact, address, joiningDate, removeImage, isHR } = req.body;
+    let skills = rawSkills;
+    let responsibilities = rawResponsibilities;
 
     // Parse arrays if they come as strings (common with FormData)
     if (typeof skills === 'string') {
-        try { skills = JSON.parse(skills); } catch (e) { skills = [skills]; }
+        try { skills = JSON.parse(skills); } catch (_) { skills = [skills]; }
     }
     if (typeof responsibilities === 'string') {
-        try { responsibilities = JSON.parse(responsibilities); } catch (e) { responsibilities = [responsibilities]; }
+        try { responsibilities = JSON.parse(responsibilities); } catch (_) { responsibilities = [responsibilities]; }
     }
 
     let imageUrl;
@@ -344,7 +345,7 @@ const updateEmployee = async (req, res, next) => {
 
         // Build the update query dynamically or simply
         let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, email = $3, position = $4, role = $5, skills = $6, responsibilities = $7, dob = $8, "bloodGroup" = $9, "phoneNumber" = $10, "emergencyContact" = $11, address = $12, "joiningDate" = $13, "isHR" = $14`;
-        let params = [firstName, lastName, email, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, emergencyContact || null, address || null, joiningDate || null, isHR || false];
+        const params = [firstName, lastName, email, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, emergencyContact || null, address || null, joiningDate || null, isHR || false];
         let paramIndex = 15;
 
         if (imageUrl) {

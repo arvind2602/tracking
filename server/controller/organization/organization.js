@@ -96,7 +96,7 @@ const getOrganizationSettings = async (req, res, next) => {
 
 const updateOrganizationSettings = async (req, res, next) => {
     const orgId = req.user.organization_uuid;
-    let { name, showBanner, logo } = req.body;
+    const { name, showBanner, logo } = req.body;
 
     if (req.user.role !== 'ADMIN') {
         return next(new BadRequestError('Only admins can update organization settings'));

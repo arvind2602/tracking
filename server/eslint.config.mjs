@@ -1,8 +1,12 @@
 import js from '@eslint/js';
 
 export default [
+    {
+        ignores: ['node_modules/**', 'generated/**', 'eslint.config.mjs'],
+    },
     js.configs.recommended,
     {
+        files: ['**/*.js'],
         rules: {
             'no-unused-vars': ['warn', { argsIgnorePattern: '^_|^next$|^req$|^res$' }],
             'no-console': ['warn', { allow: ['error', 'warn'] }],
@@ -31,6 +35,5 @@ export default [
                 URL: 'readonly',
             },
         },
-        ignores: ['node_modules/**', 'generated/**'],
     },
 ];
