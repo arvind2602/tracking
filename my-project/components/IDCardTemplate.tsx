@@ -4,8 +4,22 @@ import { removeBackground } from "@imgly/background-removal";
 import { getProxiedImageUrl } from '@/lib/imageProxy';
 import { Phone, Mail, Droplets, Calendar, ShieldAlert, Award, Briefcase } from 'lucide-react';
 
+interface Profile {
+    id?: string;
+    firstName?: string;
+    lastName?: string;
+    position?: string;
+    image?: string;
+    phoneNumber?: string;
+    email?: string;
+    bloodGroup?: string;
+    emergencyContact?: string;
+    dob?: string;
+    joiningDate?: string;
+}
+
 interface IDCardTemplateProps {
-    profile: any;
+    profile: Profile;
     idCardRef: React.RefObject<HTMLDivElement | null>;
     onImageProcessed?: () => void;
     processedImage?: string | null;
@@ -26,7 +40,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
         let isMounted = true;
         const processImage = async () => {
             // If we already have a blob url that we generated, don't re-process
-            if (profile.image?.startsWith('blob:')) {
+            if (profile.image && profile.image.startsWith('blob:')) {
                 if (isMounted) {
                     setInternalProcessedImage(profile.image);
                     onImageProcessed?.();
@@ -64,7 +78,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
     }, [profile.id, profile.image, shouldProcess]); // Dependency on profile.id to ensure re-process if user changes but image URL is same (unlikely but safe)
 
     // Format date properly
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString: string | undefined) => {
         if (!dateString) return "25 August 2003"; // Default label from user template
         try {
             return new Date(dateString).toLocaleDateString('en-GB', {

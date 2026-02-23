@@ -68,7 +68,7 @@ const ProjectDetailsPage = () => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const payload: any = jwtDecode(token);
+        const payload = jwtDecode(token) as { user: { role: string } };
         setUserRole(payload.user.role);
       } catch (error) {
         console.error('Invalid token', error);
@@ -84,7 +84,7 @@ const ProjectDetailsPage = () => {
           params: { page: currentPage, limit: pageSize }
         });
         setProject(response.data);
-      } catch (error) {
+      } catch {
         toast.error('Failed to fetch project details');
       } finally {
         setIsLoading(false);
@@ -136,8 +136,10 @@ const ProjectDetailsPage = () => {
       setIsHoldModalOpen(false);
       setHoldReason('');
       reloadProject();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to put project on hold');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      const errorMessage = err.response?.data?.error || 'Failed to put project on hold';
+      toast.error(errorMessage);
     } finally {
       setIsActionLoading(false);
     }
@@ -149,8 +151,10 @@ const ProjectDetailsPage = () => {
       await axios.put(`/projects/${projectId}/resume`);
       toast.success('Project resumed');
       reloadProject();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to resume project');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      const errorMessage = err.response?.data?.error || 'Failed to resume project';
+      toast.error(errorMessage);
     } finally {
       setIsActionLoading(false);
     }
@@ -174,12 +178,12 @@ const ProjectDetailsPage = () => {
     { label: project.name, href: `/dashboard/projects/${project.id}` },
   ];
 
-  const stats = [
-    { label: 'Total Tasks', value: project.tasks?.length || 0 },
-    { label: 'Completed', value: project.tasks?.filter((t: Task) => t.status === 'DONE').length || 0 },
-    { label: 'In Progress', value: project.tasks?.filter((t: Task) => t.status === 'IN_PROGRESS').length || 0 },
-    { label: 'To Do', value: project.tasks?.filter((t: Task) => t.status === 'TODO').length || 0 },
-  ];
+  // const stats = [
+  //   { label: 'Total Tasks', value: project.tasks?.length || 0 },
+  //   { label: 'Completed', value: project.tasks?.filter((t: Task) => t.status === 'DONE').length || 0 },
+  //   { label: 'In Progress', value: project.tasks?.filter((t: Task) => t.status === 'IN_PROGRESS').length || 0 },
+  //   { label: 'To Do', value: project.tasks?.filter((t: Task) => t.status === 'TODO').length || 0 },
+  // ];
 
   const totalPoints = project.tasks?.reduce((sum, task) => sum + (task.points || 0), 0) || 0;
 
@@ -366,7 +370,9 @@ const ProjectDetailsPage = () => {
                   {entry.reason && (
                     <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-3">
                       <span className="text-[10px] uppercase font-bold text-amber-600/70 tracking-tight block mb-1">Reason for Hold</span>
-                      <p className="text-sm text-foreground/70 italic italic leading-relaxed">"{entry.reason}"</p>
+                      <p className="text-sm text-foreground/70 italic leading-relaxed">
+                        &quot;{entry.reason}&quot;
+                      </p>
                     </div>
                   )}
                 </div>
@@ -413,7 +419,14 @@ const ProjectDetailsPage = () => {
   );
 };
 
-function StatCard({ title, value, icon: Icon, className }: any) {
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon?: React.ElementType;
+  className?: string;
+}
+
+function StatCard({ title, value, icon: Icon, className }: StatCardProps) {
   return (
     <Card className={`shadow-sm ${className}`}>
       <CardContent className="p-2 md:p-4 flex items-center justify-between">

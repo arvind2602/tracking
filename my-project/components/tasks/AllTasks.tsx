@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Task, User, Project } from "@/lib/types";
+import { Task, User, Project, Comment } from "@/lib/types";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
 import { useState, useEffect, useMemo } from "react";
@@ -75,7 +75,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const [inProgressComment, setInProgressComment] = useState("");
   const [isInProgressSetting, setIsInProgressSetting] = useState(false);
 
-  const [taskComments, setTaskComments] = useState<any[]>([]);
+  const [taskComments, setTaskComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
 
   const fetchTaskComments = async (taskId: string) => {
@@ -114,10 +114,10 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const payload: any = jwtDecode(token);
+        const payload = jwtDecode(token) as { user: { role: string; uuid?: string; id?: string } };
         setUserRole(payload.user.role);
         // Correct field name is uuid based on jwtGenerator.js
-        setCurrentUserId(payload.user.uuid || payload.user.id);
+        setCurrentUserId(payload.user.uuid || payload.user.id || null);
       } catch (error) {
         console.error('Invalid token', error);
       }
@@ -200,7 +200,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
       link.remove();
       toast.success("Tasks exported successfully", { id: toastId });
 
-    } catch (error) {
+    } catch {
       toast.error("Failed to export tasks", { id: toastId });
     }
   };
@@ -347,7 +347,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
       // Group by assigned date or due date based on groupingType
       const dateStr = groupingType === 'assignedDate'
-        ? (task.assigned_at || (task as any).startDate || task.createdAt)
+        ? (task.assigned_at || (task as { assigned_at?: string; createdAt: Date }).assigned_at || task.createdAt)
         : task.dueDate;
 
       if (dateStr) {
@@ -576,7 +576,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                     <div>
                       <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Applied for Review</label>
                       <div className="text-sm font-bold text-amber-500">
-                        {t.updatedAt ? formatFullDateTimeIST(t.updatedAt as any) : 'N/A'}
+                        {t.updatedAt ? formatFullDateTimeIST(t.updatedAt as unknown as string) : 'N/A'}
                       </div>
                     </div>
                   )}
@@ -698,7 +698,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                     <div>
                       <label className="text-[11px] uppercase font-bold text-muted-foreground/70 tracking-tight block mb-1">Applied for Review</label>
                       <div className="text-sm font-bold text-amber-500">
-                        {t.updatedAt ? formatFullDateTimeIST(t.updatedAt as any) : 'N/A'}
+                        {t.updatedAt ? formatFullDateTimeIST(t.updatedAt as unknown as string) : 'N/A'}
                       </div>
                     </div>
                   )}
@@ -1100,7 +1100,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                     <span className="font-bold text-xs mb-1 border-b border-border pb-1">
                                       {task.type === 'SHARED' ? 'Shared with:' : 'Sequential Order:'}
                                     </span>
-                                    {task.assignees.map((a: any, i) => (
+                                    {task.assignees.map((a, i) => (
                                       <div key={a.id} className="text-xs flex justify-between gap-4">
                                         <span className={cn(
                                           task.type === 'SEQUENTIAL' && task.assignedTo === a.id ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-muted-foreground"
@@ -1140,7 +1140,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
                       </tr>
                       {
-                        !collapsedTasks.has(task.id) && task.subtasks && task.subtasks.map((subtask, stIndex) => {
+                        !collapsedTasks.has(task.id) && task.subtasks && task.subtasks.map((subtask) => {
                           const stAssignedUser = users.find((u) => u.id === subtask.assignedTo);
                           return (
                             <tr key={subtask.id} className="bg-secondary/50 relative">

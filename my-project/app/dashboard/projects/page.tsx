@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
-import { Loader, Trash2, ArrowRight, Plus, Trophy, User, Download, GripVertical, List, BarChart3, Pencil, Pause, Play } from 'lucide-react';
+import { Trash2, ArrowRight, Plus, Trophy, User, Download, GripVertical, List, BarChart3, Pencil, Pause, Play } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { jwtDecode } from 'jwt-decode';
 import { cn } from '@/lib/utils';
@@ -31,13 +31,7 @@ import {
 } from '@dnd-kit/sortable';
 
 import { CSS } from '@dnd-kit/utilities';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+
 import { SearchableSelect } from "@/components/ui/searchable-select"
 
 
@@ -106,7 +100,7 @@ const ProjectsPage = () => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const payload: any = jwtDecode(token);
+        const payload = jwtDecode(token) as { user: { role: string } };
         setUserRole(payload.user.role);
       } catch (error) {
         console.error('Invalid token', error);
