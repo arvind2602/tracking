@@ -324,23 +324,23 @@ const ProjectsPage = () => {
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-blue-400 transition-colors"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
         >
           <GripVertical className="h-4 w-4 md:h-6 md:w-6" />
         </div>
 
-        <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-blue-500/10 border border-blue-500/20 font-bold text-blue-400 text-sm md:text-base">
+        <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-blue-500/10 border border-blue-500/20 font-bold text-blue-600 dark:text-blue-400 text-sm md:text-base">
           {index + 1}
         </div>
 
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-foreground text-base md:text-lg truncate">{project.name}</h3>
-          <p className="text-slate-400 text-xs md:text-sm truncate">{project.description}</p>
+          <p className="text-muted-foreground text-xs md:text-sm truncate">{project.description}</p>
         </div>
 
         <div className="flex items-center gap-3 md:gap-6">
           <div className="text-right">
-            <p className="text-[10px] md:text-xs text-slate-500 uppercase tracking-wider mb-0.5 md:mb-1">Pts</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-wider mb-0.5 md:mb-1">Pts</p>
             <p className="font-mono text-sm md:text-lg font-bold text-foreground">{project.totalPoints || 0}</p>
           </div>
 
@@ -348,7 +348,7 @@ const ProjectsPage = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 md:h-10 md:w-10 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
+              className="h-8 w-8 md:h-10 md:w-10 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-500/10 transition-all"
             >
               <ArrowRight className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
@@ -411,7 +411,7 @@ const ProjectsPage = () => {
           className={cn(
             "pb-2 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
             activeTab === 'overview'
-              ? "border-blue-500 text-blue-400"
+              ? "border-blue-500 text-blue-600 dark:text-blue-400"
               : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
@@ -423,7 +423,7 @@ const ProjectsPage = () => {
           className={cn(
             "pb-2 border-b-2 font-bold text-sm transition-all duration-300 flex items-center gap-2 uppercase tracking-widest",
             activeTab === 'priority'
-              ? "border-purple-500 text-purple-400"
+              ? "border-purple-500 text-purple-600 dark:text-purple-400"
               : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
@@ -446,7 +446,7 @@ const ProjectsPage = () => {
               <thead>
                 <tr className="border-b border-border bg-secondary">
                   <th
-                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
+                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                     onClick={() => {
                       if (sortBy === 'name') {
                         setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -463,13 +463,13 @@ const ProjectsPage = () => {
                       )}
                     </div>
                   </th>
-                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Desc</th>
-                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Status</th>
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-muted-foreground uppercase tracking-wider text-xs md:text-sm">Desc</th>
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-muted-foreground uppercase tracking-wider text-xs md:text-sm">Status</th>
 
-                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Head</th>
-                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs md:text-sm">Top</th>
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-muted-foreground uppercase tracking-wider text-xs md:text-sm">Head</th>
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-muted-foreground uppercase tracking-wider text-xs md:text-sm">Top</th>
                   <th
-                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
+                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-muted-foreground uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                     onClick={() => {
                       if (sortBy === 'totalPoints') {
                         setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -482,12 +482,12 @@ const ProjectsPage = () => {
                     <div className="flex items-center justify-center gap-1">
                       Pts
                       {sortBy === 'totalPoints' && (
-                        <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                        <span className="text-blue-600 dark:text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
                       )}
                     </div>
                   </th>
                   <th
-                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
+                    className="px-2 py-2 md:px-4 md:py-3 font-semibold text-muted-foreground uppercase tracking-wider text-center cursor-pointer hover:bg-secondary/80 transition-colors select-none text-xs md:text-sm"
                     onClick={() => {
                       if (sortBy === 'yesterdayPoints') {
                         setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
@@ -500,14 +500,14 @@ const ProjectsPage = () => {
                     <div className="flex items-center justify-center gap-1">
                       Y-Day
                       {sortBy === 'yesterdayPoints' && (
-                        <span className="text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                        <span className="text-blue-600 dark:text-blue-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
                       )}
                     </div>
                   </th>
-                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-slate-400 uppercase tracking-wider text-right text-xs md:text-sm">Act</th>
+                  <th className="px-2 py-2 md:px-4 md:py-3 font-semibold text-muted-foreground uppercase tracking-wider text-right text-xs md:text-sm">Act</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-border">
                 {filteredProjects.map((project) => (
                   <tr key={project.id} className="group hover:bg-secondary transition-all duration-300">
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
@@ -516,7 +516,7 @@ const ProjectsPage = () => {
                       </span>
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
-                      <p className="line-clamp-1 md:line-clamp-2 text-slate-400 text-xs md:text-sm" title={project.description}>
+                      <p className="line-clamp-1 md:line-clamp-2 text-muted-foreground text-xs md:text-sm" title={project.description}>
                         {project.description}
                       </p>
                     </td>
@@ -536,17 +536,17 @@ const ProjectsPage = () => {
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
                       <span className="font-medium text-foreground text-xs md:text-sm">
-                        {project.headName === 'Unassigned' ? <span className="text-slate-500 italic">Unassigned</span> : project.headName}
+                        {project.headName === 'Unassigned' ? <span className="text-muted-foreground italic">Unassigned</span> : project.headName}
                       </span>
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
                       {project.topPerformers && project.topPerformers.length > 0 ? (
                         <div className="flex flex-col gap-0.5 md:gap-1">
                           <span className="font-medium text-foreground text-xs md:text-sm truncate max-w-[60px] md:max-w-none">{project.topPerformers[0].name} {project.topPerformers[0].initial}.</span>
-                          <span className="text-[10px] md:text-xs text-blue-400 font-mono">{project.topPerformers[0].points} pts</span>
+                          <span className="text-[10px] md:text-xs text-blue-600 dark:text-blue-400 font-mono">{project.topPerformers[0].points} pts</span>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-500 italic">None</span>
+                        <span className="text-xs text-muted-foreground italic">None</span>
                       )}
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 text-center align-top">
@@ -555,7 +555,7 @@ const ProjectsPage = () => {
                     <td className="px-2 py-2 md:px-4 md:py-4 text-center align-top">
                       <span className={cn(
                         "px-1 md:px-2 py-0.5 rounded text-[10px] md:text-xs font-bold border",
-                        project.yesterdayPoints > 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-slate-500/10 text-slate-400 border-white/5"
+                        project.yesterdayPoints > 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-border"
                       )}>
                         {project.yesterdayPoints > 0 ? `+${project.yesterdayPoints}` : project.yesterdayPoints || 0}
                       </span>
@@ -566,7 +566,7 @@ const ProjectsPage = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 md:h-8 md:w-8 text-slate-400 hover:text-blue-400 transition-colors"
+                            className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >
                             <ArrowRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           </Button>
@@ -576,7 +576,7 @@ const ProjectsPage = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 md:h-8 md:w-8 text-slate-400 hover:text-yellow-400 transition-colors"
+                              className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
                               onClick={() => openEditModal(project)}
                             >
                               <Pencil className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -584,7 +584,7 @@ const ProjectsPage = () => {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-6 w-6 md:h-8 md:w-8 text-slate-400 hover:text-red-400 transition-colors"
+                              className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
                               onClick={() => initiateDeleteProject(project.id)}
                             >
                               <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -656,20 +656,20 @@ const ProjectsPage = () => {
                   placeholder="Description"
                   value={newProjectDescription}
                   onChange={(e) => setNewProjectDescription(e.target.value)}
-                  className="bg-white/5 border-white/10 text-white rounded-xl py-4 min-h-[120px] focus:border-blue-500/50"
+                  className="bg-card border-border text-foreground rounded-xl py-4 min-h-[120px] focus:border-ring"
                 />
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Start Date</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Start Date</label>
                   <Input
                     type="date"
                     value={newProjectStartDate}
                     onChange={(e) => setNewProjectStartDate(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white rounded-xl py-6 focus:border-blue-500/50 block dark:[color-scheme:dark]"
+                    className="bg-card border-border text-foreground rounded-xl py-6 focus:border-ring block dark:[color-scheme:dark]"
                   />
 
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Project Head</label>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Project Head</label>
                   <SearchableSelect
                     value={newProjectHeadId}
                     onValueChange={setNewProjectHeadId}

@@ -116,10 +116,10 @@ export function EmployeePerformanceTable() {
     };
 
     const getCompletionRateColor = (rate: number) => {
-        if (rate >= 80) return 'text-emerald-400 font-bold';
-        if (rate >= 60) return 'text-blue-400 font-semibold';
-        if (rate >= 40) return 'text-yellow-400 font-medium';
-        return 'text-red-400 font-medium';
+        if (rate >= 80) return 'text-emerald-600 dark:text-emerald-400 font-bold';
+        if (rate >= 60) return 'text-blue-600 dark:text-blue-400 font-semibold';
+        if (rate >= 40) return 'text-yellow-600 dark:text-yellow-400 font-medium';
+        return 'text-red-600 dark:text-red-400 font-medium';
     };
 
     return (
@@ -127,7 +127,7 @@ export function EmployeePerformanceTable() {
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-medium flex items-center gap-2">
-                        <Target className="h-5 w-5 text-blue-400" />
+                        <Target className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         Employee Performance Overview
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -136,8 +136,8 @@ export function EmployeePerformanceTable() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                     <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
-                        <CheckCircle className="h-3 w-3 text-blue-400" />
-                        <span className="text-blue-400 font-medium">{sortedData?.length || 0} Employees</span>
+                        <CheckCircle className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                        <span className="text-blue-600 dark:text-blue-400 font-medium">{sortedData?.length || 0} Employees</span>
                     </div>
                 </div>
             </div>
@@ -158,7 +158,7 @@ export function EmployeePerformanceTable() {
                                         Emp
                                         <ArrowUpDown className={cn(
                                             "h-2.5 w-2.5 md:h-3 md:w-3 opacity-50 group-hover:opacity-100 transition-opacity",
-                                            sortField === 'name' && "text-blue-400 opacity-100"
+                                            sortField === 'name' && "text-blue-600 dark:text-blue-400 opacity-100"
                                         )} />
                                     </div>
                                 </th>
@@ -171,7 +171,7 @@ export function EmployeePerformanceTable() {
                                         Tsk
                                         <ArrowUpDown className={cn(
                                             "h-2.5 w-2.5 md:h-3 md:w-3 opacity-50 group-hover:opacity-100 transition-opacity",
-                                            sortField === 'taskCount' && "text-blue-400 opacity-100"
+                                            sortField === 'taskCount' && "text-blue-600 dark:text-blue-400 opacity-100"
                                         )} />
                                     </div>
                                 </th>
@@ -184,7 +184,7 @@ export function EmployeePerformanceTable() {
                                         %
                                         <ArrowUpDown className={cn(
                                             "h-2.5 w-2.5 md:h-3 md:w-3 opacity-50 group-hover:opacity-100 transition-opacity",
-                                            sortField === 'completionRate' && "text-blue-400 opacity-100"
+                                            sortField === 'completionRate' && "text-blue-600 dark:text-blue-400 opacity-100"
                                         )} />
                                     </div>
                                 </th>
@@ -197,7 +197,7 @@ export function EmployeePerformanceTable() {
                                         Pts
                                         <ArrowUpDown className={cn(
                                             "h-2.5 w-2.5 md:h-3 md:w-3 opacity-50 group-hover:opacity-100 transition-opacity",
-                                            sortField === 'totalPoints' && "text-blue-400 opacity-100"
+                                            sortField === 'totalPoints' && "text-blue-600 dark:text-blue-400 opacity-100"
                                         )} />
                                     </div>
                                 </th>
@@ -225,7 +225,7 @@ export function EmployeePerformanceTable() {
                                         {emp.name}
                                     </td>
                                     <td className="px-2 py-2 md:px-4 md:py-3 text-center">
-                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 md:px-2 md:py-1 rounded-md bg-blue-500/10 text-blue-400 font-mono text-xs min-w-[2rem] md:min-w-[3rem]">
+                                        <span className="inline-flex items-center justify-center px-1.5 py-0.5 md:px-2 md:py-1 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono text-xs min-w-[2rem] md:min-w-[3rem]">
                                             {emp.taskCount}
                                         </span>
                                     </td>
@@ -238,7 +238,7 @@ export function EmployeePerformanceTable() {
                                         </span>
                                     </td>
                                     <td className="px-2 py-2 md:px-4 md:py-3 text-center">
-                                        <span className="inline-flex items-center justify-center px-2 py-0.5 md:px-3 md:py-1 rounded-md bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-400 font-bold text-xs min-w-[2.5rem] md:min-w-[4rem]">
+                                        <span className="inline-flex items-center justify-center px-2 py-0.5 md:px-3 md:py-1 rounded-md bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-600 dark:text-blue-400 font-bold text-xs min-w-[2.5rem] md:min-w-[4rem]">
                                             {emp.totalPoints}
                                         </span>
                                     </td>

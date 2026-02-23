@@ -60,11 +60,11 @@ export function SearchableSelect({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-slate-900 border-white/10" align="start">
-                <Command className="bg-transparent text-slate-300">
-                    <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} className="border-none focus:ring-0 text-slate-300" />
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-popover border-border" align="start">
+                <Command className="bg-transparent text-popover-foreground">
+                    <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} className="border-none focus:ring-0" />
                     <CommandList>
-                        <CommandEmpty className="py-6 text-center text-sm text-slate-400">{emptyMessage}</CommandEmpty>
+                        <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">{emptyMessage}</CommandEmpty>
                         <CommandGroup>
                             {options.map((option) => (
                                 <CommandItem
@@ -74,7 +74,7 @@ export function SearchableSelect({
                                         onValueChange(option.value)
                                         setOpen(false)
                                     }}
-                                    className="text-slate-300 aria-selected:bg-white/10 aria-selected:text-white cursor-pointer"
+                                    className="text-popover-foreground aria-selected:bg-accent aria-selected:text-accent-foreground cursor-pointer"
                                 >
                                     <Check
                                         className={cn(

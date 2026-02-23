@@ -329,7 +329,7 @@ export default function TaskDetailPage() {
                 </CardHeader>
                 <CardContent className="pt-6 relative">
                   {/* Vertical Connector Line */}
-                  <div className="absolute left-[31px] top-6 bottom-6 w-0.5 bg-slate-800 -z-0"></div>
+                  <div className="absolute left-[31px] top-6 bottom-6 w-0.5 bg-slate-200 dark:bg-slate-800 -z-0"></div>
 
                   <div className="space-y-6 relative z-10">
                     {task.assignees.map((assignee, index) => {
@@ -343,7 +343,7 @@ export default function TaskDetailPage() {
                             w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-md shrink-0
                             ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' :
                               isCurrent ? 'bg-blue-600 border-blue-400 text-white ring-4 ring-blue-500/20' :
-                                'bg-slate-900 border-slate-700 text-slate-500'}
+                                'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}
                           `}>
                             {isCompleted ? <Check className="w-4 h-4" /> :
                               isCurrent ? <Clock className="w-4 h-4 animate-pulse" /> :

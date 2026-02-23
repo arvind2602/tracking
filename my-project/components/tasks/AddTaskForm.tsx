@@ -254,35 +254,39 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
 
       {/* Task Type Selector - Only visible when multiple assignees */}
       {selectedAssignees.length > 1 && (
-        <div className="space-y-2 bg-slate-800/50 p-3 rounded-lg border border-slate-700">
-          <label className="text-sm font-medium leading-none text-blue-400">Task Mode</label>
+        <div className="space-y-2 bg-slate-100 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+          <label className="text-sm font-medium leading-none text-blue-600 dark:text-blue-400">Task Mode</label>
           <div className="flex gap-4">
             <div
               className={cn(
                 "flex-1 p-3 rounded-md border cursor-pointer transition-all",
-                form.type === 'SHARED' ? "bg-blue-500/20 border-blue-500 text-blue-100" : "bg-transparent border-slate-700 text-slate-400 hover:bg-slate-800"
+                form.type === 'SHARED'
+                  ? "bg-blue-500/10 dark:bg-blue-500/20 border-blue-500 text-blue-900 dark:text-blue-100"
+                  : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
               )}
               onClick={() => setForm({ ...form, type: 'SHARED' })}
             >
               <div className="font-bold flex items-center gap-2 mb-1">
-                <div className="w-3 h-3 rounded-full bg-blue-400" />
+                <div className="w-3 h-3 rounded-full bg-blue-500 dark:bg-blue-400" />
                 Shared
               </div>
-              <p className="text-xs opacity-80">Task is shared with everyone. Points divided equally.</p>
+              <p className="text-xs opacity-80 text-foreground">Task is shared with everyone. Points divided equally.</p>
             </div>
 
             <div
               className={cn(
                 "flex-1 p-3 rounded-md border cursor-pointer transition-all",
-                form.type === 'SEQUENTIAL' ? "bg-purple-500/20 border-purple-500 text-purple-100" : "bg-transparent border-slate-700 text-slate-400 hover:bg-slate-800"
+                form.type === 'SEQUENTIAL'
+                  ? "bg-purple-500/10 dark:bg-purple-500/20 border-purple-500 text-purple-900 dark:text-purple-100"
+                  : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
               )}
               onClick={() => setForm({ ...form, type: 'SEQUENTIAL' })}
             >
               <div className="font-bold flex items-center gap-2 mb-1">
-                <div className="w-3 h-3 rounded-full bg-purple-400" />
+                <div className="w-3 h-3 rounded-full bg-purple-500 dark:bg-purple-400" />
                 Sequential
               </div>
-              <p className="text-xs opacity-80">Task moves from one user to next upon completion.</p>
+              <p className="text-xs opacity-80 text-foreground">Task moves from one user to next upon completion.</p>
             </div>
           </div>
         </div>
