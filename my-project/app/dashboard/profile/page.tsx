@@ -667,7 +667,7 @@ export default function ProfilePage() {
                                                                     handleAddSkill(newSkill);
                                                                 }}
                                                             >
-                                                                <Plus className="w-3 h-3 mr-2" /> Create "{newSkill}"
+                                                                <Plus className="w-3 h-3 mr-2" /> Create &quot;{newSkill}&quot;
                                                             </CommandItem>
                                                         </CommandGroup>
                                                     )}

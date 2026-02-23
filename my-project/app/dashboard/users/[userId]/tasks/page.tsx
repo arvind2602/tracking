@@ -66,7 +66,7 @@ export default function UserTasksPage() {
     <div className="font-mono">
       <Breadcrumbs items={breadcrumbItems} />
       <div className="flex justify-between items-center mb-8 mt-4">
-        <h1 className="text-4xl font-bold text-white">{userName}'s Tasks</h1>
+        <h1 className="text-4xl font-bold text-white">{userName}&apos;s Tasks</h1>
       </div>
 
       {/*  Create a list of the tasks */}

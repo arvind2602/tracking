@@ -20,7 +20,7 @@ interface BannerEvent {
     id: string;
     type: 'birthday' | 'anniversary' | 'top-performer' | 'worst-performer' | 'suspicious' | 'no-tasks';
     message: React.ReactNode;
-    icon: any;
+    icon: React.ElementType;
     colorClass: string;
 }
 

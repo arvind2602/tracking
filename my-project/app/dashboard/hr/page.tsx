@@ -64,6 +64,13 @@ interface Employee {
   role: string;
 }
 
+interface PerformanceStats {
+  totalDocuments: number;
+  generatedCount: number;
+  sentCount: number;
+  signedCount: number;
+}
+
 export default function HRDashboard() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -91,7 +98,7 @@ export default function HRDashboard() {
   const [employeeSearch, setEmployeeSearch] = useState('');
 
   // Statistics State
-  const [statistics, setStatistics] = useState<any>(null);
+  const [statistics, setStatistics] = useState<PerformanceStats | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -695,7 +702,7 @@ export default function HRDashboard() {
                     <div className="flex items-center gap-4">
                       <AlertCircle className="w-8 h-8 text-amber-500 opacity-50" />
                       <p className="text-sm text-amber-200/80 leading-relaxed">
-                        Automated document issuance triggers are currently controlled by the organization's global policy settings.
+                        Automated document issuance triggers are currently controlled by the organization&apos;s global policy settings.
                       </p>
                     </div>
                     <Button className="w-full rounded-xl bg-amber-500 text-amber-950 hover:bg-amber-400 font-bold">Manage Policy</Button>

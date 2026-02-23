@@ -309,7 +309,7 @@ export default function Users() {
         useCORS: true,
         scale: 2,
         backgroundColor: null,
-      } as any);
+      } as unknown as NonNullable<Parameters<typeof html2canvas>[1]>);
 
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
       if (blob && zipRef.current) {
@@ -396,7 +396,7 @@ export default function Users() {
               <>
                 <SearchableSelect
                   value={roleFilter}
-                  onValueChange={setRoleFilter}
+                  onValueChange={(val: string) => setRoleFilter(val)}
                   options={[
                     { value: "all", label: "All Roles" },
                     { value: "USER", label: "USER" },
@@ -408,10 +408,10 @@ export default function Users() {
 
                 <SearchableSelect
                   value={positionFilter}
-                  onValueChange={setPositionFilter}
+                  onValueChange={(val: string) => setPositionFilter(val)}
                   options={[
                     { value: "all", label: "All Positions" },
-                    ...[...new Set(usersList.map((user) => user.position).filter(Boolean))].map((pos: any) => ({
+                    ...[...new Set(usersList.map((user) => user.position).filter(Boolean))].map((pos: string) => ({
                       value: pos,
                       label: pos,
                     })),
@@ -715,7 +715,7 @@ export default function Users() {
               />
               <SearchableSelect
                 value={form.role}
-                onValueChange={(val: any) => setForm({ ...form, role: val })}
+                onValueChange={(val: string) => setForm({ ...form, role: val as "USER" | "ADMIN" })}
                 options={[
                   { value: "USER", label: "Standard User" },
                   { value: "ADMIN", label: "Administrator" },

@@ -9,8 +9,13 @@ async function getTaskPoints() {
   return res.data;
 }
 
+interface ProjectData {
+  name: string;
+  [employee: string]: string | number;
+}
+
 interface TaskPointsData {
-  data: any[];
+  data: ProjectData[];
   employees: string[];
 }
 
@@ -51,7 +56,7 @@ export function TaskPoints({ employeeName }: TaskPointsProps) {
   let maxPoints = 0;
   projects.forEach(project => {
     employees.forEach(emp => {
-      const points = project[emp] || 0;
+      const points = Number(project[emp]) || 0;
       if (points > maxPoints) maxPoints = points;
     });
   });
@@ -122,7 +127,7 @@ export function TaskPoints({ employeeName }: TaskPointsProps) {
                       </div>
                     </td>
                     {projects.map((project) => {
-                      const points = project[employee] || 0;
+                      const points = Number(project[employee]) || 0;
                       return (
                         <td
                           key={`${employee}-${project.name}`}

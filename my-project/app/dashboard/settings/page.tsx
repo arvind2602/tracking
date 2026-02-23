@@ -29,7 +29,7 @@ export default function OrganizationSettings() {
         const token = localStorage.getItem('token');
         if (token) {
             try {
-                const decoded: any = jwtDecode(token);
+                const decoded = jwtDecode<{ user: { role: string } }>(token);
                 if (decoded.user.role !== 'ADMIN') {
                     router.push('/dashboard');
                     return;

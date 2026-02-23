@@ -29,7 +29,7 @@ export default function Home() {
 
       try {
         // Decode the JWT token to check expiration
-        const decoded: any = jwtDecode(token);
+        const decoded = jwtDecode<{ exp?: number }>(token);
         const currentTime = Date.now() / 1000; // Convert to seconds
 
         // Check if token is expired
@@ -59,7 +59,6 @@ export default function Home() {
       const response = await axios.post('/auth/login', {
         email,
         password,
-        datetime: new Date().toISOString(),
       });
       localStorage.setItem('token', response.data.token);
       router.push('/dashboard/tasks');

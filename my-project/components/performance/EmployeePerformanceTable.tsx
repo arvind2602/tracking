@@ -18,7 +18,7 @@ async function getEmployeePerformanceData() {
     const mergedData = new Map();
 
     // Add completion rate data
-    completionData.data.forEach((emp: any) => {
+    completionData.data.forEach((emp: { id: string; name: string; completionRate: number | string }) => {
         mergedData.set(emp.name, {
             id: emp.id,
             name: emp.name,
@@ -29,14 +29,14 @@ async function getEmployeePerformanceData() {
     });
 
     // Add leaderboard points
-    leaderboardData.data.forEach((emp: any) => {
+    leaderboardData.data.forEach((emp: { name: string; totalPoints: number }) => {
         const existing = mergedData.get(emp.name) || { id: emp.name, name: emp.name, completionRate: 0, taskCount: 0 };
         existing.totalPoints = emp.totalPoints;
         mergedData.set(emp.name, existing);
     });
 
     // Add task count data
-    tasksData.data.forEach((emp: any) => {
+    tasksData.data.forEach((emp: { name: string; taskCount: number; totalPoints: number }) => {
         const existing = mergedData.get(emp.name) || { id: emp.name, name: emp.name, completionRate: 0, totalPoints: 0 };
         existing.taskCount = emp.taskCount;
         existing.totalPoints = emp.totalPoints; // Use this as primary source for total points

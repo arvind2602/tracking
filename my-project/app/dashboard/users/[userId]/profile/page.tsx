@@ -101,7 +101,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                 useCORS: true,
                 scale: 2,
                 backgroundColor: null,
-            } as any);
+            } as unknown as NonNullable<Parameters<typeof html2canvas>[1]>);
 
             const link = document.createElement("a");
             link.download = `${profile?.firstName || "user"}_${profile?.lastName || "id_card"}.png`;

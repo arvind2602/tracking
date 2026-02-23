@@ -13,7 +13,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, useEffect, useRef } from "react";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
-import { User, Project } from "@/lib/types";
+import { Task, User, Project } from "@/lib/types";
 import { Command, CommandGroup, CommandItem, CommandList, CommandInput, CommandEmpty } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { X, Check, Loader } from "lucide-react";
@@ -25,7 +25,7 @@ interface AddTaskFormProps {
   onTaskAdded: () => void;
   onClose: () => void;
   parentId?: string;
-  parentTask?: any;
+  parentTask?: Task | null;
   currentUserId?: string | null;
 }
 
@@ -127,7 +127,7 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
     setIsLoading(true);
     const toastId = toast.loading(parentTask ? "Adding subtask..." : "Adding task...");
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         ...form,
         points: Number(form.points),
         assignees: selectedAssignees
@@ -170,8 +170,8 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
           <label className="text-sm font-medium leading-none">Priority</label>
           <SearchableSelect
             value={form.priority}
-            onValueChange={(val: any) =>
-              setForm({ ...form, priority: val })
+            onValueChange={(val: string) =>
+              setForm({ ...form, priority: val as "LOW" | "MEDIUM" | "HIGH" })
             }
             options={[
               { value: "LOW", label: "Low" },

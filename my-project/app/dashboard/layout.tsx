@@ -27,7 +27,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [orgSettings, setOrgSettings] = useState<{ name?: string, logo?: string } | null>(null);
+  const [orgSettings, setOrgSettings] = useState<{ name: string, logo: string | null, showBanner: boolean } | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isHRUser, setIsHRUser] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);

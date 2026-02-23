@@ -120,7 +120,7 @@ export default function TaskDetailPage() {
     { label: task.title, href: `/dashboard/tasks/${taskId}` },
   ];
 
-  const statusColors: any = {
+  const statusColors: Record<string, string> = {
     'TODO': 'bg-slate-500',
     'IN_PROGRESS': 'bg-blue-500',
     'DONE': 'bg-green-500',

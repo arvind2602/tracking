@@ -1,0 +1,46 @@
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\hr\page.tsx
+  705:106  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\profile\page.tsx
+  670:106  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  670:117  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\settings\page.tsx
+  32:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\tasks\[taskId]\page.tsx
+  123:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\users\[userId]\profile\page.tsx
+  104:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\users\[userId]\tasks\page.tsx
+  69:65  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\users\page.tsx
+  312:12   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  414:103  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  718:38   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\page.tsx
+  32:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\AuthGuard.tsx
+  26:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\performance\EmployeePerformanceTable.tsx
+  21:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  32:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  39:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\reports\TaskPoints.tsx
+  13:9  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\tasks\AddTaskForm.tsx
+   28:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 19 problems (19 errors, 0 warnings)
+

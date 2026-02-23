@@ -287,7 +287,7 @@ export default function Tasks() {
         {userRole === 'ADMIN' && (
           <SearchableSelect
             value={statusFilter}
-            onValueChange={setStatusFilter}
+            onValueChange={(val: string) => setStatusFilter(val)}
             options={[
               { value: "all", label: "All Statuses" },
               { value: "pending", label: "Pending" },
@@ -302,7 +302,7 @@ export default function Tasks() {
         {userRole === 'ADMIN' && (
           <SearchableSelect
             value={projectFilter}
-            onValueChange={setProjectFilter}
+            onValueChange={(val: string) => setProjectFilter(val)}
             options={[
               { value: "all", label: "All Projects" },
               ...projects.map(p => ({ value: p.id, label: p.name }))
@@ -314,7 +314,7 @@ export default function Tasks() {
         {userRole === 'ADMIN' && (
           <SearchableSelect
             value={userFilter}
-            onValueChange={setUserFilter}
+            onValueChange={(val: string) => setUserFilter(val)}
             options={[
               { value: "all", label: "All Users" },
               ...users.map(u => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }))
@@ -325,7 +325,7 @@ export default function Tasks() {
         )}
         <SearchableSelect
           value={dateFilter}
-          onValueChange={setDateFilter}
+          onValueChange={(val: string) => setDateFilter(val)}
           options={[
             { value: "all", label: "All Dates" },
             { value: "today", label: "Today" },

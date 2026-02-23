@@ -23,7 +23,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     }
 
     try {
-      const payload: any = jwtDecode(token);
+      const payload = jwtDecode<{ user: { role: string } }>(token);
       const userRole = payload.user.role;
 
       if (userRole === 'USER') {
