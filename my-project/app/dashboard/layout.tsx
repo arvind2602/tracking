@@ -27,7 +27,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [orgSettings, setOrgSettings] = useState<any>(null);
+  const [orgSettings, setOrgSettings] = useState<{ name?: string, logo?: string } | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isHRUser, setIsHRUser] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +38,7 @@ export default function DashboardLayout({
     if (token) {
       try {
         const payload: DecodedToken = jwtDecode(token);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUserRole(payload.user.role);
         setIsHRUser(payload.user.is_hr || false);
       } catch (error) {

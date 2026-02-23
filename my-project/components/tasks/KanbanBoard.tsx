@@ -60,6 +60,7 @@ export function KanbanBoard({ tasks, users, onTaskUpdate }: KanbanBoardProps) {
             'in-progress': tasks.filter((t) => t.status === 'in-progress'),
             completed: tasks.filter((t) => t.status === 'completed'),
         };
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setItems(newItems);
     }, [tasks]);
 

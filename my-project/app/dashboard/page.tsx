@@ -44,6 +44,7 @@ export default function DashboardPage() {
     if (token) {
       try {
         const payload: DecodedToken = jwtDecode(token);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUserName(payload.user.firstName);
       } catch (error) {
         console.error('Invalid token', error);
@@ -79,7 +80,7 @@ export default function DashboardPage() {
 
   // Calculate ToDo count safely
   const tasksTodo = Array.isArray(data?.tasksByStatus)
-    ? data.tasksByStatus.find((t: any) => t.status === 'TODO')?._count?.status || 0
+    ? data.tasksByStatus.find((t: { status: string; _count?: { status?: number } }) => t.status === 'TODO')?._count?.status || 0
     : 0;
 
   return (
@@ -92,7 +93,7 @@ export default function DashboardPage() {
           </h1>
           <p className="text-muted-foreground mt-1 font-medium text-sm flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-            Here is your organization's performance overview.
+            Here is your organization&apos;s performance overview.
           </p>
         </div>
         <Button
@@ -115,8 +116,8 @@ export default function DashboardPage() {
       {/* Key Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[
-          <EmployeeCountPerOrg />,
-          <ActiveVsArchivedEmployees />
+          <EmployeeCountPerOrg key="count" />,
+          <ActiveVsArchivedEmployees key="archived" />
         ].map((child, idx) => (
           <div key={idx} className={cn(
             "bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300 group"
