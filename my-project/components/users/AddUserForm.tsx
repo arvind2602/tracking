@@ -91,7 +91,7 @@ export function AddUserForm({ organizationId, onUserAdded, onClose }: AddUserFor
           <label className="text-sm font-medium leading-none">Role</label>
           <SearchableSelect
             value={form.role}
-            onValueChange={(val: any) => setForm({ ...form, role: val })}
+            onValueChange={(val: string) => setForm({ ...form, role: val as "USER" | "ADMIN" })}
             options={[
               { value: "USER", label: "User" },
               { value: "ADMIN", label: "Admin" },

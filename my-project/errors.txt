@@ -1,0 +1,77 @@
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\hr\page.tsx:94:48 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\hr\page.tsx:698:106 `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\layout.tsx:30:50 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\layout.tsx:41:9 Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\layout.tsx:41:9
+  39 |       try {
+  40 |         const payload: DecodedToken = jwtDecode(token);
+> 41 |         setUserRole(payload.user.role);
+     |         ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  42 |         setIsHRUser(payload.user.is_hr || false);
+  43 |       } catch (error) {
+  44 |         console.error('Invalid token', error);
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\page.tsx:47:9 Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\page.tsx:47:9
+  45 |       try {
+  46 |         const payload: DecodedToken = jwtDecode(token);
+> 47 |         setUserName(payload.user.firstName);
+     |         ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  48 |       } catch (error) {
+  49 |         console.error('Invalid token', error);
+  50 |       }
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\page.tsx:82:35 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\page.tsx:95:38 `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\page.tsx:118:11 Missing "key" prop for element in array
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\page.tsx:119:11 Missing "key" prop for element in array
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\profile\page.tsx:670:106 `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\profile\page.tsx:670:117 `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\settings\page.tsx:32:32 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\tasks\[taskId]\page.tsx:123:23 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\users\[userId]\profile\page.tsx:104:18 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\users\[userId]\tasks\page.tsx:69:65 `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\users\page.tsx:312:12 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\users\page.tsx:414:103 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\dashboard\users\page.tsx:718:38 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\app\page.tsx:32:24 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\AuthGuard.tsx:26:22 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\BirthdayBanner.tsx:23:11 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\performance\EmployeePerformanceTable.tsx:21:39 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\performance\EmployeePerformanceTable.tsx:32:40 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\performance\EmployeePerformanceTable.tsx:39:34 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\reports\TaskPoints.tsx:13:9 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\tasks\AddTaskForm.tsx:28:16 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\tasks\AddTaskForm.tsx:130:22 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\tasks\AddTaskForm.tsx:173:34 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\tasks\KanbanBoard.tsx:63:9 Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\tasks\KanbanBoard.tsx:63:9
+  61 |             completed: tasks.filter((t) => t.status === 'completed'),
+  62 |         };
+> 63 |         setItems(newItems);
+     |         ^^^^^^^^ Avoid calling setState() directly within an effect
+  64 |     }, [tasks]);
+  65 |
+  66 |     const sensors = useSensors(
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\users\AddUserForm.tsx:94:34 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\withAuth.tsx:6:45 Unexpected any. Specify a different type.
+C:\Users\VIGHNOTECH\Desktop\employee\my-project\components\withAuth.tsx:7:49 Unexpected any. Specify a different type.

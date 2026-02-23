@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function withAuth(Component: any) {
-  return function AuthenticatedComponent(props: any) {
+export default function withAuth<P extends object>(Component: React.ComponentType<P>) {
+  return function AuthenticatedComponent(props: P) {
     const router = useRouter();
 
     useEffect(() => {
