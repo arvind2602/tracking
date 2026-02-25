@@ -21,6 +21,12 @@ class AuthenticationError extends BaseError {
   }
 }
 
+class UnauthorizedError extends BaseError {
+  constructor(message = 'Unauthorized', details = null) {
+    super(message, 401, 'UNAUTHORIZED', details);
+  }
+}
+
 class AuthorizationError extends BaseError {
   constructor(message = 'Authorization Failed', details = null) {
     super(message, 403, 'AUTHORIZATION_FAILED', details);
@@ -49,6 +55,7 @@ module.exports = {
   BaseError,
   BadRequestError,
   AuthenticationError,
+  UnauthorizedError,
   AuthorizationError,
   NotFoundError,
   ConflictError,

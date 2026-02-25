@@ -279,7 +279,7 @@ const forgetPassword = async (req, res, next) => {
         if (result.rowCount === 0) return res.json({ message: 'If email exists, reset link sent' });
 
         const user = result.rows[0];
-        jwt.sign({ id: user.id }, jwtConfig.secret, { expiresIn: '15m' });
+        jwt.sign({ id: user.id }, jwtConfig.secret);
         // TODO: Send email with resetToken
         res.json({ message: 'Reset link sent' });
     } catch (error) { next(error); }

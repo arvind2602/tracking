@@ -614,27 +614,51 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
           </div>
 
           {/* Right Column: Existing Comments */}
-          <div className="flex flex-col h-full bg-secondary/10 rounded-xl p-4 border border-border/50">
-            <label className="text-[11px] uppercase font-bold text-slate-500 tracking-wider mb-3 block flex items-center gap-2">
-              <Clock className="w-3 h-3" /> Previous Comments
-            </label>
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar min-h-[300px] max-h-[400px]">
+          <div className="flex flex-col bg-secondary/20 rounded-2xl border border-border/60 overflow-hidden min-h-[400px]">
+            <div className="px-5 py-3 border-b border-border/40 bg-secondary/30 flex items-center justify-between">
+              <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5" /> Previous Comments
+              </span>
+              {taskComments.length > 0 && (
+                <span className="text-[10px] bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full font-bold">
+                  {taskComments.length}
+                </span>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar max-h-[500px]">
               {isLoadingComments ? (
-                <div className="flex justify-center p-4"><Loader className="animate-spin h-5 w-5 text-slate-500" /></div>
+                <div className="flex flex-col items-center justify-center h-[300px] gap-3">
+                  <Loader className="animate-spin h-6 w-6 text-accent" />
+                  <p className="text-xs text-muted-foreground animate-pulse">Loading comments...</p>
+                </div>
               ) : taskComments.length > 0 ? (
-                taskComments.map((c, i) => (
-                  <div key={i} className="bg-secondary/60 p-3 rounded-lg text-xs border border-border/30 shadow-sm">
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="font-bold text-blue-600 dark:text-blue-400">{c.userName}</span>
-                      <span className="text-[10px] text-slate-500">{formatDateTimeIST(c.createdAt)}</span>
+                <div className="flex flex-col gap-4">
+                  {taskComments.map((c, i) => (
+                    <div key={i} className="flex flex-col gap-1.5 group">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                          {c.userName && c.userName.trim() ? c.userName : 'Team Member'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatDateTimeIST(c.createdAt)}
+                        </span>
+                      </div>
+                      <div className="bg-card p-3 rounded-2xl rounded-tl-none border border-border/50 text-sm text-foreground shadow-sm leading-relaxed transition-all group-hover:bg-accent/5">
+                        {c.content}
+                      </div>
                     </div>
-                    <p className="text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{c.content}</p>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-2 opacity-60">
-                  <div className="p-3 bg-secondary/50 rounded-full"><MessageCircle className="w-6 h-6" /></div>
-                  <p className="text-xs italic">No comments found</p>
+                <div className="flex flex-col items-center justify-center h-[300px] text-slate-500 gap-3 opacity-60">
+                  <div className="p-4 bg-secondary/50 rounded-full">
+                    <MessageCircle className="w-8 h-8" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold">No comments yet</p>
+                    <p className="text-[11px]">Conversation history will appear here</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -720,27 +744,51 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
           </div>
 
           {/* Right Column: Existing Comments */}
-          <div className="flex flex-col h-full bg-secondary/10 rounded-xl p-4 border border-border/50">
-            <label className="text-[11px] uppercase font-bold text-slate-500 tracking-wider mb-3 block flex items-center gap-2">
-              <Clock className="w-3 h-3" /> Previous Comments
-            </label>
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar min-h-[300px] max-h-[400px]">
+          <div className="flex flex-col bg-secondary/20 rounded-2xl border border-border/60 overflow-hidden min-h-[400px]">
+            <div className="px-5 py-3 border-b border-border/40 bg-secondary/30 flex items-center justify-between">
+              <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5" /> Previous Comments
+              </span>
+              {taskComments.length > 0 && (
+                <span className="text-[10px] bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full font-bold">
+                  {taskComments.length}
+                </span>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar max-h-[500px]">
               {isLoadingComments ? (
-                <div className="flex justify-center p-4"><Loader className="animate-spin h-5 w-5 text-slate-500" /></div>
+                <div className="flex flex-col items-center justify-center h-[300px] gap-3">
+                  <Loader className="animate-spin h-6 w-6 text-accent" />
+                  <p className="text-xs text-muted-foreground animate-pulse">Loading comments...</p>
+                </div>
               ) : taskComments.length > 0 ? (
-                taskComments.map((c, i) => (
-                  <div key={i} className="bg-secondary/60 p-3 rounded-lg text-xs border border-border/30 shadow-sm">
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="font-bold text-blue-600 dark:text-blue-400">{c.userName}</span>
-                      <span className="text-[10px] text-slate-500">{formatDateTimeIST(c.createdAt)}</span>
+                <div className="flex flex-col gap-4">
+                  {taskComments.map((c, i) => (
+                    <div key={i} className="flex flex-col gap-1.5 group">
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                          {c.userName && c.userName.trim() ? c.userName : 'Team Member'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatDateTimeIST(c.createdAt)}
+                        </span>
+                      </div>
+                      <div className="bg-card p-3 rounded-2xl rounded-tl-none border border-border/50 text-sm text-foreground shadow-sm leading-relaxed transition-all group-hover:bg-accent/5">
+                        {c.content}
+                      </div>
                     </div>
-                    <p className="text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{c.content}</p>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-2 opacity-60">
-                  <div className="p-3 bg-secondary/50 rounded-full"><MessageCircle className="w-6 h-6" /></div>
-                  <p className="text-xs italic">No comments found</p>
+                <div className="flex flex-col items-center justify-center h-[300px] text-slate-500 gap-3 opacity-60">
+                  <div className="p-4 bg-secondary/50 rounded-full">
+                    <MessageCircle className="w-8 h-8" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold">No comments yet</p>
+                    <p className="text-[11px]">Conversation history will appear here</p>
+                  </div>
                 </div>
               )}
             </div>

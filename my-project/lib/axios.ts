@@ -23,7 +23,18 @@ instance.interceptors.request.use((config) => {
 /** Global response error handling — rejects with the original error. */
 instance.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error)
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        // Avoid redirecting if already on the login page to prevent loops
+        if (window.location.pathname !== '/') {
+          window.location.href = '/';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
 );
 
 export default instance;
