@@ -3,7 +3,7 @@
 import { useGetPinnedNotes, useUnpinNote } from '@/hooks/useNotes';
 import { Pin, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
 interface UserPayload {
@@ -15,19 +15,21 @@ interface UserPayload {
 export function PinnedNotesBanner() {
     const { data: pinnedNotes, isLoading } = useGetPinnedNotes();
     const unpinNote = useUnpinNote();
-    const [isAdmin, setIsAdmin] = useState(false);
-
+    const [token, setToken] = useState<string | null>(null);
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            try {
-                const decoded = jwtDecode<UserPayload>(token);
-                setIsAdmin(decoded.user?.role === 'ADMIN');
-            } catch (e) {
-                console.error("Failed to decode token", e);
-            }
-        }
+        setToken(localStorage.getItem('token'));
     }, []);
+
+    const isAdmin = useMemo(() => {
+        if (!token) return false;
+        try {
+            const decoded = jwtDecode<UserPayload>(token);
+            return decoded.user?.role === 'ADMIN';
+        } catch (e) {
+            console.error("Failed to decode token", e);
+            return false;
+        }
+    }, [token]);
 
     if (isLoading || !pinnedNotes || pinnedNotes.length === 0) return null;
 

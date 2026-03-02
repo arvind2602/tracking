@@ -1,5 +1,5 @@
-import { Note, NoteAttachment, NoteType } from '@/lib/types';
-import { useState, useEffect, useRef } from 'react';
+import { Note, NoteAttachment, NoteType, Project, User } from '@/lib/types';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useCreateNote, useUpdateNote, usePinNote } from '@/hooks/useNotes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Paperclip, Loader2, X, Tag, ChevronDown, Check, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import axios from '@/lib/axios';
+import axiosInstance from '@/lib/axios';
+import axios from 'axios';
 import { cn } from '@/lib/utils';
 import { jwtDecode } from 'jwt-decode';
 import toast from 'react-hot-toast';
@@ -36,8 +37,8 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
     const [projectId, setProjectId] = useState<string>(noteToEdit?.projectId || '');
 
     // Remote data
-    const [projects, setProjects] = useState<any[]>([]);
-    const [employees, setEmployees] = useState<any[]>([]);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [employees, setEmployees] = useState<User[]>([]);
     const [employeeSearch, setEmployeeSearch] = useState('');
     const filteredEmployees = employees.filter(emp =>
         (`${emp.firstName} ${emp.lastName} ${emp.email}`).toLowerCase().includes(employeeSearch.toLowerCase())
@@ -56,28 +57,30 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
     const [pinDurationValue, setPinDurationValue] = useState('1');
     const [pinDurationUnit, setPinDurationUnit] = useState('forever');
 
-    const [isAdmin, setIsAdmin] = useState(false);
-
+    const [token, setToken] = useState<string | null>(null);
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            try {
-                const decoded = jwtDecode<UserPayload>(token);
-                setIsAdmin(decoded.user?.role === 'ADMIN');
-            } catch (e) {
-                console.error("Failed to decode token", e);
-            }
-        }
+        setToken(localStorage.getItem('token'));
     }, []);
+
+    const isAdmin = useMemo(() => {
+        if (!token) return false;
+        try {
+            const decoded = jwtDecode<UserPayload>(token);
+            return decoded.user?.role === 'ADMIN';
+        } catch (e) {
+            console.error("Failed to decode token", e);
+            return false;
+        }
+    }, [token]);
 
     useEffect(() => {
         if (type === 'PROJECT') {
-            axios.get('/projects').then(res => setProjects(res.data));
+            axiosInstance.get<Project[]>('/projects').then(res => setProjects(res.data));
         }
     }, [type]);
 
     useEffect(() => {
-        axios.get('/auth/organization').then(res => setEmployees(res.data));
+        axiosInstance.get<User[]>('/auth/organization').then(res => setEmployees(res.data));
     }, []);
 
     // Add a new point
@@ -136,14 +139,14 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
                 formData.append('files', file);
             });
 
-            const { data } = await axios.post('/notes/upload', formData, {
+            const { data } = await axiosInstance.post('/notes/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setAttachments((prev) => [...prev, ...data]);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Failed to upload files', error);
-            if (error.response?.data?.message) {
-                toast.error(error.response.data.message);
+            if (axios.isAxiosError(error) && error.response?.data?.message) {
+                toast.error(`${error.response.data.message}`);
             } else if (error instanceof Error) {
                 toast.error(error.message);
             } else {
@@ -193,8 +196,8 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
         if (noteToEdit) {
             updateNote.mutate({ id: noteToEdit.id, payload }, { onSuccess: onClose });
         } else {
-            createNote.mutate(payload as any, {
-                onSuccess: (data: any) => {
+            createNote.mutate(payload, {
+                onSuccess: (data: Note) => {
                     if (isPinned && data?.id) {
                         pinNote.mutate(
                             { id: data.id, duration: { value: Number(pinDurationValue), unit: pinDurationUnit } },
@@ -393,7 +396,7 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
                     {tags.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                             {tags.map(id => {
-                                const emp = employees.find((e: any) => e.id === id);
+                                const emp = employees.find((e: User) => e.id === id);
                                 if (!emp) return null;
                                 return (
                                     <Badge key={id} variant="secondary" className="text-xs h-7 px-2.5 bg-purple-500/10 text-purple-600 border border-purple-500/20 pr-1.5 flex items-center gap-1.5">

@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Badge } from '@/components/ui/badge';
 import { useDeleteNote, useUnpinNote } from '@/hooks/useNotes';
 import { jwtDecode } from 'jwt-decode';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 interface Props {
     note: Note;
@@ -30,21 +30,24 @@ const typeColors = {
 export function NoteCard({ note, onEdit, onPin }: Props) {
     const deleteNote = useDeleteNote();
     const unpinNote = useUnpinNote();
-    const [userId, setUserId] = useState<string | null>(null);
-    const [isAdmin, setIsAdmin] = useState(false);
-
+    const [token, setToken] = useState<string | null>(null);
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            try {
-                const decoded = jwtDecode<UserPayload>(token);
-                setUserId(decoded.user?.uuid || null);
-                setIsAdmin(decoded.user?.role === 'ADMIN');
-            } catch (e) {
-                console.error("Failed to decode token", e);
-            }
-        }
+        setToken(localStorage.getItem('token'));
     }, []);
+
+    const { userId, isAdmin } = useMemo(() => {
+        if (!token) return { userId: null, isAdmin: false };
+        try {
+            const decoded = jwtDecode<UserPayload>(token);
+            return {
+                userId: decoded.user?.uuid || null,
+                isAdmin: decoded.user?.role === 'ADMIN'
+            };
+        } catch (e) {
+            console.error("Failed to decode token", e);
+            return { userId: null, isAdmin: false };
+        }
+    }, [token]);
 
     const isOwner = userId === note.authorId;
     const canModify = isOwner || isAdmin;
