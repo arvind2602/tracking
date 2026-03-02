@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Pin, Clock, Calendar } from 'lucide-react';
+import { Pin, Clock } from 'lucide-react';
 
 interface Props {
     noteId: string | null;

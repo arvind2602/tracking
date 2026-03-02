@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
-import { Trash2, ArrowRight, Plus, Trophy, User, Download, GripVertical, List, BarChart3, Pencil, Pause, Play } from 'lucide-react';
+import { Trash2, ArrowRight, Plus, Download, GripVertical, List, BarChart3, Pencil, Pause } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { jwtDecode } from 'jwt-decode';
 import { cn } from '@/lib/utils';
@@ -69,7 +69,6 @@ const ProjectsPage = () => {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newProjectStartDate, setNewProjectStartDate] = useState('');
-  const [newProjectEndDate, setNewProjectEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'priority'>('overview');
@@ -78,6 +77,23 @@ const ProjectsPage = () => {
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [newProjectHeadId, setNewProjectHeadId] = useState<string>('');
+
+  const fetchProjects = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+
+      const response = await axios.get(`/projects?${params.toString()}`);
+      setProjects(response.data);
+    } catch (err) {
+      console.error("Failed to fetch projects", err);
+      toast.error('Failed to fetch projects');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sortBy, sortOrder]);
 
   useEffect(() => {
     fetchEmployees();
@@ -94,7 +110,7 @@ const ProjectsPage = () => {
 
   useEffect(() => {
     fetchProjects();
-  }, [sortBy, sortOrder]);
+  }, [fetchProjects]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -117,22 +133,6 @@ const ProjectsPage = () => {
     }
     setFilteredProjects(filtered);
   }, [projects, searchQuery]);
-
-  const fetchProjects = async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (sortBy) params.append('sortBy', sortBy);
-      if (sortOrder) params.append('sortOrder', sortOrder);
-
-      const response = await axios.get(`/projects?${params.toString()}`);
-      setProjects(response.data);
-    } catch (error) {
-      toast.error('Failed to fetch projects');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleSaveProject = async () => {
     if (newProjectName.trim() !== '' && newProjectStartDate.trim() !== '') {
@@ -180,7 +180,8 @@ const ProjectsPage = () => {
         }
 
         closeModal();
-      } catch (error) {
+      } catch (err) {
+        console.error("Failed to update project", err);
         toast.error(editingProject ? 'Failed to update project' : 'Failed to add project', { id: toastId });
       }
     }
@@ -226,7 +227,8 @@ const ProjectsPage = () => {
       await axios.delete(`/projects/${projectToDelete}`);
       setProjects(projects.filter(p => p.id !== projectToDelete));
       toast.success('Project deleted successfully', { id: toastId });
-    } catch (error) {
+    } catch (err) {
+      console.error("Failed to delete project", err);
       toast.error('Failed to delete project', { id: toastId });
     } finally {
       setProjectToDelete(null);
@@ -280,7 +282,8 @@ const ProjectsPage = () => {
       await axios.put('/projects/priority/update', { projectPriorities });
       toast.success('Priority order saved successfully', { id: toastId });
       fetchProjects(); // Refresh to get updated data
-    } catch (error) {
+    } catch (err) {
+      console.error("Failed to save priority", err);
       toast.error('Failed to save priority order', { id: toastId });
     }
   };

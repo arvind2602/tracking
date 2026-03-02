@@ -23,7 +23,16 @@ interface CreateNotePayload {
     }[];
 }
 
-interface UpdateNotePayload extends Partial<CreateNotePayload> { }
+type UpdateNotePayload = Partial<CreateNotePayload>;
+
+interface ApiError {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+    message?: string;
+}
 
 // Get Notes (List)
 export const useGetNotes = (params?: GetNotesParams) => {
@@ -77,7 +86,7 @@ export const useCreateNote = () => {
             toast.success('Note created successfully');
             queryClient.invalidateQueries({ queryKey: ['notes'] });
         },
-        onError: (error: any) => {
+        onError: (error: ApiError) => {
             toast.error(error.response?.data?.message || 'Failed to create note');
         },
     });
@@ -98,7 +107,7 @@ export const useUpdateNote = () => {
             queryClient.invalidateQueries({ queryKey: ['note', variables.id] });
             queryClient.invalidateQueries({ queryKey: ['pinnedNotes'] });
         },
-        onError: (error: any) => {
+        onError: (error: ApiError) => {
             toast.error(error.response?.data?.message || 'Failed to update note');
         },
     });
@@ -117,7 +126,7 @@ export const useDeleteNote = () => {
             queryClient.invalidateQueries({ queryKey: ['notes'] });
             queryClient.invalidateQueries({ queryKey: ['pinnedNotes'] });
         },
-        onError: (error: any) => {
+        onError: (error: ApiError) => {
             toast.error(error.response?.data?.message || 'Failed to delete note');
         },
     });
@@ -137,7 +146,7 @@ export const usePinNote = () => {
             queryClient.invalidateQueries({ queryKey: ['notes'] });
             queryClient.invalidateQueries({ queryKey: ['pinnedNotes'] });
         },
-        onError: (error: any) => {
+        onError: (error: ApiError) => {
             toast.error(error.response?.data?.message || 'Failed to pin note');
         },
     });
@@ -157,7 +166,7 @@ export const useUnpinNote = () => {
             queryClient.invalidateQueries({ queryKey: ['notes'] });
             queryClient.invalidateQueries({ queryKey: ['pinnedNotes'] });
         },
-        onError: (error: any) => {
+        onError: (error: ApiError) => {
             toast.error(error.response?.data?.message || 'Failed to unpin note');
         },
     });

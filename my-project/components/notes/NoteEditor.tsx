@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Paperclip, Loader2, X, Tag, ChevronDown, Check, Plus, GripVertical, Trash2 } from 'lucide-react';
+import { Paperclip, Loader2, X, Tag, ChevronDown, Check, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import axios from '@/lib/axios';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,12 @@ interface Props {
     noteToEdit?: Note | null;
     onClose: () => void;
     defaultType?: NoteType;
+}
+
+interface UserPayload {
+    user: {
+        role: string;
+    };
 }
 
 export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Props) {
@@ -34,7 +40,7 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
     const [employees, setEmployees] = useState<any[]>([]);
     const [employeeSearch, setEmployeeSearch] = useState('');
     const filteredEmployees = employees.filter(emp =>
-        (emp.firstName + ' ' + emp.lastName + ' ' + emp.email).toLowerCase().includes(employeeSearch.toLowerCase())
+        (`${emp.firstName} ${emp.lastName} ${emp.email}`).toLowerCase().includes(employeeSearch.toLowerCase())
     );
 
     // Tagging
@@ -56,9 +62,11 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
         const token = localStorage.getItem('token');
         if (token) {
             try {
-                const decoded: any = jwtDecode(token);
-                setIsAdmin(decoded?.user?.role === 'ADMIN');
-            } catch (e) { }
+                const decoded = jwtDecode<UserPayload>(token);
+                setIsAdmin(decoded.user?.role === 'ADMIN');
+            } catch (e) {
+                console.error("Failed to decode token", e);
+            }
         }
     }, []);
 
@@ -136,7 +144,7 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
             console.error('Failed to upload files', error);
             if (error.response?.data?.message) {
                 toast.error(error.response.data.message);
-            } else if (error.message) {
+            } else if (error instanceof Error) {
                 toast.error(error.message);
             } else {
                 toast.error("Failed to upload file. It might be too large.");
@@ -482,7 +490,7 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
                                         </div>
                                         <span className="truncate font-medium">{att.name}</span>
                                         <span className="text-xs text-muted-foreground shrink-0">
-                                            {(att.size / 1024).toFixed(1)} KB
+                                            {((att.size ?? 0) / 1024).toFixed(1)} KB
                                         </span>
                                     </div>
                                     <button

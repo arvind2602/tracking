@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
+interface UserPayload {
+    user: {
+        role: string;
+    };
+}
+
 export function PinnedNotesBanner() {
     const { data: pinnedNotes, isLoading } = useGetPinnedNotes();
     const unpinNote = useUnpinNote();
@@ -15,9 +21,11 @@ export function PinnedNotesBanner() {
         const token = localStorage.getItem('token');
         if (token) {
             try {
-                const decoded: any = jwtDecode(token);
-                setIsAdmin(decoded?.user?.role === 'ADMIN');
-            } catch (e) { }
+                const decoded = jwtDecode<UserPayload>(token);
+                setIsAdmin(decoded.user?.role === 'ADMIN');
+            } catch (e) {
+                console.error("Failed to decode token", e);
+            }
         }
     }, []);
 

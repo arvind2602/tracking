@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, ChevronLeft, ChevronRight, User, Settings, Users, NotebookPen } from 'lucide-react';
+import { Home, Code, GraduationCap, LogOut, Menu, X, Activity, ChevronLeft, ChevronRight, User, Settings, NotebookPen } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import axios from '@/lib/axios';
@@ -10,7 +10,6 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { PinnedNotesBanner } from "@/components/notes/PinnedNotesBanner";
 import { NotesPanel } from "@/components/notes/NotesPanel";
-import { Button } from "@/components/ui/button";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
 
 interface DecodedToken {
@@ -32,7 +31,7 @@ export default function DashboardLayout({
   const [isNotesPanelOpen, setIsNotesPanelOpen] = useState(false);
   const [orgSettings, setOrgSettings] = useState<{ name: string, logo: string | null, showBanner: boolean } | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [isHRUser, setIsHRUser] = useState<boolean>(false);
+  const [, setIsHRUser] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
 

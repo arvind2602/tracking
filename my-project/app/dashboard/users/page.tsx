@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
@@ -118,20 +118,37 @@ export default function Users() {
     };
   }, []);
 
-  useEffect(() => {
-    getUsers();
-    fetchAvailableSkills();
+  const getUsers = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+
+      const response = await axios.get(`/auth/organization?${params.toString()}`);
+      setUsersList(response.data);
+      setUserRole('ADMIN');
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      toast.error("Failed to fetch users.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [sortBy, sortOrder]);
 
   const fetchAvailableSkills = async () => {
     try {
-      // Fetch all skills (no search term to get all)
-      const response = await axios.get("/auth/skills?limit=100"); // Assuming backend handles limit or pagination if needed, or get all
+      const response = await axios.get("/auth/skills?limit=100");
       setAvailableSkills(response.data || []);
     } catch (error) {
       console.error("Failed to fetch skills:", error);
     }
   };
+
+  useEffect(() => {
+    getUsers();
+    fetchAvailableSkills();
+  }, [getUsers]);
 
   useEffect(() => {
     let filtered = usersList;
@@ -142,7 +159,6 @@ export default function Users() {
       filtered = filtered.filter((user) => user.position === positionFilter);
     }
 
-    // Filter by selected skills (AND logic: user must have ALL selected skills)
     if (selectedSkills.length > 0) {
       filtered = filtered.filter(user =>
         user.skills && selectedSkills.every(skill => user.skills!.includes(skill))
@@ -162,32 +178,10 @@ export default function Users() {
     setFilteredUsers(filtered);
   }, [usersList, roleFilter, positionFilter, searchQuery, selectedSkills]);
 
-  const getUsers = async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (sortBy) params.append('sortBy', sortBy);
-      if (sortOrder) params.append('sortOrder', sortOrder);
-
-      const response = await axios.get(`/auth/organization?${params.toString()}`);
-      setUsersList(response.data);
-      // Determine current user role from response or another endpoint if needed. 
-      // For now assuming the logged-in user is ADMIN if they can see this page or based on context. 
-      // Actually getting user role logic was missing in previous code snippet but `userRole` state exists. 
-      // Let's assum userRole is set elsewhere or default to ADMIN for now as this is likely an admin page.
-      setUserRole('ADMIN');
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      toast.error("Failed to fetch users.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleSubmit = async () => {
     const toastId = toast.loading("Adding user...");
     try {
-      const { data } = await axios.post("/auth/register", form);
+      await axios.post("/auth/register", form);
       getUsers();
       setIsModalOpen(false);
       setForm({
@@ -201,7 +195,8 @@ export default function Users() {
         role: "USER",
       });
       toast.success("User added", { id: toastId });
-    } catch {
+    } catch (err) {
+      console.error("Failed to add user", err);
       toast.error("Failed to add user", { id: toastId });
     }
   };
@@ -218,7 +213,8 @@ export default function Users() {
       await axios.delete(`/auth/${userToDelete}`);
       setUsersList((prev) => prev.filter((u) => u.id !== userToDelete));
       toast.success("User deleted", { id: toastId });
-    } catch {
+    } catch (err) {
+      console.error("Failed to delete user", err);
       toast.error("Failed to delete user", { id: toastId });
     } finally {
       setUserToDelete(null);

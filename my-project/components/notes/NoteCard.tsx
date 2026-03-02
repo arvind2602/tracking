@@ -14,6 +14,13 @@ interface Props {
     onPin: (noteId: string) => void;
 }
 
+interface UserPayload {
+    user: {
+        uuid?: string;
+        role: string;
+    };
+}
+
 const typeColors = {
     PERSONAL: { gradient: 'from-emerald-400 to-teal-500', badge: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', icon: 'text-emerald-500' },
     ORGANIZATIONAL: { gradient: 'from-amber-400 to-orange-500', badge: 'bg-amber-500/10 text-amber-600 border-amber-500/20', icon: 'text-amber-500' },
@@ -30,10 +37,12 @@ export function NoteCard({ note, onEdit, onPin }: Props) {
         const token = localStorage.getItem('token');
         if (token) {
             try {
-                const decoded: any = jwtDecode(token);
-                setUserId(decoded?.user?.uuid);
-                setIsAdmin(decoded?.user?.role === 'ADMIN');
-            } catch (e) { }
+                const decoded = jwtDecode<UserPayload>(token);
+                setUserId(decoded.user?.uuid || null);
+                setIsAdmin(decoded.user?.role === 'ADMIN');
+            } catch (e) {
+                console.error("Failed to decode token", e);
+            }
         }
     }, []);
 

@@ -62,7 +62,7 @@ export function NotesList({ type, searchTerm, onEdit }: Props) {
                 </span>
                 {searchTerm && (
                     <span className="text-xs text-purple-500 font-medium">
-                        Searching: "{searchTerm}"
+                        Searching: &quot;{searchTerm}&quot;
                     </span>
                 )}
             </div>

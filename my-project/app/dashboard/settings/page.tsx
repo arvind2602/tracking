@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 import axios from '@/lib/axios';
 import { Settings, Layout, Save, Loader2, Building, Upload, X, Link } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -50,8 +51,8 @@ export default function OrganizationSettings() {
                     ...response.data,
                     logo: response.data.logo || ''
                 });
-            } catch (error) {
-                console.error('Failed to fetch settings', error);
+            } catch (err) {
+                console.error('Failed to fetch settings', err);
                 toast.error("Failed to load organization settings");
             } finally {
                 setLoading(false);
@@ -100,8 +101,8 @@ export default function OrganizationSettings() {
             toast.success("Settings saved successfully");
             // Refresh to update sidebar and layout immediately
             window.location.reload();
-        } catch (error) {
-            console.error('Failed to save settings', error);
+        } catch (err) {
+            console.error('Failed to save settings', err);
             toast.error("Failed to save settings");
         } finally {
             setSaving(false);
@@ -162,7 +163,13 @@ export default function OrganizationSettings() {
                             <div className="flex gap-4 items-start">
                                 <div className="relative w-24 h-24 rounded-2xl bg-sidebar-accent flex items-center justify-center overflow-hidden border border-sidebar-border shadow-inner shrink-0 group-hover:border-purple-500/30 transition-all">
                                     {settings.logo ? (
-                                        <img src={getProxiedImageUrl(settings.logo)} alt="Preview" className="w-full h-full object-contain p-2" />
+                                        <Image
+                                            src={getProxiedImageUrl(settings.logo)}
+                                            alt="Preview"
+                                            width={96}
+                                            height={96}
+                                            className="w-full h-full object-contain p-2"
+                                        />
                                     ) : (
                                         <Building className="h-10 w-10 text-muted-foreground/30" />
                                     )}

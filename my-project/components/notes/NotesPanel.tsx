@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Search, Plus, Keyboard, FileText, Pin, Briefcase, User, FolderKanban } from 'lucide-react';
+import { X, Search, Plus, Keyboard, FileText, Briefcase, User, FolderKanban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,14 +45,13 @@ export function NotesPanel({ open, onClose }: Props) {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [handleKeyDown]);
 
-    // Reset state when panel closes
-    useEffect(() => {
-        if (!open) {
-            setIsEditing(false);
-            setNoteToEdit(null);
-            setSearchTerm('');
-        }
-    }, [open]);
+    // Simplified onClose to reset state when called from the UI
+    const handleClose = () => {
+        setIsEditing(false);
+        setNoteToEdit(null);
+        setSearchTerm('');
+        onClose();
+    };
 
     if (!open) return null;
 
@@ -61,11 +60,11 @@ export function NotesPanel({ open, onClose }: Props) {
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] transition-all duration-300 animate-in fade-in"
-                onClick={onClose}
+                onClick={handleClose}
             />
 
             {/* Panel */}
-            <div className="fixed top-0 right-0 h-full w-full max-w-md bg-background/98 dark:bg-background/98 backdrop-blur-xl border-l border-border shadow-2xl z-[101] flex flex-col animate-in slide-in-from-right duration-300 ease-out">
+            <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-background/98 dark:bg-background/98 backdrop-blur-xl border-l border-border shadow-2xl z-[101] flex flex-col animate-in slide-in-from-right duration-300 ease-out">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-background to-muted/30">
                     <div className="flex items-center gap-3">
@@ -82,7 +81,7 @@ export function NotesPanel({ open, onClose }: Props) {
                             <Keyboard className="w-3 h-3" />
                             ESC
                         </kbd>
-                        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-muted/60 transition-colors h-9 w-9">
+                        <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full hover:bg-muted/60 transition-colors h-9 w-9">
                             <X className="h-5 w-5" />
                         </Button>
                     </div>
@@ -136,7 +135,7 @@ export function NotesPanel({ open, onClose }: Props) {
 
                             {/* Tabs */}
                             <div className="px-4 pb-3">
-                                <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)}>
+                                <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as NoteType | 'ALL')}>
                                     <TabsList className="w-full bg-muted/60 p-1 rounded-lg h-auto">
                                         <TabsTrigger value="ALL" className="flex-1 text-xs py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">All</TabsTrigger>
                                         <TabsTrigger value="PERSONAL" className="flex-1 text-xs py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Personal</TabsTrigger>

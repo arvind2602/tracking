@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
-  FileText, Plus, Search, Download, Edit, Trash2, FileUp, Users, BarChart2,
-  Settings, X, Filter, ChevronRight, Activity, Calendar, Mail, User, Briefcase,
+  FileText, Plus, Search, Download, Edit, Trash2, Users, BarChart2,
+  Settings, X, ChevronRight, Activity, Calendar, Mail, Briefcase,
   CheckCircle2, Clock, AlertCircle, FilePlus, Eye, Layout
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -107,8 +107,8 @@ export default function HRDashboard() {
         const payload: DecodedToken = jwtDecode(token);
         setUserRole(payload.user.role);
         setIsHR(payload.user.is_hr || false);
-      } catch (error) {
-        console.error('Invalid token', error);
+      } catch (err) {
+        console.error('Invalid token', err);
         router.push('/');
       }
     } else {
@@ -142,8 +142,8 @@ export default function HRDashboard() {
       setTemplates(templatesRes.data);
       setDocuments(documentsRes.data);
       setEmployees(employeesRes.data);
-    } catch (error) {
-      console.error('Failed to fetch HR data', error);
+    } catch (err) {
+      console.error('Failed to fetch HR data', err);
       toast.error('Failed to update dashboard data');
     } finally {
       setIsLoading(false);
@@ -156,7 +156,8 @@ export default function HRDashboard() {
       setTemplates([...templates, response.data]);
       setShowTemplateForm(false);
       toast.success('Template created successfully');
-    } catch (error) {
+    } catch (err) {
+      console.error('Failed to create template', err);
       toast.error('Failed to create template');
     }
   };
@@ -167,7 +168,8 @@ export default function HRDashboard() {
       setTemplates(templates.map(t => t.id === id ? response.data : t));
       setShowTemplateForm(false);
       toast.success('Template updated successfully');
-    } catch (error) {
+    } catch (err) {
+      console.error('Failed to update template', err);
       toast.error('Failed to update template');
     }
   };
@@ -177,7 +179,8 @@ export default function HRDashboard() {
       await axios.delete(`/hr/templates/${id}`);
       setTemplates(templates.filter(t => t.id !== id));
       toast.success('Template removed');
-    } catch (error) {
+    } catch (err) {
+      console.error('Failed to delete template', err);
       toast.error('Failed to delete template');
     }
   };
@@ -188,7 +191,8 @@ export default function HRDashboard() {
       setDocuments([...documents, response.data]);
       setShowDocumentForm(false);
       toast.success('Document generated successfully');
-    } catch (error) {
+    } catch (err) {
+      console.error('Failed to generate document', err);
       toast.error('Failed to generate document');
     }
   };
@@ -199,7 +203,8 @@ export default function HRDashboard() {
       setDocuments(documents.map(d => d.id === id ? response.data : d));
       setShowDocumentForm(false);
       toast.success('Document status updated');
-    } catch (error) {
+    } catch (err) {
+      console.error('Failed to update document', err);
       toast.error('Failed to update document');
     }
   };

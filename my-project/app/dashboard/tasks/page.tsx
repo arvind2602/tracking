@@ -21,9 +21,9 @@ import AllTasks from "@/components/tasks/AllTasks";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { AddTaskForm } from "@/components/tasks/AddTaskForm";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
-import { ListChecks, Hourglass, CheckCircle, Plus, LayoutGrid, List, Timer, Sparkles } from 'lucide-react';
+import { Hourglass, CheckCircle, Plus, List, Timer, Sparkles, ListChecks } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import React from 'react';
+import React, { useCallback } from 'react';
 
 
 interface DecodedToken {
@@ -57,8 +57,8 @@ export default function Tasks() {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
-  const [totalTasks, setTotalTasks] = useState(0);
+  const itemsPerPage = 50;
+  const [, setTotalTasks] = useState(0);
 
   useEffect(() => {
     let filtered = tasks;
@@ -71,7 +71,7 @@ export default function Tasks() {
     if (userFilter && userFilter !== "all") {
       filtered = filtered.filter((task) => task.assignedTo === userFilter);
     }
-    setFilteredTasks(filtered);
+    // setFilteredTasks removed as it was unused
   }, [tasks, statusFilter, projectFilter, userFilter]);
 
   // Initial initialization
@@ -99,9 +99,9 @@ export default function Tasks() {
         ]);
         setProjects(projectsResponse.data);
         setUsers(usersResponse.data);
-        // fetchAllTasks will be triggered by dependency effect or called here once
-        await fetchAllTasks(1);
-      } catch {
+        // fetchAllTasks will be triggered by dependency effect
+      } catch (err) {
+        console.error("Failed to fetch initial data", err);
         toast.error("Failed to fetch initial data");
       } finally {
         setIsLoading(false);
@@ -133,7 +133,7 @@ export default function Tasks() {
 
   // ... existing initial data effect
 
-  const fetchAllTasks = async (page = currentPage) => {
+  const fetchAllTasks = useCallback(async (page = currentPage) => {
     try {
       setIsLoading(true);
 
@@ -166,18 +166,17 @@ export default function Tasks() {
         setCurrentPage(response.data.pagination.page);
         setTotalTasks(response.data.pagination.total);
 
-        // Only update stats if they are returned (usually yes)
-        // KEEP stats global for the user context, as returned by API (which we fixed to be global)
         if (response.data.stats) {
           setDashboardStats(response.data.stats);
         }
       }
-    } catch {
+    } catch (err) {
+      console.error("Failed to fetch tasks", err);
       toast.error("Failed to fetch tasks");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeTab, itemsPerPage, currentPage, statusFilter, projectFilter, userFilter, dateFilter, sortBy, sortOrder]);
 
   // Handle page change
   const handlePageChange = (newPage: number) => {
