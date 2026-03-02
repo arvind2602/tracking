@@ -1,7 +1,7 @@
 'use client';
 
 import { useGetPinnedNotes, useUnpinNote } from '@/hooks/useNotes';
-import { Pin, X } from 'lucide-react';
+import { Pin, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
@@ -24,33 +24,43 @@ export function PinnedNotesBanner() {
     if (isLoading || !pinnedNotes || pinnedNotes.length === 0) return null;
 
     return (
-        <div className="flex flex-col gap-2 mb-6">
+        <div className="flex flex-col gap-3 mb-6">
+            <div className="flex items-center gap-2 px-1">
+                <Pin className="h-4 w-4 text-amber-500" />
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pinned</span>
+            </div>
             {pinnedNotes.map((note) => (
                 <div
                     key={note.id}
-                    className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-700 dark:text-yellow-400 p-3 flex items-center justify-between rounded-xl shadow-sm relative overflow-hidden group"
+                    className="bg-gradient-to-r from-amber-50/80 via-yellow-50/80 to-orange-50/80 dark:from-amber-950/30 dark:via-yellow-950/30 dark:to-orange-950/30 border border-amber-200/50 dark:border-amber-800/30 text-amber-900 dark:text-amber-100 p-3.5 flex items-center justify-between rounded-xl shadow-sm relative overflow-hidden group"
                 >
-                    <div className="absolute inset-0 bg-yellow-500/5 -translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-out" />
-                    <div className="flex items-center gap-3 relative z-10 w-full overflow-hidden">
-                        <div className="bg-yellow-500/20 p-2 rounded-lg shrink-0">
-                            <Pin className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                    {/* Subtle animated background */}
+                    <div className="absolute inset-0 bg-amber-500/5 -translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-out" />
+
+                    <div className="flex items-center gap-3 relative z-10 w-full min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-md">
+                            <FileText className="h-4 w-4 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-sm truncate">{note.title}</h4>
-                            <p className="text-xs opacity-80 truncate">{note.content || 'Organizational note'}</p>
+                            <p className="text-xs text-amber-700/70 dark:text-amber-300/70 truncate">
+                                {note.content?.slice(0, 60) || 'Organizational note'}
+                                {note.content?.length > 60 && '...'}
+                            </p>
                         </div>
                     </div>
+
                     {isAdmin && (
-                        <div className="relative z-10 shrink-0 ml-4">
+                        <div className="relative z-10 shrink-0 ml-3">
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20"
+                                className="text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 h-8 px-2.5 opacity-0 group-hover:opacity-100 transition-all"
                                 onClick={() => unpinNote.mutate(note.id)}
                                 disabled={unpinNote.isPending}
                             >
-                                <X className="h-4 w-4 mr-1" />
-                                Remove Pin
+                                <X className="h-4 w-4 mr-1.5" />
+                                <span className="text-xs">Remove</span>
                             </Button>
                         </div>
                     )}

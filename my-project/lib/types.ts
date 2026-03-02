@@ -110,7 +110,7 @@ export interface NoteTag {
 export interface Note {
   id: string;
   title: string;
-  content: string;
+  content: string[];
   type: NoteType;
   organizationId: string;
   authorId: string;

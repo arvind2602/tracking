@@ -99,12 +99,12 @@ const getTaskPoints = async (req, res, next) => {
 const getTasksByStatus = async (req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT status AS name, COUNT(*)::int AS count
+      SELECT t.status AS name, COUNT(*)::int AS count
       FROM task t
       JOIN projects p ON t."projectId" = p.id
       WHERE p."organiationId" = $1
-      GROUP BY status
-      ORDER BY status
+      GROUP BY t.status
+      ORDER BY t.status
     `, [req.user.organization_uuid]);
     res.json(result.rows);
   } catch (error) {

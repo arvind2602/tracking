@@ -8,8 +8,8 @@ import { jwtDecode } from 'jwt-decode';
 import axios from '@/lib/axios';
 import { ModeToggle } from "@/components/mode-toggle";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
-// import { PinnedNotesBanner } from "@/components/notes/PinnedNotesBanner";
-// import { NotesPanel } from "@/components/notes/NotesPanel";
+import { PinnedNotesBanner } from "@/components/notes/PinnedNotesBanner";
+import { NotesPanel } from "@/components/notes/NotesPanel";
 import { Button } from "@/components/ui/button";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
 
@@ -208,9 +208,9 @@ export default function DashboardLayout({
 
       <div className="flex-1 flex flex-col overflow-hidden relative z-10 transition-all duration-300">
         <BirthdayBanner />
-        {/* <div className="px-6 md:px-8 pt-4 pb-0">
+        <div className="px-6 md:px-8 pt-4 pb-0">
           <PinnedNotesBanner />
-        </div> */}
+        </div>
         <header className="md:hidden flex items-center justify-between p-4 bg-card border-b border-border">
           <button onClick={() => setIsSidebarOpen(true)} className="text-foreground">
             <Menu className="h-6 w-6" />
@@ -223,22 +223,30 @@ export default function DashboardLayout({
             )}
             <span>{orgSettings?.name || 'Dashboard'}</span>
           </Link>
-          <button onClick={() => setIsNotesPanelOpen(true)} className="text-foreground">
-            <NotebookPen className="h-6 w-6" />
+          <button
+            onClick={() => setIsNotesPanelOpen(true)}
+            className="flex items-center justify-center h-10 w-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl shadow-lg"
+          >
+            <NotebookPen className="h-5 w-5 text-white" />
           </button>
         </header>
         <main className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar relative">
+          {/* FAB - Floating Action Button */}
           <button
             onClick={() => setIsNotesPanelOpen(true)}
-            className="hidden md:flex fixed bottom-8 right-8 h-14 w-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-2xl items-center justify-center transition-transform hover:scale-105 z-40"
+            className="hidden md:flex fixed bottom-8 right-8 h-14 w-14 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white rounded-full shadow-xl shadow-purple-500/25 items-center justify-center transition-all hover:scale-110 active:scale-95 z-40 group"
             title="Open Notes"
           >
-            <NotebookPen className="h-6 w-6" />
+            <NotebookPen className="h-6 w-6 group-hover:rotate-12 transition-transform" />
+            <span className="absolute -top-10 right-0 bg-card border border-border px-3 py-1.5 rounded-lg text-sm font-medium shadow-lg opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all whitespace-nowrap">
+              Quick Notes
+              <span className="block text-xs text-muted-foreground font-normal">Click to add</span>
+            </span>
           </button>
           {children}
         </main>
       </div>
-      {/* <NotesPanel open={isNotesPanelOpen} onClose={() => setIsNotesPanelOpen(false)} /> */}
+      <NotesPanel open={isNotesPanelOpen} onClose={() => setIsNotesPanelOpen(false)} />
     </div>
   );
 }

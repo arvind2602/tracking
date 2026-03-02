@@ -11,7 +11,7 @@ interface GetNotesParams {
 
 interface CreateNotePayload {
     title: string;
-    content: string;
+    content: string[];
     type: NoteType;
     projectId?: string | null;
     tags?: string[];

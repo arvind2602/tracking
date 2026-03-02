@@ -295,7 +295,7 @@ enum NoteType {
 model Note {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title          String
-  content        String
+  content        String[]  @default([])
   type           NoteType
   organizationId String    @db.Uuid
   authorId       String    @db.Uuid

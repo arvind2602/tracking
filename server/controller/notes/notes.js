@@ -8,7 +8,7 @@ const { uploadToCloudinary } = require('../../config/cloudinary');
 const createNote = async (req, res, next) => {
     const schema = Joi.object({
         title: Joi.string().required(),
-        content: Joi.string().allow('', null).default(''),
+        content: Joi.array().items(Joi.string().allow('')).default([]),
         type: Joi.string().valid('PERSONAL', 'ORGANIZATIONAL', 'PROJECT').required(),
         projectId: Joi.string().uuid().optional().allow(null),
         tags: Joi.array().items(Joi.string().uuid()).optional().default([]),
@@ -118,7 +118,7 @@ const getNotes = async (req, res, next) => {
         }
 
         if (search) {
-            whereClauses.push(`(n.title ILIKE $${paramIdx} OR n.content ILIKE $${paramIdx})`);
+            whereClauses.push(`(n.title ILIKE $${paramIdx} OR EXISTS (SELECT 1 FROM unnest(n.content) AS c WHERE c ILIKE $${paramIdx}))`);
             values.push(`%${search}%`);
             paramIdx++;
         }
@@ -243,7 +243,7 @@ const updateNote = async (req, res, next) => {
 
     const schema = Joi.object({
         title: Joi.string().optional(),
-        content: Joi.string().allow('', null).optional(),
+        content: Joi.array().items(Joi.string()).optional(),
         type: Joi.string().valid('PERSONAL', 'ORGANIZATIONAL', 'PROJECT').optional(),
         projectId: Joi.string().uuid().optional().allow(null),
         tags: Joi.array().items(Joi.string().uuid()).optional(),
