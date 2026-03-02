@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import React from 'react';
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2, Download, Loader2, MapPin } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2, Download, Loader2, MapPin, FileText } from "lucide-react";
 import html2canvas from "html2canvas";
 import { QRCodeCanvas } from "qrcode.react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -21,6 +21,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { KeyRound, Lock } from "lucide-react";
 import { IDCardTemplate } from "@/components/IDCardTemplate";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
+import { NotesList } from "@/components/notes/NotesList";
+import { NoteEditor } from "@/components/notes/NoteEditor";
+import { Note } from "@/lib/types";
 
 
 
@@ -80,6 +83,8 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
     const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
     const [newPassword, setNewPassword] = useState("");
     const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [isAddingNote, setIsAddingNote] = useState(false);
+    const [noteToEdit, setNoteToEdit] = useState<Note | null>(null);
 
     // ID Card content ref
     const idCardRef = React.useRef<HTMLDivElement>(null);
@@ -740,6 +745,49 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                         </CardHeader>
                         <CardContent>
                             <TaskPoints employeeName={`${profile.firstName} ${profile.lastName}`} />
+                        </CardContent>
+                    </Card>
+
+                    {/* Personal Notes Section */}
+                    <Card className="border-none shadow-lg bg-sidebar/30 backdrop-blur-md">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="flex items-center gap-2 text-xl">
+                                    <FileText className="w-5 h-5 text-emerald-500" />
+                                    Personal Notes
+                                </CardTitle>
+                                <CardDescription>
+                                    Private notes and reminders for {profile.firstName}.
+                                </CardDescription>
+                            </div>
+                            {!isAddingNote && !noteToEdit && (
+                                <Button onClick={() => setIsAddingNote(true)} variant="outline" size="sm" className="gap-2">
+                                    <Plus className="h-4 w-4" />
+                                    Add Note
+                                </Button>
+                            )}
+                        </CardHeader>
+                        <CardContent>
+                            {isAddingNote || noteToEdit ? (
+                                <div className="max-w-xl mx-auto py-2">
+                                    <NoteEditor
+                                        noteToEdit={noteToEdit}
+                                        onClose={() => {
+                                            setIsAddingNote(false);
+                                            setNoteToEdit(null);
+                                        }}
+                                        defaultType="PERSONAL"
+                                        defaultEmployeeId={userId}
+                                    />
+                                </div>
+                            ) : (
+                                <NotesList
+                                    type="PERSONAL"
+                                    employeeId={userId}
+                                    searchTerm=""
+                                    onEdit={(note) => setNoteToEdit(note)}
+                                />
+                            )}
                         </CardContent>
                     </Card>
                 </div>

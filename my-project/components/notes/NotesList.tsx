@@ -10,10 +10,12 @@ interface Props {
     type: NoteType | 'ALL';
     searchTerm: string;
     onEdit: (note: Note) => void;
+    projectId?: string;
+    employeeId?: string;
 }
 
-export function NotesList({ type, searchTerm, onEdit }: Props) {
-    const { data: notes, isLoading } = useGetNotes({ type, search: searchTerm });
+export function NotesList({ type, searchTerm, onEdit, projectId, employeeId }: Props) {
+    const { data: notes, isLoading } = useGetNotes({ type, search: searchTerm, projectId, employeeId });
     const [pinNoteId, setPinNoteId] = useState<string | null>(null);
 
     if (isLoading) {

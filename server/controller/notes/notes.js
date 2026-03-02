@@ -84,7 +84,7 @@ const createNote = async (req, res, next) => {
 
 // 2. Get Notes (List)
 const getNotes = async (req, res, next) => {
-    const { type, projectId, search } = req.query;
+    const { type, projectId, search, employeeId } = req.query;
     const authorId = req.user.user_uuid;
     const organizationId = req.user.organization_uuid;
 
@@ -95,13 +95,20 @@ const getNotes = async (req, res, next) => {
 
         if (type === 'PERSONAL') {
             // Personal: only own notes OR notes where user is tagged
+            // If employeeId is provided and requester is ADMIN, allow seeing that employee's personal notes
+            const filterUserId = (employeeId && req.user.role === 'ADMIN') ? employeeId : authorId;
             whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
             whereClauses.push(`n.type = 'PERSONAL'`);
-            values.push(authorId);
+            values.push(filterUserId);
             paramIdx++;
         } else if (type === 'ORGANIZATIONAL') {
             // Organizational: visible to all in org
             whereClauses.push(`n.type = 'ORGANIZATIONAL'`);
+            if (employeeId) {
+                whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
+                values.push(employeeId);
+                paramIdx++;
+            }
         } else if (type === 'PROJECT') {
             // Project: visible to all in org, filter by project if provided
             whereClauses.push(`n.type = 'PROJECT'`);
@@ -110,11 +117,23 @@ const getNotes = async (req, res, next) => {
                 values.push(projectId);
                 paramIdx++;
             }
+            if (employeeId) {
+                whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
+                values.push(employeeId);
+                paramIdx++;
+            }
         } else {
             // If no type specified, return ORG and PROJECT, plus PERSONAL where owner or tagged
-            whereClauses.push(`(n.type IN ('ORGANIZATIONAL', 'PROJECT') OR (n.type = 'PERSONAL' AND (n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))))`);
-            values.push(authorId);
-            paramIdx++;
+            // If employeeId is specified, restrict to notes related to that employee
+            if (employeeId) {
+                whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
+                values.push(employeeId);
+                paramIdx++;
+            } else {
+                whereClauses.push(`(n.type IN ('ORGANIZATIONAL', 'PROJECT') OR (n.type = 'PERSONAL' AND (n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))))`);
+                values.push(authorId);
+                paramIdx++;
+            }
         }
 
         if (search) {

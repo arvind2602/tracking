@@ -10,7 +10,7 @@ import { Loader } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { CalendarDays, CheckCircle2, Circle, Clock, Target, Download, Pause, Play, History } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Circle, Clock, Target, Download, Pause, Play, History, Plus } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/dialog"
 import { jwtDecode } from 'jwt-decode';
 import { formatFullDateTimeIST, cn } from '@/lib/utils';
+import { NotesList } from '@/components/notes/NotesList';
+import { NoteEditor } from '@/components/notes/NoteEditor';
+import { Note } from '@/lib/types';
 
 interface Task {
   id: string;
@@ -63,6 +66,8 @@ const ProjectDetailsPage = () => {
   const [isHoldModalOpen, setIsHoldModalOpen] = useState(false);
   const [holdReason, setHoldReason] = useState('');
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [noteToEdit, setNoteToEdit] = useState<Note | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -337,6 +342,42 @@ const ProjectDetailsPage = () => {
                 </Button>
               </div>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Project Notes Section */}
+      <Card className="border-accent/20 shadow-sm bg-card/50 backdrop-blur-sm">
+        <CardHeader className="border-b bg-muted/40 px-6 py-4 flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-lg font-medium flex items-center gap-2">
+            Project Notes
+          </CardTitle>
+          {!isAddingNote && !noteToEdit && (
+            <Button onClick={() => setIsAddingNote(true)} variant="outline" size="sm" className="gap-2 h-8">
+              <Plus className="h-3.5 w-3.5" />
+              Add Note
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent className="p-6">
+          {isAddingNote || noteToEdit ? (
+            <div className="max-w-xl mx-auto">
+              <NoteEditor
+                noteToEdit={noteToEdit}
+                onClose={() => {
+                  setIsAddingNote(false);
+                  setNoteToEdit(null);
+                }}
+                defaultType="PROJECT"
+              />
+            </div>
+          ) : (
+            <NotesList
+              type="PROJECT"
+              projectId={projectId as string}
+              searchTerm=""
+              onEdit={(note) => setNoteToEdit(note)}
+            />
           )}
         </CardContent>
       </Card>

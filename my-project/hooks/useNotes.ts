@@ -6,6 +6,7 @@ import { Note, NoteType } from '@/lib/types';
 interface GetNotesParams {
     type?: NoteType | '' | 'ALL';
     projectId?: string;
+    employeeId?: string;
     search?: string;
 }
 

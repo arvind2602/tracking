@@ -19,6 +19,7 @@ interface Props {
     noteToEdit?: Note | null;
     onClose: () => void;
     defaultType?: NoteType;
+    defaultEmployeeId?: string;
 }
 
 interface UserPayload {
@@ -27,7 +28,7 @@ interface UserPayload {
     };
 }
 
-export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Props) {
+export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defaultEmployeeId }: Props) {
     const createNote = useCreateNote();
     const updateNote = useUpdateNote();
 
@@ -45,7 +46,9 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL' }: Pr
     );
 
     // Tagging
-    const [tags, setTags] = useState<string[]>(noteToEdit?.tags?.map(t => t.employeeId) || []);
+    const [tags, setTags] = useState<string[]>(
+        noteToEdit?.tags?.map(t => t.employeeId) || (defaultEmployeeId ? [defaultEmployeeId] : [])
+    );
 
     const [attachments, setAttachments] = useState<NoteAttachment[]>(noteToEdit?.attachments || []);
     const [isUploading, setIsUploading] = useState(false);
