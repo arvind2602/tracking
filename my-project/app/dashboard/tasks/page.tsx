@@ -41,7 +41,8 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -104,7 +105,7 @@ export default function Tasks() {
         console.error("Failed to fetch initial data", err);
         toast.error("Failed to fetch initial data");
       } finally {
-        setIsLoading(false);
+        setIsInitialLoading(false);
       }
     };
 
@@ -123,19 +124,13 @@ export default function Tasks() {
     pendingReviewTasks: 0
   });
 
-  useEffect(() => {
-    // Re-fetch tasks when filters change or tab changes, resetting to page 1
-    // Skip the very first run as initialData fetch handles it
-    if (!isLoading) {
-      fetchAllTasks(1);
-    }
-  }, [statusFilter, projectFilter, userFilter, dateFilter, activeTab, sortBy, sortOrder]);
+
 
   // ... existing initial data effect
 
   const fetchAllTasks = useCallback(async (page = currentPage) => {
     try {
-      setIsLoading(true);
+      setTasksLoading(true);
 
       const isKanban = activeTab === 'Kanban';
       const limit = isKanban ? 1000 : itemsPerPage;
@@ -174,9 +169,17 @@ export default function Tasks() {
       console.error("Failed to fetch tasks", err);
       toast.error("Failed to fetch tasks");
     } finally {
-      setIsLoading(false);
+      setTasksLoading(false);
     }
   }, [activeTab, itemsPerPage, currentPage, statusFilter, projectFilter, userFilter, dateFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    // Re-fetch tasks when filters change or tab changes
+    // Only fetch if initial data (projects/users) is already loaded
+    if (!isInitialLoading) {
+      fetchAllTasks(1);
+    }
+  }, [statusFilter, projectFilter, userFilter, dateFilter, activeTab, sortBy, sortOrder, isInitialLoading, fetchAllTasks]);
 
   // Handle page change
   const handlePageChange = (newPage: number) => {
@@ -190,14 +193,14 @@ export default function Tasks() {
     { label: "Tasks", href: "/dashboard/tasks" },
   ];
 
-  if (isLoading && tasks.length === 0) {
+  if (isInitialLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <div className="relative">
           <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
           <div className="absolute inset-0 bg-blue-500/10 blur-xl rounded-full animate-pulse"></div>
         </div>
-        <p className="text-muted-foreground animate-pulse">Loading tasks...</p>
+        <p className="text-muted-foreground animate-pulse">Loading dashboard...</p>
       </div>
     );
   }
@@ -349,7 +352,7 @@ export default function Tasks() {
         </button>
       </div>
 
-      {isLoading ? (
+      {tasksLoading ? (
         <div className="flex justify-center items-center h-64">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
