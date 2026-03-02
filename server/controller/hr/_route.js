@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../../middleware/authMiddleware');
-const uploadMiddleware = require('../../middleware/uploadMiddleware');
+const { uploadAny } = require('../../middleware/uploadMiddleware');
 const hrController = require('./hr');
 
 // Document Template Routes
@@ -17,7 +17,7 @@ router.post('/documents', authMiddleware, hrController.generateDocument);
 router.get('/documents', authMiddleware, hrController.getGeneratedDocuments);
 router.get('/documents/:id', authMiddleware, hrController.getGeneratedDocumentById);
 router.put('/documents/:id', authMiddleware, hrController.updateGeneratedDocument);
-router.post('/documents/:id/upload', authMiddleware, uploadMiddleware.single('file'), hrController.uploadDocumentFile);
+router.post('/documents/:id/upload', authMiddleware, uploadAny.single('file'), hrController.uploadDocumentFile);
 
 // Statistics
 router.get('/statistics', authMiddleware, hrController.getDocumentStatistics);

@@ -20,6 +20,7 @@ model organiation {
   projects          projects[]
   DocumentTemplate  DocumentTemplate[]
   GeneratedDocument GeneratedDocument[]
+  notes             Note[]
 
   @@index([name])
 }
@@ -55,6 +56,8 @@ model employee {
   createdTemplates DocumentTemplate[]  @relation("CreatedTemplates")
   documents        GeneratedDocument[] @relation("EmployeeDocuments")
   generatedDocs    GeneratedDocument[] @relation("GeneratedByEmployee")
+  authoredNotes    Note[]              @relation("NoteAuthor")
+  noteTags         NoteTag[]           @relation("NoteTagged")
 
   @@index([organiationId, is_archived])
   @@index([organiationId, role])
@@ -76,6 +79,7 @@ model projects {
   task           task[]
   headId         String?     @db.Uuid
   head           employee?   @relation("ProjectHead", fields: [headId], references: [id])
+  notes          Note[]
 
   status      ProjectStatus        @default(ACTIVE)
   holdHistory ProjectHoldHistory[]
@@ -280,4 +284,61 @@ enum DocumentStatus {
   SENT
   SIGNED
   ARCHIVED
+}
+
+enum NoteType {
+  PERSONAL
+  ORGANIZATIONAL
+  PROJECT
+}
+
+model Note {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String
+  content        String
+  type           NoteType
+  organizationId String    @db.Uuid
+  authorId       String    @db.Uuid
+  projectId      String?   @db.Uuid
+  isPinned       Boolean   @default(false)
+  pinUntil       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime? @updatedAt
+
+  organization organiation      @relation(fields: [organizationId], references: [id])
+  author       employee         @relation("NoteAuthor", fields: [authorId], references: [id])
+  project      projects?        @relation(fields: [projectId], references: [id])
+  attachments  NoteAttachment[]
+  tags         NoteTag[]
+
+  @@index([organizationId, type])
+  @@index([authorId])
+  @@index([projectId])
+  @@index([isPinned, organizationId])
+}
+
+model NoteAttachment {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  noteId   String @db.Uuid
+  name     String
+  url      String
+  fileType String
+  size     Int?
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model NoteTag {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  noteId     String @db.Uuid
+  employeeId String @db.Uuid
+
+  note     Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  employee employee @relation("NoteTagged", fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, employeeId])
+  @@index([noteId])
+  @@index([employeeId])
 }

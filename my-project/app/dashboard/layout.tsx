@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, ChevronLeft, ChevronRight, User, Settings, Users } from 'lucide-react';
+import { Home, Code, GraduationCap, LogOut, Menu, X, BarChart, Activity, ChevronLeft, ChevronRight, User, Settings, Users, NotebookPen } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import axios from '@/lib/axios';
 import { ModeToggle } from "@/components/mode-toggle";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
+// import { PinnedNotesBanner } from "@/components/notes/PinnedNotesBanner";
+// import { NotesPanel } from "@/components/notes/NotesPanel";
 import { Button } from "@/components/ui/button";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
 
@@ -27,6 +29,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isNotesPanelOpen, setIsNotesPanelOpen] = useState(false);
   const [orgSettings, setOrgSettings] = useState<{ name: string, logo: string | null, showBanner: boolean } | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isHRUser, setIsHRUser] = useState<boolean>(false);
@@ -205,6 +208,9 @@ export default function DashboardLayout({
 
       <div className="flex-1 flex flex-col overflow-hidden relative z-10 transition-all duration-300">
         <BirthdayBanner />
+        {/* <div className="px-6 md:px-8 pt-4 pb-0">
+          <PinnedNotesBanner />
+        </div> */}
         <header className="md:hidden flex items-center justify-between p-4 bg-card border-b border-border">
           <button onClick={() => setIsSidebarOpen(true)} className="text-foreground">
             <Menu className="h-6 w-6" />
@@ -217,12 +223,22 @@ export default function DashboardLayout({
             )}
             <span>{orgSettings?.name || 'Dashboard'}</span>
           </Link>
-          <div className="w-6" /> {/* Spacer */}
+          <button onClick={() => setIsNotesPanelOpen(true)} className="text-foreground">
+            <NotebookPen className="h-6 w-6" />
+          </button>
         </header>
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar relative">
+          <button
+            onClick={() => setIsNotesPanelOpen(true)}
+            className="hidden md:flex fixed bottom-8 right-8 h-14 w-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-2xl items-center justify-center transition-transform hover:scale-105 z-40"
+            title="Open Notes"
+          >
+            <NotebookPen className="h-6 w-6" />
+          </button>
           {children}
         </main>
       </div>
+      {/* <NotesPanel open={isNotesPanelOpen} onClose={() => setIsNotesPanelOpen(false)} /> */}
     </div>
   );
 }

@@ -6,7 +6,7 @@ const authMiddleware = require('../../middleware/authMiddleware');
 // Public Route
 organization.post('/register', organizationController.registerOrganization);
 
-const upload = require('../../middleware/uploadMiddleware');
+const { upload } = require('../../middleware/uploadMiddleware');
 
 // Protected Routes
 organization.use(authMiddleware);

@@ -229,7 +229,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
   const confirmCompletion = async () => {
     if (!taskToComplete) return;
-    if (!completionComment.trim()) {
+    if (!completionComment.trim() && actionType !== 'approve') {
       toast.error("Please add a comment.");
       return;
     }
@@ -238,7 +238,9 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     setLoadingTaskId(taskToComplete);
     try {
       // 1. Add Comment
-      await axios.post(`/tasks/comments/${taskToComplete}`, { content: completionComment });
+      if (completionComment.trim()) {
+        await axios.post(`/tasks/comments/${taskToComplete}`, { content: completionComment });
+      }
 
       // 2. Perform Action
       let status = 'completed';

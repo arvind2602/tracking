@@ -16,4 +16,11 @@ const upload = multer({
     }
 });
 
-module.exports = upload;
+const uploadAny = multer({
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit (Cloudinary free tier limit)
+    }
+});
+
+module.exports = { upload, uploadAny };

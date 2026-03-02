@@ -88,3 +88,40 @@ export interface User {
   email: string;
   organizationId: string;
 }
+
+export type NoteType = 'PERSONAL' | 'ORGANIZATIONAL' | 'PROJECT';
+
+export interface NoteAttachment {
+  id: string;
+  name: string;
+  url: string;
+  fileType: string;
+  size?: number;
+}
+
+export interface NoteTag {
+  id: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  type: NoteType;
+  organizationId: string;
+  authorId: string;
+  projectId?: string;
+  isPinned: boolean;
+  pinUntil?: string;
+  createdAt: string;
+  updatedAt?: string;
+  authorFirstName?: string;
+  authorLastName?: string;
+  attachments: NoteAttachment[];
+  tags: NoteTag[];
+  projectName?: string;
+}
