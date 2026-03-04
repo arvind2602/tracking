@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Task, User, Project, Comment } from "@/lib/types";
+import { Task, User, Project, Comment, CommentAttachment, CommentLink } from "@/lib/types";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
 import { useState, useEffect, useMemo } from "react";
@@ -14,10 +14,14 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { formatDateTimeIST, formatDateIST, formatDateLongIST, formatDateOnlyIST, formatFullDateTimeIST, cn } from "@/lib/utils";
-import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock, CalendarClock, Play, X, Pencil, MessageCircle } from "lucide-react";
+import { Loader, Calendar as CalendarIcon, Copy, Check, User as UserIcon, Trash2, Download, ChevronRight, ChevronDown, Plus, CornerDownRight, Clock, CalendarClock, Play, X, Pencil, MessageCircle, Paperclip, Link as LinkIcon, ExternalLink } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
-import React from 'react';
+import React, { useRef } from 'react';
+import imageCompression from 'browser-image-compression';
+import axiosInstance from "@/lib/axios";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import ReactDOM from 'react-dom';
 import { AddTaskForm } from "./AddTaskForm";
 
@@ -77,6 +81,129 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
 
   const [taskComments, setTaskComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+
+  // Attachments and Links State for Popups
+  const [attachments, setAttachments] = useState<CommentAttachment[]>([]);
+  const [links, setLinks] = useState<CommentLink[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Link Popover State
+  const [isLinkPopoverOpen, setIsLinkPopoverOpen] = useState(false);
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [newLinkName, setNewLinkName] = useState('');
+  const [newLinkHeading, setNewLinkHeading] = useState('');
+
+  const resetAttachmentsAndLinks = () => {
+    setAttachments([]);
+    setLinks([]);
+    setNewLinkUrl('');
+    setNewLinkName('');
+    setNewLinkHeading('');
+    setIsLinkPopoverOpen(false);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+
+    try {
+      const processFile = async (file: File) => {
+        if (file.type.startsWith('image/') && file.size > 1024 * 1024) {
+          try {
+            const options = {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true,
+            };
+            const compressedFile = await imageCompression(file, options);
+            return compressedFile;
+          } catch (err) {
+            console.error('Compression error, using original file', err);
+            return file;
+          }
+        }
+
+        if (!file.type.startsWith('image/') && file.size > 10 * 1024 * 1024) {
+          throw new Error(`"${file.name}" is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Documents must be under 10MB.`);
+        }
+
+        return file;
+      };
+
+      const processedFiles = await Promise.all(
+        Array.from(files).map(file => processFile(file))
+      );
+
+      processedFiles.forEach((file) => {
+        formData.append('files', file);
+      });
+
+      const { data } = await axiosInstance.post('/notes/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const newAttachments = data.map((att: CommentAttachment) => ({ ...att, heading: '' }));
+      setAttachments((prev) => [...prev, ...newAttachments]);
+    } catch (error: unknown) {
+      console.error('Failed to upload files', error);
+      toast.error("Failed to upload file.");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const updateAttachmentHeading = (index: number, heading: string) => {
+    setAttachments(prev => {
+      const newAtts = [...prev];
+      newAtts[index].heading = heading;
+      return newAtts;
+    });
+  };
+
+  const removeAttachment = (indexToRemove: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== indexToRemove));
+  };
+
+  const handleAddLink = () => {
+    if (!newLinkUrl.trim() || !newLinkName.trim()) {
+      toast.error('Please provide both URL and Name for the link.');
+      return;
+    }
+
+    let finalUrl = newLinkUrl.trim();
+    if (!/^https?:\/\//i.test(finalUrl)) {
+      finalUrl = 'https://' + finalUrl;
+    }
+
+    setLinks(prev => [...prev, {
+      name: newLinkName.trim(),
+      url: finalUrl,
+      heading: newLinkHeading.trim() || ''
+    }]);
+    setNewLinkUrl('');
+    setNewLinkName('');
+    setNewLinkHeading('');
+    setIsLinkPopoverOpen(false);
+  };
+
+  const removeLink = (indexToRemove: number) => {
+    setLinks((prev) => prev.filter((_, i) => i !== indexToRemove));
+  };
+
+  const updateLinkHeading = (index: number, heading: string) => {
+    setLinks(prev => {
+      const newLnk = [...prev];
+      newLnk[index].heading = heading;
+      return newLnk;
+    });
+  };
 
   const fetchTaskComments = async (taskId: string) => {
     setIsLoadingComments(true);
@@ -208,6 +335,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const handleMarkAsCompleted = (task: Task) => {
     setTaskToComplete(task.id);
     setCompletionComment("");
+    resetAttachmentsAndLinks();
     fetchTaskComments(task.id);
 
     // Determine Action Type based on Status
@@ -238,8 +366,22 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     setLoadingTaskId(taskToComplete);
     try {
       // 1. Add Comment
-      if (completionComment.trim()) {
-        await axios.post(`/tasks/comments/${taskToComplete}`, { content: completionComment });
+      if (completionComment.trim() || attachments.length > 0 || links.length > 0) {
+        await axios.post(`/tasks/comments/${taskToComplete}`, {
+          content: completionComment,
+          attachments: attachments.map(a => ({
+            name: a.name,
+            url: a.url,
+            fileType: a.fileType,
+            size: a.size,
+            heading: a.heading || null
+          })),
+          links: links.map(l => ({
+            name: l.name,
+            url: l.url,
+            heading: l.heading || null
+          }))
+        });
       }
 
       // 2. Perform Action
@@ -286,6 +428,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
   const handleMarkAsInProgress = (taskId: string) => {
     setTaskToInProgress(taskId);
     setInProgressComment("");
+    resetAttachmentsAndLinks();
     fetchTaskComments(taskId);
     setInProgressModalOpen(true);
   };
@@ -301,7 +444,21 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     setLoadingTaskId(taskToInProgress);
     try {
       // 1. Add Comment
-      await axios.post(`/tasks/comments/${taskToInProgress}`, { content: inProgressComment });
+      await axios.post(`/tasks/comments/${taskToInProgress}`, {
+        content: inProgressComment,
+        attachments: attachments.map(a => ({
+          name: a.name,
+          url: a.url,
+          fileType: a.fileType,
+          size: a.size,
+          heading: a.heading || null
+        })),
+        links: links.map(l => ({
+          name: l.name,
+          url: l.url,
+          heading: l.heading || null
+        }))
+      });
 
       // 2. Mark as In Progress
       const response = await axios.put(`/tasks/${taskToInProgress}/status`, { status: "in-progress" });
@@ -611,6 +768,92 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                   placeholder={actionType === 'submit-review' ? "What did you complete?" : "Add a note..."}
                   className="bg-secondary border-border focus:ring-accent min-h-[80px]"
                 />
+
+                {/* Attachments & Links Previews */}
+                {(attachments.length > 0 || links.length > 0) && (
+                  <div className="flex flex-col gap-2 p-2 bg-muted/20 border border-border/30 rounded-lg mt-2">
+                    {attachments.map((att, index) => (
+                      <div key={`att-${index}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm bg-background/50 p-2 rounded border border-border/40">
+                        <div className="flex items-center gap-2 overflow-hidden w-full sm:w-auto">
+                          <Paperclip className="h-4 w-4 text-indigo-500 shrink-0" />
+                          <span className="truncate max-w-[150px] font-medium">{att.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <Input
+                            placeholder="Heading (Optional)"
+                            value={att.heading || ''}
+                            onChange={(e) => updateAttachmentHeading(index, e.target.value)}
+                            className="h-7 w-full sm:w-36 text-xs bg-background"
+                          />
+                          <button type="button" onClick={() => removeAttachment(index)} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><X className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    ))}
+                    {links.map((link, index) => (
+                      <div key={`link-${index}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm bg-background/50 p-2 rounded border border-border/40">
+                        <div className="flex items-center gap-2 overflow-hidden w-full sm:w-auto">
+                          <LinkIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                          <span className="truncate max-w-[150px] font-medium">{link.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <Input
+                            placeholder="Heading (Optional)"
+                            value={link.heading || ''}
+                            onChange={(e) => updateLinkHeading(index, e.target.value)}
+                            className="h-7 w-full sm:w-36 text-xs bg-background"
+                          />
+                          <button type="button" onClick={() => removeLink(index)} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><X className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="file"
+                    multiple
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="h-8 gap-1.5 bg-background border-dashed text-xs shadow-sm"
+                  >
+                    {isUploading ? <Loader className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3 text-indigo-500" />}
+                    Attach Files
+                  </Button>
+
+                  <Popover open={isLinkPopoverOpen} onOpenChange={setIsLinkPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        className="h-8 gap-1.5 bg-background border-dashed text-xs shadow-sm"
+                      >
+                        <LinkIcon className="h-3 w-3 text-blue-500" />
+                        Add Link
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-4 z-[10001]" align="start">
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-sm">Add a Link</h4>
+                        <div className="space-y-2">
+                          <Input placeholder="URL (e.g. https://example.com)" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="h-9 text-sm" />
+                          <Input placeholder="Display Name" value={newLinkName} onChange={(e) => setNewLinkName(e.target.value)} className="h-9 text-sm" />
+                          <Input placeholder="Heading (Optional group name)" value={newLinkHeading} onChange={(e) => setNewLinkHeading(e.target.value)} className="h-9 text-sm" />
+                          <Button type="button" size="sm" onClick={handleAddLink} className="w-full mt-2" disabled={!newLinkUrl.trim() || !newLinkName.trim()}>Add Link</Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </div>
           </div>
@@ -647,7 +890,30 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                         </span>
                       </div>
                       <div className="bg-card p-3 rounded-2xl rounded-tl-none border border-border/50 text-sm text-foreground shadow-sm leading-relaxed transition-all group-hover:bg-accent/5">
-                        {c.content}
+                        <div className="whitespace-pre-wrap">{c.content}</div>
+
+                        {(c.attachments?.length || c.links?.length) ? (
+                          <div className="mt-2 space-y-1.5 pt-2 border-t border-border/50">
+                            {c.attachments?.map((att, idx) => (
+                              <div key={`att-${idx}`} className="flex flex-col gap-0.5 text-[11px]">
+                                {att.heading && <span className="font-semibold text-muted-foreground">{att.heading}</span>}
+                                <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 p-1.5 rounded-md bg-secondary border border-border/40 hover:bg-accent hover:text-accent-foreground transition-colors w-fit max-w-full">
+                                  <Paperclip className="h-3 w-3 shrink-0 text-indigo-500" />
+                                  <span className="truncate max-w-[200px]">{att.name}</span>
+                                </a>
+                              </div>
+                            ))}
+                            {c.links?.map((link, idx) => (
+                              <div key={`lnk-${idx}`} className="flex flex-col gap-0.5 text-[11px]">
+                                {link.heading && <span className="font-semibold text-muted-foreground">{link.heading}</span>}
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 p-1.5 rounded-md bg-secondary border border-border/40 hover:bg-accent hover:text-accent-foreground transition-colors w-fit max-w-full">
+                                  <LinkIcon className="h-3 w-3 shrink-0 text-blue-500" />
+                                  <span className="truncate max-w-[200px]">{link.name}</span>
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -742,6 +1008,92 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                 placeholder="Add your comment..."
                 className="bg-secondary border-border focus:ring-accent min-h-[100px]"
               />
+
+              {/* Attachments & Links Previews */}
+              {(attachments.length > 0 || links.length > 0) && (
+                <div className="flex flex-col gap-2 p-2 bg-muted/20 border border-border/30 rounded-lg mt-2">
+                  {attachments.map((att, index) => (
+                    <div key={`att-${index}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm bg-background/50 p-2 rounded border border-border/40">
+                      <div className="flex items-center gap-2 overflow-hidden w-full sm:w-auto">
+                        <Paperclip className="h-4 w-4 text-indigo-500 shrink-0" />
+                        <span className="truncate max-w-[150px] font-medium">{att.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <Input
+                          placeholder="Heading (Optional)"
+                          value={att.heading || ''}
+                          onChange={(e) => updateAttachmentHeading(index, e.target.value)}
+                          className="h-7 w-full sm:w-36 text-xs bg-background"
+                        />
+                        <button type="button" onClick={() => removeAttachment(index)} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><X className="h-4 w-4" /></button>
+                      </div>
+                    </div>
+                  ))}
+                  {links.map((link, index) => (
+                    <div key={`link-${index}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm bg-background/50 p-2 rounded border border-border/40">
+                      <div className="flex items-center gap-2 overflow-hidden w-full sm:w-auto">
+                        <LinkIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                        <span className="truncate max-w-[150px] font-medium">{link.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <Input
+                          placeholder="Heading (Optional)"
+                          value={link.heading || ''}
+                          onChange={(e) => updateLinkHeading(index, e.target.value)}
+                          className="h-7 w-full sm:w-36 text-xs bg-background"
+                        />
+                        <button type="button" onClick={() => removeLink(index)} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><X className="h-4 w-4" /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="file"
+                  multiple
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="h-8 gap-1.5 bg-background border-dashed text-xs shadow-sm"
+                >
+                  {isUploading ? <Loader className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3 text-indigo-500" />}
+                  Attach Files
+                </Button>
+
+                <Popover open={isLinkPopoverOpen} onOpenChange={setIsLinkPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      className="h-8 gap-1.5 bg-background border-dashed text-xs shadow-sm"
+                    >
+                      <LinkIcon className="h-3 w-3 text-blue-500" />
+                      Add Link
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-4 z-[10001]" align="start">
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-sm">Add a Link</h4>
+                      <div className="space-y-2">
+                        <Input placeholder="URL (e.g. https://example.com)" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="h-9 text-sm" />
+                        <Input placeholder="Display Name" value={newLinkName} onChange={(e) => setNewLinkName(e.target.value)} className="h-9 text-sm" />
+                        <Input placeholder="Heading (Optional group name)" value={newLinkHeading} onChange={(e) => setNewLinkHeading(e.target.value)} className="h-9 text-sm" />
+                        <Button type="button" size="sm" onClick={handleAddLink} className="w-full mt-2" disabled={!newLinkUrl.trim() || !newLinkName.trim()}>Add Link</Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
 
@@ -777,7 +1129,30 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                         </span>
                       </div>
                       <div className="bg-card p-3 rounded-2xl rounded-tl-none border border-border/50 text-sm text-foreground shadow-sm leading-relaxed transition-all group-hover:bg-accent/5">
-                        {c.content}
+                        <div className="whitespace-pre-wrap">{c.content}</div>
+
+                        {(c.attachments?.length || c.links?.length) ? (
+                          <div className="mt-2 space-y-1.5 pt-2 border-t border-border/50">
+                            {c.attachments?.map((att, idx) => (
+                              <div key={`att-${idx}`} className="flex flex-col gap-0.5 text-[11px]">
+                                {att.heading && <span className="font-semibold text-muted-foreground">{att.heading}</span>}
+                                <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 p-1.5 rounded-md bg-secondary border border-border/40 hover:bg-accent hover:text-accent-foreground transition-colors w-fit max-w-full">
+                                  <Paperclip className="h-3 w-3 shrink-0 text-indigo-500" />
+                                  <span className="truncate max-w-[200px]">{att.name}</span>
+                                </a>
+                              </div>
+                            ))}
+                            {c.links?.map((link, idx) => (
+                              <div key={`lnk-${idx}`} className="flex flex-col gap-0.5 text-[11px]">
+                                {link.heading && <span className="font-semibold text-muted-foreground">{link.heading}</span>}
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 p-1.5 rounded-md bg-secondary border border-border/40 hover:bg-accent hover:text-accent-foreground transition-colors w-fit max-w-full">
+                                  <LinkIcon className="h-3 w-3 shrink-0 text-blue-500" />
+                                  <span className="truncate max-w-[200px]">{link.name}</span>
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   ))}

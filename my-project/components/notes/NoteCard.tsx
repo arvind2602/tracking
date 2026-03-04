@@ -1,5 +1,5 @@
 import { Note } from '@/lib/types';
-import { Pin, Paperclip, Trash2, Edit2, Clock, MoreHorizontal } from 'lucide-react';
+import { Pin, Paperclip, Trash2, Edit2, Clock, MoreHorizontal, Link as LinkIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -149,6 +149,12 @@ export function NoteCard({ note, onEdit, onPin }: Props) {
                                 <div className="flex items-center gap-1">
                                     <Paperclip className="h-3 w-3" />
                                     {note.attachments.length}
+                                </div>
+                            )}
+                            {note.links && note.links.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                    <LinkIcon className="h-3 w-3" />
+                                    {note.links.length}
                                 </div>
                             )}
                             <span className="flex items-center gap-1">

@@ -157,17 +157,45 @@ model TaskAssignee {
 }
 
 model comment {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  content   String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime? @updatedAt
-  taskId    String    @db.Uuid
-  authorId  String    @db.Uuid
-  author    employee  @relation(fields: [authorId], references: [id])
-  task      task      @relation(fields: [taskId], references: [id])
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  content     String
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime?           @updatedAt
+  taskId      String              @db.Uuid
+  authorId    String              @db.Uuid
+  author      employee            @relation(fields: [authorId], references: [id])
+  task        task                @relation(fields: [taskId], references: [id])
+  attachments CommentAttachment[]
+  links       CommentLink[]
 
   @@index([authorId], map: "idx_comment_author")
   @@index([taskId, createdAt(sort: Desc)], map: "idx_comment_task")
+}
+
+model CommentAttachment {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commentId String  @db.Uuid
+  name      String
+  url       String
+  fileType  String
+  size      Int?
+  heading   String?
+
+  comment comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
+}
+
+model CommentLink {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commentId String  @db.Uuid
+  name      String
+  url       String
+  heading   String?
+
+  comment comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
 }
 
 model Site {
@@ -309,6 +337,7 @@ model Note {
   author       employee         @relation("NoteAuthor", fields: [authorId], references: [id])
   project      projects?        @relation(fields: [projectId], references: [id])
   attachments  NoteAttachment[]
+  links        NoteLink[]
   tags         NoteTag[]
 
   @@index([organizationId, type])
@@ -318,12 +347,25 @@ model Note {
 }
 
 model NoteAttachment {
-  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  noteId   String @db.Uuid
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  noteId   String  @db.Uuid
   name     String
   url      String
   fileType String
   size     Int?
+  heading  String?
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model NoteLink {
+  id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  noteId  String  @db.Uuid
+  name    String
+  url     String
+  heading String?
 
   note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
 

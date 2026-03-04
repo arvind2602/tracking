@@ -618,22 +618,52 @@ const deleteTask = async (req, res, next) => {
 
 const createComment = async (req, res, next) => {
   const { taskId } = req.params;
-  const { content } = req.body;
+  const { content, attachments = [], links = [] } = req.body;
   const authorId = req.user.user_uuid;
   const organizationId = req.user.organization_uuid;
 
   try {
-    const result = await pool.query(
-      `INSERT INTO comment (content, "taskId", "authorId")
-             SELECT $1, $2, $3
-             FROM task t
-             JOIN projects p ON t."projectId" = p.id
-WHERE t.id = $2 AND p."organiationId" = $4
-             RETURNING id, content, "authorId", "createdAt"`,
-      [content, taskId, authorId, organizationId]
-    );
-    if (result.rowCount === 0) return next(new NotFoundError('Task not found'));
-    res.status(201).json(result.rows[0]);
+    const result = await withTransaction(pool.pool, async (client) => {
+      const commentResult = await client.query(
+        `INSERT INTO comment (content, "taskId", "authorId")
+               SELECT $1, $2, $3
+               FROM task t
+               JOIN projects p ON t."projectId" = p.id
+               WHERE t.id = $2 AND p."organiationId" = $4
+               RETURNING id, content, "authorId", "createdAt"`,
+        [content, taskId, authorId, organizationId]
+      );
+
+      if (commentResult.rowCount === 0) {
+        throw new NotFoundError('Task not found');
+      }
+
+      const comment = commentResult.rows[0];
+
+      // Insert Attachments
+      if (attachments && attachments.length > 0) {
+        for (const att of attachments) {
+          await client.query(
+            `INSERT INTO "CommentAttachment" ("commentId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
+            [comment.id, att.name, att.url, att.fileType, att.size || null, att.heading || null]
+          );
+        }
+      }
+
+      // Insert Links
+      if (links && links.length > 0) {
+        for (const link of links) {
+          await client.query(
+            `INSERT INTO "CommentLink" ("commentId", name, url, heading) VALUES ($1, $2, $3, $4)`,
+            [comment.id, link.name, link.url, link.heading || null]
+          );
+        }
+      }
+
+      return comment;
+    });
+
+    res.status(201).json(result);
   } catch (error) { next(error); }
 };
 
@@ -663,7 +693,29 @@ const getCommentsByTask = async (req, res, next) => {
        ORDER BY c."createdAt" DESC`,
       [taskId, organiationId]
     );
-    res.json(result.rows);
+
+    const comments = result.rows;
+
+    if (comments.length > 0) {
+      const commentIds = comments.map(c => c.id);
+
+      const attachmentsRes = await pool.query(
+        `SELECT * FROM "CommentAttachment" WHERE "commentId" = ANY($1::uuid[])`,
+        [commentIds]
+      );
+
+      const linksRes = await pool.query(
+        `SELECT * FROM "CommentLink" WHERE "commentId" = ANY($1::uuid[])`,
+        [commentIds]
+      );
+
+      comments.forEach(comment => {
+        comment.attachments = attachmentsRes.rows.filter(a => a.commentId === comment.id);
+        comment.links = linksRes.rows.filter(l => l.commentId === comment.id);
+      });
+    }
+
+    res.json(comments);
   } catch (error) {
     next(error);
   }

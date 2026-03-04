@@ -1,6 +1,7 @@
 const express = require('express');
 const projects = express.Router();
 const projectsController = require('./projects');
+const resourcesController = require('./resources');
 const authMiddleware = require('../../middleware/authMiddleware');
 
 // Apply authentication middleware to all project routes
@@ -11,6 +12,7 @@ projects.post('/', projectsController.createProject);
 projects.get('/export', projectsController.exportProjects);
 projects.get('/', projectsController.getProjects);
 projects.put('/priority/update', projectsController.updateProjectsPriority); // Must come before /:id
+projects.get('/:projectId/resources', resourcesController.getProjectResources);
 projects.get('/:id/export', projectsController.exportProjectTasks);
 projects.get('/:id', projectsController.getProject);
 projects.put('/:id', projectsController.updateProject);

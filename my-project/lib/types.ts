@@ -5,6 +5,22 @@ export type TaskStatus = 'pending' | 'in-progress' | 'completed' | 'pending-revi
 /** Legacy alias kept for backward compatibility. */
 export type Status = 'TODO' | 'IN_PROGRESS' | 'DONE';
 
+export interface CommentAttachment {
+  id: string;
+  name: string;
+  url: string;
+  fileType: string;
+  size?: number;
+  heading?: string;
+}
+
+export interface CommentLink {
+  id?: string;
+  name: string;
+  url: string;
+  heading?: string;
+}
+
 export interface Comment {
   id: string;
   taskId: string;
@@ -14,6 +30,8 @@ export interface Comment {
   createdAt: Date;
   source?: string;
   taskDescription?: string;
+  attachments?: CommentAttachment[];
+  links?: CommentLink[];
 }
 
 export interface TaskAssignee {
@@ -97,6 +115,14 @@ export interface NoteAttachment {
   url: string;
   fileType: string;
   size?: number;
+  heading?: string;
+}
+
+export interface NoteLink {
+  id?: string;
+  name: string;
+  url: string;
+  heading?: string;
 }
 
 export interface NoteTag {
@@ -123,5 +149,6 @@ export interface Note {
   authorLastName?: string;
   attachments: NoteAttachment[];
   tags: NoteTag[];
+  links?: NoteLink[];
   projectName?: string;
 }

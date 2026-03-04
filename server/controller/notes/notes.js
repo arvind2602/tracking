@@ -16,14 +16,20 @@ const createNote = async (req, res, next) => {
             name: Joi.string().required(),
             url: Joi.string().uri().required(),
             fileType: Joi.string().required(),
-            size: Joi.number().optional().allow(null)
+            size: Joi.number().optional().allow(null),
+            heading: Joi.string().optional().allow('', null)
+        })).optional().default([]),
+        links: Joi.array().items(Joi.object({
+            name: Joi.string().required(),
+            url: Joi.string().uri().required(),
+            heading: Joi.string().optional().allow('', null)
         })).optional().default([])
     });
 
     const { error, value } = schema.validate(req.body);
     if (error) return next(new BadRequestError(error.details[0].message));
 
-    const { title, content, type, projectId, tags, attachments } = value;
+    const { title, content, type, projectId, tags, attachments, links } = value;
     const authorId = req.user.user_uuid;
     const organizationId = req.user.organization_uuid;
 
@@ -69,8 +75,18 @@ const createNote = async (req, res, next) => {
             if (attachments && attachments.length > 0) {
                 for (const att of attachments) {
                     await client.query(
-                        `INSERT INTO "NoteAttachment" ("noteId", name, url, "fileType", size) VALUES ($1, $2, $3, $4, $5)`,
-                        [note.id, att.name, att.url, att.fileType, att.size || null]
+                        `INSERT INTO "NoteAttachment" ("noteId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
+                        [note.id, att.name, att.url, att.fileType, att.size || null, att.heading || null]
+                    );
+                }
+            }
+
+            // Insert Links
+            if (links && links.length > 0) {
+                for (const link of links) {
+                    await client.query(
+                        `INSERT INTO "NoteLink" ("noteId", name, url, heading) VALUES ($1, $2, $3, $4)`,
+                        [note.id, link.name, link.url, link.heading || null]
                     );
                 }
             }
@@ -173,9 +189,15 @@ const getNotes = async (req, res, next) => {
             `, [noteIds]);
             const attachments = attRes.rows;
 
+            const linksRes = await pool.query(`
+                SELECT * FROM "NoteLink" WHERE "noteId" = ANY($1::uuid[])
+            `, [noteIds]);
+            const links = linksRes.rows;
+
             notes.forEach(note => {
                 note.tags = tags.filter(t => t.noteId === note.id);
                 note.attachments = attachments.filter(a => a.noteId === note.id);
+                note.links = links.filter(l => l.noteId === note.id);
             });
         }
 
@@ -241,6 +263,10 @@ const getNoteById = async (req, res, next) => {
         const attRes = await pool.query(`SELECT * FROM "NoteAttachment" WHERE "noteId" = $1`, [id]);
         note.attachments = attRes.rows;
 
+        // Fetch links
+        const linksRes = await pool.query(`SELECT * FROM "NoteLink" WHERE "noteId" = $1`, [id]);
+        note.links = linksRes.rows;
+
         // Fetch tags
         const tagRes = await pool.query(`
             SELECT nt.*, e."firstName", e."lastName", e.email 
@@ -270,14 +296,20 @@ const updateNote = async (req, res, next) => {
             name: Joi.string().required(),
             url: Joi.string().uri().required(),
             fileType: Joi.string().required(),
-            size: Joi.number().optional().allow(null)
+            size: Joi.number().optional().allow(null),
+            heading: Joi.string().optional().allow('', null)
+        })).optional(),
+        links: Joi.array().items(Joi.object({
+            name: Joi.string().required(),
+            url: Joi.string().uri().required(),
+            heading: Joi.string().optional().allow('', null)
         })).optional()
     });
 
     const { error, value } = schema.validate(req.body);
     if (error) return next(new BadRequestError(error.details[0].message));
 
-    const { title, content, type, projectId, tags, attachments } = value;
+    const { title, content, type, projectId, tags, attachments, links } = value;
 
     try {
         const noteCheck = await pool.query(`SELECT "authorId" FROM "Note" WHERE id = $1 AND "organizationId" = $2`, [id, organizationId]);
@@ -335,8 +367,21 @@ const updateNote = async (req, res, next) => {
                 if (attachments.length > 0) {
                     for (const att of attachments) {
                         await client.query(
-                            `INSERT INTO "NoteAttachment" ("noteId", name, url, "fileType", size) VALUES ($1, $2, $3, $4, $5)`,
-                            [id, att.name, att.url, att.fileType, att.size || null]
+                            `INSERT INTO "NoteAttachment" ("noteId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
+                            [id, att.name, att.url, att.fileType, att.size || null, att.heading || null]
+                        );
+                    }
+                }
+            }
+
+            // Sync Links
+            if (links !== undefined) {
+                await client.query(`DELETE FROM "NoteLink" WHERE "noteId" = $1`, [id]);
+                if (links.length > 0) {
+                    for (const link of links) {
+                        await client.query(
+                            `INSERT INTO "NoteLink" ("noteId", name, url, heading) VALUES ($1, $2, $3, $4)`,
+                            [id, link.name, link.url, link.heading || null]
                         );
                     }
                 }

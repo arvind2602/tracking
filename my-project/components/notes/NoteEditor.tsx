@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Paperclip, Loader2, X, Tag, ChevronDown, Check, Plus, Trash2 } from 'lucide-react';
+import { Paperclip, Loader2, X, Tag, ChevronDown, Check, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import axiosInstance from '@/lib/axios';
 import axios from 'axios';
@@ -51,8 +51,15 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
     );
 
     const [attachments, setAttachments] = useState<NoteAttachment[]>(noteToEdit?.attachments || []);
+    const [links, setLinks] = useState<any[]>(noteToEdit?.links || []);
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Link Popover State
+    const [isLinkPopoverOpen, setIsLinkPopoverOpen] = useState(false);
+    const [newLinkUrl, setNewLinkUrl] = useState('');
+    const [newLinkName, setNewLinkName] = useState('');
+    const [newLinkHeading, setNewLinkHeading] = useState('');
 
     // Pinning configuration (Creation only)
     const pinNote = usePinNote();
@@ -145,7 +152,9 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
             const { data } = await axiosInstance.post('/notes/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            setAttachments((prev) => [...prev, ...data]);
+            // Give newly uploaded attachments a default empty heading property
+            const newAttachments = data.map((att: NoteAttachment) => ({ ...att, heading: '' }));
+            setAttachments((prev) => [...prev, ...newAttachments]);
         } catch (error: unknown) {
             console.error('Failed to upload files', error);
             if (axios.isAxiosError(error) && error.response?.data?.message) {
@@ -163,8 +172,51 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
         }
     };
 
+    const updateAttachmentHeading = (index: number, heading: string) => {
+        setAttachments(prev => {
+            const newAtts = [...prev];
+            newAtts[index].heading = heading;
+            return newAtts;
+        });
+    };
+
     const removeAttachment = (indexToRemove: number) => {
         setAttachments((prev) => prev.filter((_, i) => i !== indexToRemove));
+    };
+
+    const handleAddLink = () => {
+        if (!newLinkUrl.trim() || !newLinkName.trim()) {
+            toast.error('Please provide both URL and Name for the link.');
+            return;
+        }
+
+        // Basic URL validation
+        let finalUrl = newLinkUrl.trim();
+        if (!/^https?:\/\//i.test(finalUrl)) {
+            finalUrl = 'https://' + finalUrl;
+        }
+
+        setLinks(prev => [...prev, {
+            name: newLinkName.trim(),
+            url: finalUrl,
+            heading: newLinkHeading.trim() || ''
+        }]);
+        setNewLinkUrl('');
+        setNewLinkName('');
+        setNewLinkHeading('');
+        setIsLinkPopoverOpen(false);
+    };
+
+    const removeLink = (indexToRemove: number) => {
+        setLinks((prev) => prev.filter((_, i) => i !== indexToRemove));
+    };
+
+    const updateLinkHeading = (index: number, heading: string) => {
+        setLinks(prev => {
+            const newLnk = [...prev];
+            newLnk[index].heading = heading;
+            return newLnk;
+        });
     };
 
     const toggleTag = (employeeId: string) => {
@@ -192,7 +244,13 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
                 name: a.name,
                 url: a.url,
                 fileType: a.fileType,
-                size: a.size
+                size: a.size,
+                heading: a.heading || null
+            })),
+            links: links.map(l => ({
+                name: l.name,
+                url: l.url,
+                heading: l.heading || null
             }))
         };
 
@@ -346,7 +404,7 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
                                 <ChevronDown className="h-3 w-3 opacity-50" />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-72 p-2 z-[300]" align="start">
+                        <PopoverContent className="w-72 p-2 z-[10001]" align="start">
                             <div className="flex flex-col gap-2 mb-2 px-1">
                                 <div className="text-sm font-medium text-muted-foreground">Tag team members</div>
                                 <Input
@@ -465,7 +523,8 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
 
                 {/* Attachments */}
                 <div className="flex flex-col gap-2">
-                    <div className="flex items-center">
+                    <div className="flex items-center gap-2">
+                        {/* File Upload Button */}
                         <input
                             type="file"
                             multiple
@@ -479,33 +538,125 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isUploading}
-                            className="h-9 gap-2 bg-background/30 hover:bg-background/50 transition-colors"
+                            className="h-9 gap-2 bg-background/30 hover:bg-background/50 transition-colors border-dashed"
                         >
-                            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4 text-indigo-500" />}
                             <span>Attach Files</span>
                         </Button>
+
+                        {/* Add Link Button */}
+                        <Popover open={isLinkPopoverOpen} onOpenChange={setIsLinkPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    type="button"
+                                    className="h-9 gap-2 bg-background/30 hover:bg-background/50 transition-colors border-dashed"
+                                >
+                                    <LinkIcon className="h-4 w-4 text-blue-500" />
+                                    <span>Add Link</span>
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-80 p-4 z-[10001]" align="start">
+                                <div className="space-y-4">
+                                    <h4 className="font-medium text-sm">Add a Link</h4>
+                                    <div className="space-y-2">
+                                        <Input
+                                            placeholder="URL (e.g. https://example.com)"
+                                            value={newLinkUrl}
+                                            onChange={(e) => setNewLinkUrl(e.target.value)}
+                                            className="h-9 text-sm"
+                                        />
+                                        <Input
+                                            placeholder="Display Name"
+                                            value={newLinkName}
+                                            onChange={(e) => setNewLinkName(e.target.value)}
+                                            className="h-9 text-sm"
+                                        />
+                                        <Input
+                                            placeholder="Heading (Optional group name)"
+                                            value={newLinkHeading}
+                                            onChange={(e) => setNewLinkHeading(e.target.value)}
+                                            className="h-9 text-sm"
+                                        />
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={handleAddLink}
+                                            className="w-full mt-2"
+                                            disabled={!newLinkUrl.trim() || !newLinkName.trim()}
+                                        >
+                                            Add Link
+                                        </Button>
+                                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
                     </div>
 
-                    {attachments.length > 0 && (
+                    {(attachments.length > 0 || links.length > 0) && (
                         <div className="flex flex-col gap-2 mt-2">
+                            {/* Render Attachments */}
                             {attachments.map((att, index) => (
-                                <div key={index} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/40 text-sm group">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
-                                            <Paperclip className="h-4 w-4 text-indigo-500" />
+                                <div key={`att-${index}`} className="flex flex-col gap-2 p-3 rounded-lg bg-muted/30 border border-border/40 group">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                            <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                                                <Paperclip className="h-4 w-4 text-indigo-500" />
+                                            </div>
+                                            <span className="truncate font-medium max-w-[150px]">{att.name}</span>
+                                            <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline-block">
+                                                {((att.size ?? 0) / 1024).toFixed(1)} KB
+                                            </span>
                                         </div>
-                                        <span className="truncate font-medium">{att.name}</span>
-                                        <span className="text-xs text-muted-foreground shrink-0">
-                                            {((att.size ?? 0) / 1024).toFixed(1)} KB
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                placeholder="Heading (Optional)"
+                                                value={att.heading || ''}
+                                                onChange={(e) => updateAttachmentHeading(index, e.target.value)}
+                                                className="h-8 w-32 sm:w-40 text-xs bg-background/50 transition-all border-transparent hover:border-border focus:border-purple-500"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeAttachment(index)}
+                                                className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-500/10"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeAttachment(index)}
-                                        className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-500/10 opacity-0 group-hover:opacity-100"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </button>
+                                </div>
+                            ))}
+
+                            {/* Render Links */}
+                            {links.map((link, index) => (
+                                <div key={`link-${index}`} className="flex flex-col gap-2 p-3 rounded-lg bg-muted/30 border border-border/40 group">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                                                <LinkIcon className="h-4 w-4 text-blue-500" />
+                                            </div>
+                                            <div className="flex flex-col overflow-hidden max-w-[150px]">
+                                                <span className="truncate font-medium">{link.name}</span>
+                                                <span className="truncate text-xs text-muted-foreground">{link.url}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                placeholder="Heading (Optional)"
+                                                value={link.heading || ''}
+                                                onChange={(e) => updateLinkHeading(index, e.target.value)}
+                                                className="h-8 w-32 sm:w-40 text-xs bg-background/50 transition-all border-transparent hover:border-border focus:border-blue-500"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeLink(index)}
+                                                className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-500/10"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
                         </div>

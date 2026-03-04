@@ -4,8 +4,11 @@ import { formatDateIST, formatDateOnlyIST, formatTimeIST } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
+import axiosInstance from "@/lib/axios";
 import toast from "react-hot-toast";
 import { useParams, useRouter } from 'next/navigation';
+import { useRef } from "react";
+import imageCompression from 'browser-image-compression';
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from 'next/link';
@@ -22,8 +25,14 @@ import {
   ChevronsRight,
   Send,
   Flag,
-  Check
+  Check,
+  Paperclip,
+  Loader2,
+  X,
+  Link as LinkIcon
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 
 export default function TaskDetailPage() {
   const { taskId } = useParams();
@@ -33,6 +42,17 @@ export default function TaskDetailPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [links, setLinks] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Link Popover State
+  const [isLinkPopoverOpen, setIsLinkPopoverOpen] = useState(false);
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [newLinkName, setNewLinkName] = useState('');
+  const [newLinkHeading, setNewLinkHeading] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -64,13 +84,138 @@ export default function TaskDetailPage() {
     }
   }, [taskId]);
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+
+    try {
+      const processFile = async (file: File) => {
+        if (file.type.startsWith('image/') && file.size > 1024 * 1024) {
+          try {
+            const options = {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true,
+            };
+            const compressedFile = await imageCompression(file, options);
+            return compressedFile;
+          } catch (err) {
+            console.error('Compression error, using original file', err);
+            return file;
+          }
+        }
+
+        if (!file.type.startsWith('image/') && file.size > 10 * 1024 * 1024) {
+          throw new Error(`"${file.name}" is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Documents must be under 10MB.`);
+        }
+
+        return file;
+      };
+
+      const processedFiles = await Promise.all(
+        Array.from(files).map(file => processFile(file))
+      );
+
+      processedFiles.forEach((file) => {
+        formData.append('files', file);
+      });
+
+      // Reusing the general upload endpoint in notes currently, or ideally a dedicated one
+      const { data } = await axiosInstance.post('/notes/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const newAttachments = data.map((att: any) => ({ ...att, heading: '' }));
+      setAttachments((prev) => [...prev, ...newAttachments]);
+    } catch (error: unknown) {
+      console.error('Failed to upload files', error);
+      toast.error("Failed to upload file.");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const updateAttachmentHeading = (index: number, heading: string) => {
+    setAttachments(prev => {
+      const newAtts = [...prev];
+      newAtts[index].heading = heading;
+      return newAtts;
+    });
+  };
+
+  const removeAttachment = (indexToRemove: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== indexToRemove));
+  };
+
+  const handleAddLink = () => {
+    if (!newLinkUrl.trim() || !newLinkName.trim()) {
+      toast.error('Please provide both URL and Name for the link.');
+      return;
+    }
+
+    let finalUrl = newLinkUrl.trim();
+    if (!/^https?:\/\//i.test(finalUrl)) {
+      finalUrl = 'https://' + finalUrl;
+    }
+
+    setLinks(prev => [...prev, {
+      name: newLinkName.trim(),
+      url: finalUrl,
+      heading: newLinkHeading.trim() || ''
+    }]);
+    setNewLinkUrl('');
+    setNewLinkName('');
+    setNewLinkHeading('');
+    setIsLinkPopoverOpen(false);
+  };
+
+  const removeLink = (indexToRemove: number) => {
+    setLinks((prev) => prev.filter((_, i) => i !== indexToRemove));
+  };
+
+  const updateLinkHeading = (index: number, heading: string) => {
+    setLinks(prev => {
+      const newLnk = [...prev];
+      newLnk[index].heading = heading;
+      return newLnk;
+    });
+  };
+
   const handleAddComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() && attachments.length === 0 && links.length === 0) return;
     setIsSubmittingComment(true);
     try {
-      const response = await axios.post(`/tasks/comments/${taskId}`, { content: newComment });
-      setComments((prev) => [...prev, response.data]);
+      const payload = {
+        content: newComment,
+        attachments: attachments.map(a => ({
+          name: a.name,
+          url: a.url,
+          fileType: a.fileType,
+          size: a.size,
+          heading: a.heading || null
+        })),
+        links: links.map(l => ({
+          name: l.name,
+          url: l.url,
+          heading: l.heading || null
+        }))
+      };
+
+      const response = await axios.post(`/tasks/comments/${taskId}`, payload);
+
+      // Update local state by re-fetching comments to get the attached links/attachments properly
+      const commentsResponse = await axios.get(`/tasks/comments/${taskId}`);
+      setComments(commentsResponse.data);
+
       setNewComment("");
+      setAttachments([]);
+      setLinks([]);
       toast.success("Comment added");
     } catch (err) {
       console.error("Error adding comment:", err);
@@ -262,7 +407,31 @@ export default function TaskDetailPage() {
                           <span className="text-xs text-muted-foreground uppercase tracking-wide">{formatDateIST(comment.createdAt)}</span>
                         </div>
                         <div className="text-sm bg-muted/30 p-3 rounded-2xl rounded-tl-none text-foreground/90 leading-relaxed border border-border/50 hover:bg-muted/40 transition-colors">
-                          {comment.content}
+                          <div className="whitespace-pre-wrap">{comment.content}</div>
+
+                          {/* Display Attachments and Links for this Comment */}
+                          {(comment.attachments?.length || comment.links?.length) ? (
+                            <div className="mt-3 space-y-2 pt-3 border-t border-border/50">
+                              {comment.attachments?.map((att, i) => (
+                                <div key={`att-${i}`} className="flex flex-col gap-1 text-xs">
+                                  {att.heading && <span className="font-semibold text-muted-foreground">{att.heading}</span>}
+                                  <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-md bg-background/50 border border-border/40 hover:bg-accent hover:text-accent-foreground transition-colors w-fit max-w-full">
+                                    <Paperclip className="h-3 w-3 shrink-0 text-indigo-500" />
+                                    <span className="truncate">{att.name}</span>
+                                  </a>
+                                </div>
+                              ))}
+                              {comment.links?.map((link, i) => (
+                                <div key={`link-${i}`} className="flex flex-col gap-1 text-xs">
+                                  {link.heading && <span className="font-semibold text-muted-foreground">{link.heading}</span>}
+                                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-md bg-background/50 border border-border/40 hover:bg-accent hover:text-accent-foreground transition-colors w-fit max-w-full">
+                                    <LinkIcon className="h-3 w-3 shrink-0 text-blue-500" />
+                                    <span className="truncate">{link.name}</span>
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     ))}
@@ -270,21 +439,111 @@ export default function TaskDetailPage() {
                 )}
               </ScrollArea>
 
-              <div className="flex items-start gap-3 mt-6 pt-6 border-t border-border/50">
+              <div className="flex flex-col gap-3 mt-6 pt-6 border-t border-border/50">
                 <Textarea
                   placeholder="Add a comment..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   className="min-h-[100px] resize-none bg-background/50 focus:bg-background transition-colors"
                 />
-                <Button
-                  onClick={handleAddComment}
-                  disabled={isSubmittingComment || !newComment.trim()}
-                  size="icon"
-                  className="h-10 w-10 shrink-0 shadow-sm"
-                >
-                  {isSubmittingComment ? <Clock className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                </Button>
+
+                {/* Attachments & Links Previews */}
+                {(attachments.length > 0 || links.length > 0) && (
+                  <div className="flex flex-col gap-2 p-2 bg-muted/20 border border-border/30 rounded-lg">
+                    {attachments.map((att, index) => (
+                      <div key={`att-${index}`} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded border border-border/40">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Paperclip className="h-4 w-4 text-indigo-500 shrink-0" />
+                          <span className="truncate max-w-[120px] font-medium">{att.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Heading (Optional)"
+                            value={att.heading || ''}
+                            onChange={(e) => updateAttachmentHeading(index, e.target.value)}
+                            className="h-7 w-28 sm:w-36 text-xs bg-background"
+                          />
+                          <button type="button" onClick={() => removeAttachment(index)} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><X className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    ))}
+                    {links.map((link, index) => (
+                      <div key={`link-${index}`} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded border border-border/40">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <LinkIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                          <span className="truncate max-w-[120px] font-medium">{link.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Heading (Optional)"
+                            value={link.heading || ''}
+                            onChange={(e) => updateLinkHeading(index, e.target.value)}
+                            className="h-7 w-28 sm:w-36 text-xs bg-background"
+                          />
+                          <button type="button" onClick={() => removeLink(index)} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><X className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      multiple
+                      ref={fileInputRef}
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      className="h-9 gap-2 bg-background/30 border-dashed"
+                    >
+                      {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4 text-indigo-500" />}
+                      <span className="hidden sm:inline-block">Attach Files</span>
+                    </Button>
+
+                    <Popover open={isLinkPopoverOpen} onOpenChange={setIsLinkPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          className="h-9 gap-2 bg-background/30 border-dashed"
+                        >
+                          <LinkIcon className="h-4 w-4 text-blue-500" />
+                          <span className="hidden sm:inline-block">Add Link</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-4 z-[10001]" align="start">
+                        <div className="space-y-4">
+                          <h4 className="font-medium text-sm">Add a Link</h4>
+                          <div className="space-y-2">
+                            <Input placeholder="URL (e.g. https://example.com)" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="h-9 text-sm" />
+                            <Input placeholder="Display Name" value={newLinkName} onChange={(e) => setNewLinkName(e.target.value)} className="h-9 text-sm" />
+                            <Input placeholder="Heading (Optional group name)" value={newLinkHeading} onChange={(e) => setNewLinkHeading(e.target.value)} className="h-9 text-sm" />
+                            <Button type="button" size="sm" onClick={handleAddLink} className="w-full mt-2" disabled={!newLinkUrl.trim() || !newLinkName.trim()}>Add Link</Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <Button
+                    onClick={handleAddComment}
+                    disabled={isSubmittingComment || (!newComment.trim() && attachments.length === 0 && links.length === 0)}
+                    size="sm"
+                    className="h-9 shadow-sm gap-2 px-4"
+                  >
+                    {isSubmittingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    <span>Post Comment</span>
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
