@@ -126,8 +126,8 @@ export function NoteCard({ note, onEdit, onPin }: Props) {
                         </div>
                     )}
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-between gap-2">
+                    {/* Actions and Info Footer */}
+                    <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border/50">
                         <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="outline" className={`text-[10px] h-5 ${colors.badge}`}>
                                 {note.type === 'ORGANIZATIONAL' ? 'Org' : note.type}
@@ -145,18 +145,6 @@ export function NoteCard({ note, onEdit, onPin }: Props) {
                             )}
                         </div>
                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground shrink-0">
-                            {note.attachments && note.attachments.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                    <Paperclip className="h-3 w-3" />
-                                    {note.attachments.length}
-                                </div>
-                            )}
-                            {note.links && note.links.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                    <LinkIcon className="h-3 w-3" />
-                                    {note.links.length}
-                                </div>
-                            )}
                             <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 {timeAgo}
@@ -166,7 +154,7 @@ export function NoteCard({ note, onEdit, onPin }: Props) {
 
                     {/* Tags */}
                     {note.tags && note.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2.5 pt-2.5 border-t border-border/50">
+                        <div className="flex flex-wrap gap-1 mt-2.5">
                             {note.tags.slice(0, 3).map(tag => (
                                 <span key={tag.id} className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600">
                                     @{tag.firstName}
@@ -175,6 +163,46 @@ export function NoteCard({ note, onEdit, onPin }: Props) {
                             {note.tags.length > 3 && (
                                 <span className="text-[10px] text-muted-foreground">+{note.tags.length - 3}</span>
                             )}
+                        </div>
+                    )}
+
+                    {/* Resources Preview (Attachments & Links) */}
+                    {((note.attachments && note.attachments.length > 0) || (note.links && note.links.length > 0)) && (
+                        <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+                            {note.attachments?.map((att, index) => (
+                                <div key={`att-${index}`} className="flex flex-col gap-1">
+                                    {att.heading && <span className="text-[10px] font-semibold text-muted-foreground">{att.heading}</span>}
+                                    <a
+                                        href={att.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted border border-border/40 transition-colors"
+                                        onClick={(e) => e.stopPropagation()} // Prevent triggering parent clicks if any
+                                    >
+                                        <div className="h-6 w-6 rounded bg-indigo-500/10 flex items-center justify-center shrink-0">
+                                            <Paperclip className="h-3 w-3 text-indigo-500" />
+                                        </div>
+                                        <span className="text-xs text-foreground/80 truncate">{att.name}</span>
+                                    </a>
+                                </div>
+                            ))}
+                            {note.links?.map((link, index) => (
+                                <div key={`link-${index}`} className="flex flex-col gap-1">
+                                    {link.heading && <span className="text-[10px] font-semibold text-muted-foreground">{link.heading}</span>}
+                                    <a
+                                        href={link.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 p-1.5 rounded-md bg-muted/40 hover:bg-muted border border-border/40 transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="h-6 w-6 rounded bg-blue-500/10 flex items-center justify-center shrink-0">
+                                            <LinkIcon className="h-3 w-3 text-blue-500" />
+                                        </div>
+                                        <span className="text-xs text-foreground/80 truncate">{link.name}</span>
+                                    </a>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
