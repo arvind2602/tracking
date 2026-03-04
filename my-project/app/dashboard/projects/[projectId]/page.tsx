@@ -38,6 +38,7 @@ const ProjectDetailsPage = () => {
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [noteToEdit, setNoteToEdit] = useState<Note | null>(null);
   const [resources, setResources] = useState<ProjectResource[]>([]);
+  const [isAddingResource, setIsAddingResource] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -215,7 +216,16 @@ const ProjectDetailsPage = () => {
         <div className="space-y-6">
           <Card className="border-border/60 shadow-sm overflow-hidden">
             <CardHeader className="border-b px-5 py-4">
-              <div className="flex items-center gap-2"><Paperclip className="h-5 w-5 text-indigo-500" /><CardTitle className="text-base font-semibold">Resources</CardTitle><Badge variant="secondary" className="text-xs">{resources.reduce((a, c) => a + c.attachments.length + c.links.length, 0)}</Badge></div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Paperclip className="h-5 w-5 text-indigo-500" />
+                  <CardTitle className="text-base font-semibold">Resources</CardTitle>
+                  <Badge variant="secondary" className="text-xs">{resources.reduce((a, c) => a + c.attachments.length + c.links.length, 0)}</Badge>
+                </div>
+                <Button onClick={() => setIsAddingResource(true)} className="gap-2" size="sm" variant="outline">
+                  <Plus className="h-4 w-4" /> Add Resource
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-5">
               {resources.length ? (
@@ -242,13 +252,13 @@ const ProjectDetailsPage = () => {
               </div>
             </CardHeader>
             <CardContent className="p-5">
-              {isAddingNote || noteToEdit ? <NoteEditor noteToEdit={noteToEdit} onClose={() => { setIsAddingNote(false); setNoteToEdit(null); }} defaultType="PROJECT" /> : <NotesList type="PROJECT" projectId={projectId as string} searchTerm="" onEdit={n => setNoteToEdit(n)} />}
+              {isAddingNote || noteToEdit ? <NoteEditor noteToEdit={noteToEdit} onClose={() => { setIsAddingNote(false); setNoteToEdit(null); }} defaultType="PROJECT" defaultProjectId={projectId as string} /> : <NotesList type="PROJECT" projectId={projectId as string} searchTerm="" onEdit={n => setNoteToEdit(n)} />}
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal Modal Hold */}
       <Dialog open={isHoldModalOpen} onOpenChange={setIsHoldModalOpen}>
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader><DialogTitle className="text-lg font-bold">Put Project on Hold</DialogTitle></DialogHeader>
@@ -260,6 +270,21 @@ const ProjectDetailsPage = () => {
             <Button variant="outline" onClick={() => setIsHoldModalOpen(false)}>Cancel</Button>
             <Button disabled={isActionLoading || !holdReason.trim()} onClick={handleHoldProject} className="bg-amber-500 gap-2">{isActionLoading ? <Loader className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />}Confirm</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Resource Modal */}
+      <Dialog open={isAddingResource} onOpenChange={setIsAddingResource}>
+        <DialogContent className="sm:max-w-xl bg-card border-border p-0 overflow-hidden">
+          <NoteEditor
+            onClose={() => {
+              setIsAddingResource(false);
+              reloadProject();
+            }}
+            defaultType="PROJECT"
+            defaultTitle="Project Resources"
+            defaultProjectId={projectId as string}
+          />
         </DialogContent>
       </Dialog>
     </div>

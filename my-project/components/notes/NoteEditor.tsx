@@ -20,6 +20,9 @@ interface Props {
     onClose: () => void;
     defaultType?: NoteType;
     defaultEmployeeId?: string;
+    defaultTitle?: string;
+    defaultPoints?: string[];
+    defaultProjectId?: string;
 }
 
 interface UserPayload {
@@ -28,14 +31,14 @@ interface UserPayload {
     };
 }
 
-export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defaultEmployeeId }: Props) {
+export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defaultEmployeeId, defaultTitle, defaultPoints, defaultProjectId }: Props) {
     const createNote = useCreateNote();
     const updateNote = useUpdateNote();
 
-    const [title, setTitle] = useState(noteToEdit?.title || '');
-    const [points, setPoints] = useState<string[]>(noteToEdit?.content || []);
+    const [title, setTitle] = useState(noteToEdit?.title || defaultTitle || '');
+    const [points, setPoints] = useState<string[]>(noteToEdit?.content || defaultPoints || []);
     const [type, setType] = useState<NoteType>(noteToEdit?.type || defaultType);
-    const [projectId, setProjectId] = useState<string>(noteToEdit?.projectId || '');
+    const [projectId, setProjectId] = useState<string>(noteToEdit?.projectId || defaultProjectId || '');
 
     // Remote data
     const [projects, setProjects] = useState<Project[]>([]);
