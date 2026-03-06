@@ -133,39 +133,32 @@ export function KanbanBoard({ tasks, users, onTaskUpdate }: KanbanBoardProps) {
         const activeContainer = findContainer(active.id as string);
         const overContainer = findContainer(over?.id as string || '');
 
-        console.log('DragEnd:', { activeId: active.id, overId: over?.id, activeContainer, overContainer });
 
         if (
             !activeContainer ||
             !overContainer ||
             (activeContainer === overContainer && active.id === over?.id)
         ) {
-            console.log('DragEnd: Returning early');
             setActiveId(null);
             return;
         }
 
         // Optimistic update
         const task = tasks.find((t) => t.id === active.id);
-        console.log('DragEnd: Task found:', task?.id, 'Status:', task?.status, 'OverContainer:', overContainer);
 
         if (task) {
             // Check if status changed
             if (task.status !== overContainer) {
-                console.log('DragEnd: Status changed. Calling API...');
                 // Moving to different column
                 try {
                     await axios.patch(`/tasks/${active.id}/status`, { status: overContainer });
-                    console.log('DragEnd: API success');
                     toast.success(`Task moved to ${COLUMNS.find(c => c.id === overContainer)?.title}`);
                     onTaskUpdate();
                 } catch (error) {
-                    console.error('DragEnd: API error', error);
                     toast.error('Failed to update task status');
                     onTaskUpdate(); // Revert
                 }
             } else {
-                console.log('DragEnd: Status same. Checking reorder...');
                 // Reordering in same column
                 const activeIndex = items[activeContainer].findIndex((t) => t.id === active.id);
                 const overIndex = items[overContainer].findIndex((t) => t.id === over?.id);

@@ -117,11 +117,9 @@ export default function ProfilePage() {
             return;
         }
         try {
-            console.log("Fetching skills with search:", search);
             const response = await axios.get("/auth/skills", {
                 params: { search }
             });
-            console.log("Available skills fetched:", response.data);
             setAvailableSkills(response.data || []);
         } catch (error) {
             console.error("Failed to fetch skills:", error);

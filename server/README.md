@@ -59,7 +59,9 @@ server/
 │   ├── analytics/     # Dashboard analytics and metrics
 │   ├── performance/   # Employee performance scoring
 │   ├── reports/       # Report generation and exports
-│   ├── hr/            # HR-specific operations
+│   ├── projects/      # Project management logic
+│   ├── auth/          # Authentication handlers
+│   └── ...            # Other modules
 │   ├── organization/  # Organization settings and configuration
 │   └── routes.js      # Central route aggregator
 ├── middleware/        # Express middleware

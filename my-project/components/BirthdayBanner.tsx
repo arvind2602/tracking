@@ -53,7 +53,6 @@ export function BirthdayBanner() {
                 const currentYear = today.getFullYear();
                 today.setHours(0, 0, 0, 0);
 
-                console.log("Banner: Fetched", employees.length, "employees");
 
                 // --- 1. Birthdays (Nearest Upcoming Only) ---
                 let minBdayDiff = Infinity;
@@ -114,7 +113,6 @@ export function BirthdayBanner() {
 
                 // --- 3. Performance (Yesterday) ---
                 const eligibleForPerformance = employees.filter(e => e.role !== 'ADMIN');
-                console.log("Banner: Eligible for performance", eligibleForPerformance.length);
 
                 if (eligibleForPerformance.length > 0) {
                     // Separate suspicious vs normal
@@ -176,8 +174,6 @@ export function BirthdayBanner() {
                         });
                     }
                 }
-
-                console.log("Banner: Total Events Created:", newEvents.length);
                 setEvents(newEvents);
             } catch (error) {
                 console.error('Failed to fetch banner data', error);

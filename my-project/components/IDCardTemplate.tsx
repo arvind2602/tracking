@@ -61,7 +61,6 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                 const url = URL.createObjectURL(imageBlob);
                 if (isMounted) {
                     setInternalProcessedImage(url);
-                    console.log("Background removed for", profile.firstName);
                     onImageProcessed?.();
                 }
             } catch (error) {

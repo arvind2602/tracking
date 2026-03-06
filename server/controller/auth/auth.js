@@ -34,7 +34,7 @@ const login = async (req, res, next) => {
             return next(new UnprocessableEntityError('Invalid email or password'));
         }
 
-        const token = generateJwtToken(user.email, user.role, user.id, user.organiationId, null);
+        const token = generateJwtToken(user.email, user.role, user.id, user.organiationId);
 
 
         res.cookie('token', token, { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 24 });

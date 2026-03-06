@@ -16,7 +16,6 @@ import { LoginPerformancePopup } from "@/components/LoginPerformancePopup";
 interface DecodedToken {
   user: {
     role: string;
-    is_hr: boolean;
   };
 }
 
@@ -32,7 +31,6 @@ export default function DashboardLayout({
   const [isNotesPanelOpen, setIsNotesPanelOpen] = useState(false);
   const [orgSettings, setOrgSettings] = useState<{ name: string, logo: string | null, showBanner: boolean, showLoginPopup: boolean } | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [, setIsHRUser] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loginPopupData, setLoginPopupData] = useState<{
     starPerformer: { name: string; points: number } | null;
@@ -56,7 +54,6 @@ export default function DashboardLayout({
         const payload: DecodedToken = jwtDecode(token);
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setUserRole(payload.user.role);
-        setIsHRUser(payload.user.is_hr || false);
       } catch (error) {
         console.error('Invalid token', error);
         router.push('/');
@@ -84,10 +81,6 @@ export default function DashboardLayout({
     // Wait until we have both org settings and user role
     if (!orgSettings || !userRole || isLoading) return;
 
-    console.log('--- Popup Visibility Check ---');
-    console.log('Role:', userRole);
-    console.log('Show Popup Setting:', orgSettings.showLoginPopup);
-
     // Only show to non-ADMINs if enabled in settings
     if (orgSettings.showLoginPopup && userRole.toUpperCase() !== 'ADMIN') {
       const token = localStorage.getItem('token');
@@ -98,15 +91,12 @@ export default function DashboardLayout({
         const uuid = decoded?.user?.uuid || 'unknown';
         const storageKey = `loginPopupShown_${uuid}`;
 
-        console.log('User UUID:', uuid);
-        console.log('Previously Shown:', sessionStorage.getItem(storageKey));
+
 
         if (sessionStorage.getItem(storageKey) !== 'true') {
           const fetchPopupData = async () => {
             try {
-              console.log('Fetching popup data...');
               const popupRes = await axios.get('/performance/login-popup-data');
-              console.log('Popup data received:', popupRes.data);
               setLoginPopupData(popupRes.data);
               setShowLoginPopup(true);
             } catch (popupErr) {

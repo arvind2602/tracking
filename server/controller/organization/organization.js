@@ -55,8 +55,7 @@ const registerOrganization = async (req, res, next) => {
             admin.email,
             admin.role,
             admin.id,
-            admin.organiationId,
-            null
+            admin.organiationId
         );
 
         await client.query('COMMIT');
