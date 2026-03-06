@@ -84,8 +84,12 @@ export default function DashboardLayout({
     // Wait until we have both org settings and user role
     if (!orgSettings || !userRole || isLoading) return;
 
+    console.log('--- Popup Visibility Check ---');
+    console.log('Role:', userRole);
+    console.log('Show Popup Setting:', orgSettings.showLoginPopup);
+
     // Only show to non-ADMINs if enabled in settings
-    if (orgSettings.showLoginPopup && userRole !== 'ADMIN') {
+    if (orgSettings.showLoginPopup && userRole.toUpperCase() !== 'ADMIN') {
       const token = localStorage.getItem('token');
       if (!token) return;
 
@@ -94,10 +98,15 @@ export default function DashboardLayout({
         const uuid = decoded?.user?.uuid || 'unknown';
         const storageKey = `loginPopupShown_${uuid}`;
 
+        console.log('User UUID:', uuid);
+        console.log('Previously Shown:', sessionStorage.getItem(storageKey));
+
         if (sessionStorage.getItem(storageKey) !== 'true') {
           const fetchPopupData = async () => {
             try {
+              console.log('Fetching popup data...');
               const popupRes = await axios.get('/performance/login-popup-data');
+              console.log('Popup data received:', popupRes.data);
               setLoginPopupData(popupRes.data);
               setShowLoginPopup(true);
             } catch (popupErr) {
@@ -111,6 +120,7 @@ export default function DashboardLayout({
       }
     }
   }, [orgSettings, userRole, isLoading]);
+
 
 
   useEffect(() => {

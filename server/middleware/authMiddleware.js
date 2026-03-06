@@ -7,7 +7,7 @@ const authMiddleware = (req, res, next) => {
         let token;
         if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
             token = req.headers.authorization.split(' ')[1];
-        } else if (req.cookies.token) {
+        } else if (req.cookies && req.cookies.token) {
             token = req.cookies.token;
         }
 
@@ -16,12 +16,11 @@ const authMiddleware = (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, jwtConfig.secret);
-   
+
         req.user = {
             user_uuid: decoded.user.uuid,
             role: decoded.user.role,
             organization_uuid: decoded.user.organization_uuid,
-            is_hr: decoded.user.is_hr || false,
         };
 
 

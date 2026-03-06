@@ -101,7 +101,6 @@ model ProjectHoldHistory {
   @@index([projectId])
 }
 
-/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model task {
   id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   description String
