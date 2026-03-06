@@ -80,7 +80,7 @@ const getOrganizationSettings = async (req, res, next) => {
 
     try {
         const result = await pool.query(
-            'SELECT id, name, "showBanner", logo FROM organiation WHERE id = $1',
+            'SELECT id, name, "showBanner", "showLoginPopup", logo FROM organiation WHERE id = $1',
             [orgId]
         );
 
@@ -128,13 +128,21 @@ const updateOrganizationSettings = async (req, res, next) => {
             paramIndex++;
         }
 
+        const { showLoginPopup } = req.body;
+        if (showLoginPopup !== undefined) {
+            const showLoginPopupBool = showLoginPopup === 'true' || showLoginPopup === true;
+            query += `, "showLoginPopup" = $${paramIndex}`;
+            params.push(showLoginPopupBool);
+            paramIndex++;
+        }
+
         if (logoUrl) {
             query += `, logo = $${paramIndex}`;
             params.push(logoUrl);
             paramIndex++;
         }
 
-        query += ` WHERE id = $${paramIndex} RETURNING id, name, "showBanner", logo`;
+        query += ` WHERE id = $${paramIndex} RETURNING id, name, "showBanner", "showLoginPopup", logo`;
         params.push(orgId);
 
         const result = await pool.query(query, params);

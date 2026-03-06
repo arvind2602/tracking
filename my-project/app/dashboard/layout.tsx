@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
 import { Home, Code, GraduationCap, LogOut, Menu, X, Activity, ChevronLeft, ChevronRight, User, Settings, NotebookPen } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import axios from '@/lib/axios';
 import { ModeToggle } from "@/components/mode-toggle";
@@ -11,6 +11,7 @@ import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { PinnedNotesBanner } from "@/components/notes/PinnedNotesBanner";
 import { NotesPanel } from "@/components/notes/NotesPanel";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
+import { LoginPerformancePopup } from "@/components/LoginPerformancePopup";
 
 interface DecodedToken {
   user: {
@@ -29,10 +30,23 @@ export default function DashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isNotesPanelOpen, setIsNotesPanelOpen] = useState(false);
-  const [orgSettings, setOrgSettings] = useState<{ name: string, logo: string | null, showBanner: boolean } | null>(null);
+  const [orgSettings, setOrgSettings] = useState<{ name: string, logo: string | null, showBanner: boolean, showLoginPopup: boolean } | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [, setIsHRUser] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loginPopupData, setLoginPopupData] = useState<{
+    starPerformer: { name: string; points: number } | null;
+    myStats: {
+      avgPointsPerDay: number;
+      activeDays: number;
+      completedTasks: number;
+      totalAssigned: number;
+      completionRate: number;
+      commentRate: number;
+      tips: { type: string; message: string; icon: string }[];
+    };
+  } | null>(null);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,6 +79,40 @@ export default function DashboardLayout({
     fetchOrgSettings();
   }, []);
 
+  // Performance Popup Logic
+  useEffect(() => {
+    // Wait until we have both org settings and user role
+    if (!orgSettings || !userRole || isLoading) return;
+
+    // Only show to non-ADMINs if enabled in settings
+    if (orgSettings.showLoginPopup && userRole !== 'ADMIN') {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const decoded = jwtDecode<any>(token);
+        const uuid = decoded?.user?.uuid || 'unknown';
+        const storageKey = `loginPopupShown_${uuid}`;
+
+        if (sessionStorage.getItem(storageKey) !== 'true') {
+          const fetchPopupData = async () => {
+            try {
+              const popupRes = await axios.get('/performance/login-popup-data');
+              setLoginPopupData(popupRes.data);
+              setShowLoginPopup(true);
+            } catch (popupErr) {
+              console.error('Failed to fetch login popup data', popupErr);
+            }
+          };
+          fetchPopupData();
+        }
+      } catch (err) {
+        console.error('Error decoding token for popup', err);
+      }
+    }
+  }, [orgSettings, userRole, isLoading]);
+
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
@@ -87,6 +135,18 @@ export default function DashboardLayout({
     localStorage.removeItem('token');
     router.push('/');
   };
+
+  const handleLoginPopupClose = useCallback(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode<any>(token);
+        const uuid = decoded?.user?.uuid || 'unknown';
+        sessionStorage.setItem(`loginPopupShown_${uuid}`, 'true');
+      } catch (_) { }
+    }
+    setShowLoginPopup(false);
+  }, []);
 
   const allNavItems = [
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -246,6 +306,12 @@ export default function DashboardLayout({
         </main>
       </div>
       <NotesPanel open={isNotesPanelOpen} onClose={() => setIsNotesPanelOpen(false)} />
+      {showLoginPopup && loginPopupData && (
+        <LoginPerformancePopup
+          popupData={loginPopupData}
+          onClose={handleLoginPopupClose}
+        />
+      )}
     </div>
   );
 }

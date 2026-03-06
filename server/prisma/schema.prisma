@@ -15,12 +15,13 @@ model organiation {
   updatedAt         DateTime?           @updatedAt
   showBanner        Boolean             @default(false)
   logo              String?
-  Site              Site[]
-  employees         employee[]
-  projects          projects[]
+  showLoginPopup    Boolean?            @default(false)
   DocumentTemplate  DocumentTemplate[]
   GeneratedDocument GeneratedDocument[]
   notes             Note[]
+  Site              Site[]
+  employees         employee[]
+  projects          projects[]
 
   @@index([name])
 }
@@ -38,26 +39,26 @@ model employee {
   organiationId    String              @db.Uuid
   password         String
   lastDeviceId     String?
-  TimeLog          TimeLog[]
-  comments         comment[]
-  organiation      organiation         @relation(fields: [organiationId], references: [id])
-  taskAssignees    TaskAssignee[]
-  skills           String[]            @default([])
   responsibilities String[]            @default([])
-  dob              DateTime?
+  skills           String[]            @default([])
   bloodGroup       String?
+  dob              DateTime?
   image            String?
   phoneNumber      String?
+  joiningDate      DateTime?
   emergencyContact String?
   address          String?
-  joiningDate      DateTime?
-  headedProjects   projects[]          @relation("ProjectHead")
   isHR             Boolean             @default(false)
   createdTemplates DocumentTemplate[]  @relation("CreatedTemplates")
   documents        GeneratedDocument[] @relation("EmployeeDocuments")
   generatedDocs    GeneratedDocument[] @relation("GeneratedByEmployee")
   authoredNotes    Note[]              @relation("NoteAuthor")
   noteTags         NoteTag[]           @relation("NoteTagged")
+  taskAssignees    TaskAssignee[]
+  TimeLog          TimeLog[]
+  comments         comment[]
+  organiation      organiation         @relation(fields: [organiationId], references: [id])
+  headedProjects   projects[]          @relation("ProjectHead")
 
   @@index([organiationId, is_archived])
   @@index([organiationId, role])
@@ -65,24 +66,23 @@ model employee {
 }
 
 model projects {
-  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name           String
   description    String
   startDate      DateTime
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime?   @updatedAt
-  organiationId  String      @db.Uuid
-  is_archived    Boolean     @default(false)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime?            @updatedAt
+  organiationId  String               @db.Uuid
+  is_archived    Boolean              @default(false)
   endDate        DateTime?
-  priority_order Int?        @default(0)
-  organiation    organiation @relation(fields: [organiationId], references: [id])
-  task           task[]
-  headId         String?     @db.Uuid
-  head           employee?   @relation("ProjectHead", fields: [headId], references: [id])
+  priority_order Int?                 @default(0)
+  headId         String?              @db.Uuid
+  status         ProjectStatus        @default(ACTIVE)
   notes          Note[]
-
-  status      ProjectStatus        @default(ACTIVE)
-  holdHistory ProjectHoldHistory[]
+  holdHistory    ProjectHoldHistory[]
+  head           employee?            @relation("ProjectHead", fields: [headId], references: [id])
+  organiation    organiation          @relation(fields: [organiationId], references: [id])
+  task           task[]
 
   @@index([organiationId, is_archived])
   @@index([organiationId, priority_order])
@@ -101,36 +101,29 @@ model ProjectHoldHistory {
   @@index([projectId])
 }
 
-enum ProjectStatus {
-  ACTIVE
-  ON_HOLD
-  COMPLETED
-}
-
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model task {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   description String
   status      String
   createdBy   String
   assignedTo  String?
   assigned_at DateTime?
   points      Float
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime? @updatedAt
-  projectId   String    @db.Uuid
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime?      @updatedAt
+  projectId   String         @db.Uuid
   dueDate     DateTime?
-  order       Int       @default(0)
-  priority    Priority  @default(MEDIUM)
+  order       Int            @default(0)
+  priority    Priority       @default(MEDIUM)
   completedAt DateTime?
+  parentId    String?        @db.Uuid
+  type        TaskType       @default(SINGLE)
+  assignees   TaskAssignee[]
   comments    comment[]
-  project     projects  @relation(fields: [projectId], references: [id])
-
-  parent   task?   @relation("SubTasks", fields: [parentId], references: [id])
-  parentId String? @db.Uuid
-  subtasks task[]  @relation("SubTasks")
-
-  type      TaskType       @default(SINGLE)
-  assignees TaskAssignee[]
+  parent      task?          @relation("SubTasks", fields: [parentId], references: [id])
+  subtasks    task[]         @relation("SubTasks")
+  project     projects       @relation(fields: [projectId], references: [id])
 
   @@index([projectId, status], map: "idx_task_project_status")
   @@index([assignedTo, status, updatedAt(sort: Desc)], map: "idx_task_assigned_status")
@@ -143,13 +136,12 @@ model TaskAssignee {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   taskId      String    @db.Uuid
   employeeId  String    @db.Uuid
-  order       Int? // For sequential tasks
+  order       Int?
   isCompleted Boolean   @default(false)
   assignedAt  DateTime? @default(now())
   completedAt DateTime?
-
-  task     task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  employee employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee    employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  task        task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, employeeId])
   @@index([taskId])
@@ -163,10 +155,10 @@ model comment {
   updatedAt   DateTime?           @updatedAt
   taskId      String              @db.Uuid
   authorId    String              @db.Uuid
-  author      employee            @relation(fields: [authorId], references: [id])
-  task        task                @relation(fields: [taskId], references: [id])
   attachments CommentAttachment[]
   links       CommentLink[]
+  author      employee            @relation(fields: [authorId], references: [id])
+  task        task                @relation(fields: [taskId], references: [id])
 
   @@index([authorId], map: "idx_comment_author")
   @@index([taskId, createdAt(sort: Desc)], map: "idx_comment_task")
@@ -180,8 +172,7 @@ model CommentAttachment {
   fileType  String
   size      Int?
   heading   String?
-
-  comment comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@index([commentId])
 }
@@ -192,8 +183,7 @@ model CommentLink {
   name      String
   url       String
   heading   String?
-
-  comment comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@index([commentId])
 }
@@ -226,6 +216,114 @@ model TimeLog {
   employee   employee  @relation(fields: [employeeId], references: [id])
 }
 
+model DocumentTemplate {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String
+  type               DocumentType
+  content            String
+  organizationId     String              @db.Uuid
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime?           @updatedAt
+  createdBy          String              @db.Uuid
+  isDefault          Boolean             @default(false)
+  createdByUser      employee            @relation("CreatedTemplates", fields: [createdBy], references: [id])
+  organization       organiation         @relation(fields: [organizationId], references: [id])
+  generatedDocuments GeneratedDocument[]
+
+  @@index([organizationId, type])
+  @@index([organizationId, isDefault])
+}
+
+model GeneratedDocument {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId      String           @db.Uuid
+  employeeId      String           @db.Uuid
+  type            DocumentType
+  content         String
+  generatedAt     DateTime         @default(now())
+  generatedBy     String           @db.Uuid
+  organizationId  String           @db.Uuid
+  status          DocumentStatus   @default(DRAFT)
+  fileUrl         String?
+  notes           String?
+  employee        employee         @relation("EmployeeDocuments", fields: [employeeId], references: [id])
+  generatedByUser employee         @relation("GeneratedByEmployee", fields: [generatedBy], references: [id])
+  organization    organiation      @relation(fields: [organizationId], references: [id])
+  template        DocumentTemplate @relation(fields: [templateId], references: [id])
+
+  @@index([organizationId])
+  @@index([employeeId])
+  @@index([generatedBy])
+  @@index([status])
+}
+
+model Note {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String
+  type           NoteType
+  organizationId String           @db.Uuid
+  authorId       String           @db.Uuid
+  projectId      String?          @db.Uuid
+  isPinned       Boolean          @default(false)
+  pinUntil       DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime?        @updatedAt
+  content        String[]         @default([])
+  author         employee         @relation("NoteAuthor", fields: [authorId], references: [id])
+  organization   organiation      @relation(fields: [organizationId], references: [id])
+  project        projects?        @relation(fields: [projectId], references: [id])
+  attachments    NoteAttachment[]
+  links          NoteLink[]
+  tags           NoteTag[]
+
+  @@index([organizationId, type])
+  @@index([authorId])
+  @@index([projectId])
+  @@index([isPinned, organizationId])
+}
+
+model NoteAttachment {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  noteId   String  @db.Uuid
+  name     String
+  url      String
+  fileType String
+  size     Int?
+  heading  String?
+  note     Note    @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model NoteLink {
+  id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  noteId  String  @db.Uuid
+  name    String
+  url     String
+  heading String?
+  note    Note    @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+}
+
+model NoteTag {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  noteId     String   @db.Uuid
+  employeeId String   @db.Uuid
+  employee   employee @relation("NoteTagged", fields: [employeeId], references: [id], onDelete: Cascade)
+  note       Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, employeeId])
+  @@index([noteId])
+  @@index([employeeId])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
 enum Priority {
   LOW
   MEDIUM
@@ -253,49 +351,6 @@ enum TaskType {
   SEQUENTIAL
 }
 
-model DocumentTemplate {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String
-  type           DocumentType
-  content        String
-  organizationId String       @db.Uuid
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime?    @updatedAt
-  createdBy      String       @db.Uuid
-  isDefault      Boolean      @default(false)
-
-  organization       organiation         @relation(fields: [organizationId], references: [id])
-  createdByUser      employee            @relation("CreatedTemplates", fields: [createdBy], references: [id])
-  generatedDocuments GeneratedDocument[]
-
-  @@index([organizationId, type])
-  @@index([organizationId, isDefault])
-}
-
-model GeneratedDocument {
-  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  templateId     String         @db.Uuid
-  employeeId     String         @db.Uuid
-  type           DocumentType
-  content        String
-  generatedAt    DateTime       @default(now())
-  generatedBy    String         @db.Uuid
-  organizationId String         @db.Uuid
-  status         DocumentStatus @default(DRAFT)
-  fileUrl        String?
-  notes          String?
-
-  template        DocumentTemplate @relation(fields: [templateId], references: [id])
-  employee        employee         @relation("EmployeeDocuments", fields: [employeeId], references: [id])
-  generatedByUser employee         @relation("GeneratedByEmployee", fields: [generatedBy], references: [id])
-  organization    organiation      @relation(fields: [organizationId], references: [id])
-
-  @@index([organizationId])
-  @@index([employeeId])
-  @@index([generatedBy])
-  @@index([status])
-}
-
 enum DocumentType {
   OFFER_LETTER
   JOINING_LETTER
@@ -318,69 +373,4 @@ enum NoteType {
   PERSONAL
   ORGANIZATIONAL
   PROJECT
-}
-
-model Note {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title          String
-  content        String[]  @default([])
-  type           NoteType
-  organizationId String    @db.Uuid
-  authorId       String    @db.Uuid
-  projectId      String?   @db.Uuid
-  isPinned       Boolean   @default(false)
-  pinUntil       DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime? @updatedAt
-
-  organization organiation      @relation(fields: [organizationId], references: [id])
-  author       employee         @relation("NoteAuthor", fields: [authorId], references: [id])
-  project      projects?        @relation(fields: [projectId], references: [id])
-  attachments  NoteAttachment[]
-  links        NoteLink[]
-  tags         NoteTag[]
-
-  @@index([organizationId, type])
-  @@index([authorId])
-  @@index([projectId])
-  @@index([isPinned, organizationId])
-}
-
-model NoteAttachment {
-  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  noteId   String  @db.Uuid
-  name     String
-  url      String
-  fileType String
-  size     Int?
-  heading  String?
-
-  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
-
-  @@index([noteId])
-}
-
-model NoteLink {
-  id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  noteId  String  @db.Uuid
-  name    String
-  url     String
-  heading String?
-
-  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
-
-  @@index([noteId])
-}
-
-model NoteTag {
-  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  noteId     String @db.Uuid
-  employeeId String @db.Uuid
-
-  note     Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  employee employee @relation("NoteTagged", fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([noteId, employeeId])
-  @@index([noteId])
-  @@index([employeeId])
 }

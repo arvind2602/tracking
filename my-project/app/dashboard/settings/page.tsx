@@ -23,6 +23,7 @@ export default function OrganizationSettings() {
     const [settings, setSettings] = useState({
         name: '',
         showBanner: true,
+        showLoginPopup: false,
         logo: ''
     });
 
@@ -84,6 +85,7 @@ export default function OrganizationSettings() {
             const formData = new FormData();
             formData.append('name', settings.name);
             formData.append('showBanner', String(settings.showBanner));
+            formData.append('showLoginPopup', String(settings.showLoginPopup));
 
             // If it's a file, upload it. If it's a string, send as URL
             if (logoFile) {
@@ -258,6 +260,18 @@ export default function OrganizationSettings() {
                             <Switch
                                 checked={settings.showBanner}
                                 onCheckedChange={(checked: boolean) => setSettings({ ...settings, showBanner: checked })}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between p-4 rounded-xl bg-sidebar-accent/30 border border-sidebar-border hover:border-blue-500/20 transition-all duration-300">
+                            <div className="space-y-1">
+                                <h4 className="text-sm font-semibold text-foreground">Login Performance Popup</h4>
+                                <p className="text-xs text-muted-foreground max-w-md">
+                                    Show employees a popup on login highlighting last month&apos;s star performer and personal performance tips.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={settings.showLoginPopup}
+                                onCheckedChange={(checked: boolean) => setSettings({ ...settings, showLoginPopup: checked })}
                             />
                         </div>
                     </CardContent>
