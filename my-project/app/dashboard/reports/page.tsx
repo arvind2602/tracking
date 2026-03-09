@@ -1,6 +1,6 @@
 'use client';
 
-import { EmployeeCountPerOrg } from "@/components/reports/EmployeeCountPerOrg";
+import { PointsLeaderboard } from "@/components/performance/PointsLeaderboard";
 import { ActiveVsArchivedEmployees } from "@/components/reports/ActiveVsArchivedEmployees";
 import { ProjectsPerOrg } from "@/components/reports/ProjectsPerOrg";
 import { TasksByStatus } from "@/components/reports/TasksByStatus";
@@ -48,7 +48,7 @@ export default function ReportsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <div className="bg-card border border-border rounded-[2rem] p-8 shadow-lg hover:border-primary/50 transition-all duration-300 lg:col-span-3">
-          <EmployeeCountPerOrg />
+          <PointsLeaderboard />
         </div>
         <div className="bg-card border border-border rounded-[2rem] p-8 shadow-lg hover:border-primary/50 transition-all duration-300 lg:col-span-3">
           <ActiveVsArchivedEmployees />

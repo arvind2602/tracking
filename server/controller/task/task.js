@@ -60,7 +60,7 @@ const createTask = async (req, res, next) => {
         let order = 1;
         for (const assigneeId of assignees) {
           await client.query(
-            `INSERT INTO "TaskAssignee" ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+            `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
                    VALUES ($1, $2, $3, $4, NOW())`,
             [newTask.id, assigneeId, type === 'SEQUENTIAL' ? order++ : null, false]
           );
@@ -68,7 +68,7 @@ const createTask = async (req, res, next) => {
       } else if (finalAssignedTo) {
         // Populate TaskAssignee for SINGLE tasks too for consistency
         await client.query(
-          `INSERT INTO "TaskAssignee" ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+          `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
                VALUES ($1, $2, $3, $4, NOW())`,
           [newTask.id, finalAssignedTo, 1, false]
         );
@@ -166,7 +166,7 @@ const getTask = async (req, res, next) => {
     // Fetch assignees for this task
     const assigneeResult = await pool.query(
       `SELECT ta.*, e."firstName", e."lastName", e.email
-       FROM "TaskAssignee" ta
+       FROM task_assignee ta
        JOIN employee e ON ta."employeeId" = e.id
        WHERE ta."taskId" = $1
        ORDER BY ta."order" ASC`,
@@ -208,7 +208,7 @@ const getTaskByEmployee = async (req, res, next) => {
       // 1. Assigned directly (t."assignedTo" = $1)
       // 2. Created by me (t."createdBy" = $1) - vital for reviewing tasks assigned to others
       // 3. In assignees list for Shared/Sequential
-      contextWhere = `WHERE (t."assignedTo" = $1 OR t."createdBy" = $1 OR ((t.type = 'SHARED' OR t.type = 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid))) AND p."organiationId" = $2`;
+      contextWhere = `WHERE (t."assignedTo" = $1 OR t."createdBy" = $1 OR ((t.type = 'SHARED' OR t.type = 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid))) AND p."organiationId" = $2`;
       contextParams = [employeeId, organiationId];
     }
 
@@ -227,7 +227,7 @@ const getTaskByEmployee = async (req, res, next) => {
     // Allow filtering by user (For Admin, or strictly speaking for anyone but User role is already limited. 
     // If User tries to filter by 'me' it works. If 'other', it returns 0. Consistent.)
     if (assignedTo && assignedTo !== 'all') {
-      contextWhere += ` AND (t."assignedTo" = $${paramIdx} OR EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = $${paramIdx}::uuid))`;
+      contextWhere += ` AND (t."assignedTo" = $${paramIdx} OR EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = $${paramIdx}::uuid))`;
       contextParams.push(assignedTo);
       paramIdx++;
     }
@@ -255,7 +255,7 @@ const getTaskByEmployee = async (req, res, next) => {
          COALESCE(SUM(
            CASE 
              WHEN t.type = 'SHARED' THEN 
-               t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+               t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
              ELSE 
                t.points 
            END
@@ -381,7 +381,7 @@ const getTaskByEmployee = async (req, res, next) => {
       // Fetch assignees for the list of tasks
       const assigneesResult = await pool.query(
         `SELECT ta.*, e."firstName", e."lastName", e.email
-           FROM "TaskAssignee" ta
+           FROM task_assignee ta
            JOIN employee e ON ta."employeeId" = e.id
            WHERE ta."taskId" = ANY($1::uuid[])
            ORDER BY ta."order" ASC`,
@@ -467,7 +467,7 @@ const updateTask = async (req, res, next) => {
       // Sequential Task Completion Logic
       if (taskType === 'SEQUENTIAL' && (status === 'completed' || status === 'done')) {
         const assigneesRes = await client.query(
-          `SELECT * FROM "TaskAssignee" WHERE "taskId" = $1 ORDER BY "order" ASC`,
+          `SELECT * FROM task_assignee WHERE "taskId" = $1 ORDER BY "order" ASC`,
           [id]
         );
         const assignees = assigneesRes.rows;
@@ -475,7 +475,7 @@ const updateTask = async (req, res, next) => {
 
         if (currentIndex !== -1) {
           await client.query(
-            `UPDATE "TaskAssignee" SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
+            `UPDATE task_assignee SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
             [assignees[currentIndex].id]
           );
         }
@@ -542,7 +542,7 @@ const deleteTask = async (req, res, next) => {
     await withTransaction(pool.pool, async (client) => {
       // Delete assignees of subtasks
       await client.query(
-        `DELETE FROM "TaskAssignee" ta
+        `DELETE FROM task_assignee ta
          USING task t, projects p
          WHERE ta."taskId" = t.id
          AND t."parentId" = $1
@@ -574,7 +574,7 @@ const deleteTask = async (req, res, next) => {
 
       // Delete task assignees
       await client.query(
-        `DELETE FROM "TaskAssignee" ta
+        `DELETE FROM task_assignee ta
          USING task t, projects p
          WHERE ta."taskId" = t.id
          AND t.id = $1
@@ -644,7 +644,7 @@ const createComment = async (req, res, next) => {
       if (attachments && attachments.length > 0) {
         for (const att of attachments) {
           await client.query(
-            `INSERT INTO "CommentAttachment" ("commentId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
+            `INSERT INTO comment_attachment ("commentId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
             [comment.id, att.name, att.url, att.fileType, att.size || null, att.heading || null]
           );
         }
@@ -654,7 +654,7 @@ const createComment = async (req, res, next) => {
       if (links && links.length > 0) {
         for (const link of links) {
           await client.query(
-            `INSERT INTO "CommentLink" ("commentId", name, url, heading) VALUES ($1, $2, $3, $4)`,
+            `INSERT INTO comment_link ("commentId", name, url, heading) VALUES ($1, $2, $3, $4)`,
             [comment.id, link.name, link.url, link.heading || null]
           );
         }
@@ -700,12 +700,12 @@ const getCommentsByTask = async (req, res, next) => {
       const commentIds = comments.map(c => c.id);
 
       const attachmentsRes = await pool.query(
-        `SELECT * FROM "CommentAttachment" WHERE "commentId" = ANY($1::uuid[])`,
+        `SELECT * FROM comment_attachment WHERE "commentId" = ANY($1::uuid[])`,
         [commentIds]
       );
 
       const linksRes = await pool.query(
-        `SELECT * FROM "CommentLink" WHERE "commentId" = ANY($1::uuid[])`,
+        `SELECT * FROM comment_link WHERE "commentId" = ANY($1::uuid[])`,
         [commentIds]
       );
 
@@ -757,7 +757,7 @@ const changeTaskStatus = async (req, res, next) => {
       // Sequential Task Completion Logic
       if (taskType === 'SEQUENTIAL' && (status === 'completed' || status === 'done')) {
         const assigneesRes = await client.query(
-          `SELECT * FROM "TaskAssignee" WHERE "taskId" = $1 ORDER BY "order" ASC`,
+          `SELECT * FROM task_assignee WHERE "taskId" = $1 ORDER BY "order" ASC`,
           [id]
         );
         const assignees = assigneesRes.rows;
@@ -765,7 +765,7 @@ const changeTaskStatus = async (req, res, next) => {
 
         if (currentIndex !== -1) {
           await client.query(
-            `UPDATE "TaskAssignee" SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
+            `UPDATE task_assignee SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
             [assignees[currentIndex].id]
           );
         }

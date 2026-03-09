@@ -16,7 +16,7 @@ import toast from "react-hot-toast";
 import { EmployeePerformanceTable } from "@/components/performance/EmployeePerformanceTable";
 import { ProductivityTrend } from "@/components/performance/ProductivityTrend";
 import { MonthlyProductivityTrend } from "@/components/performance/MonthlyProductivityTrend";
-import { EmployeeCountPerOrg } from "@/components/reports/EmployeeCountPerOrg";
+import { ActiveProjectsThisWeek } from "@/components/performance/ActiveProjectsThisWeek";
 import { ActiveVsArchivedEmployees } from "@/components/reports/ActiveVsArchivedEmployees";
 import { TasksByStatus } from "@/components/reports/TasksByStatus";
 import { RoleDistribution } from "@/components/reports/RoleDistribution";
@@ -116,7 +116,7 @@ export default function DashboardPage() {
       {/* Key Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[
-          <EmployeeCountPerOrg key="count" />,
+          <ActiveProjectsThisWeek key="active-projects" />,
           <ActiveVsArchivedEmployees key="archived" />
         ].map((child, idx) => (
           <div key={idx} className={cn(
@@ -124,7 +124,7 @@ export default function DashboardPage() {
           )}>
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground group-hover:text-primary transition-colors">
-                {idx === 0 ? "Employee Distribution" : "Employee Status"}
+                {idx === 0 ? "Weekly Activity" : "Employee Status"}
               </h3>
             </div>
             {child}

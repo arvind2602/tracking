@@ -30,6 +30,8 @@ const getRecentActivity = async (req, res, next) => {
     const result = await pool.query(`
       SELECT 
         t.id,
+        e.id AS "userId",
+        p.id AS "projectId",
         COALESCE(e."firstName" || ' ' || e."lastName", 'Unknown User') AS user,
         COALESCE(t."updatedAt", t."createdAt") AS time,
         CASE 
@@ -46,6 +48,8 @@ const getRecentActivity = async (req, res, next) => {
       
       SELECT 
         c.id,
+        e.id AS "userId",
+        p.id AS "projectId",
         COALESCE(e."firstName" || ' ' || e."lastName", 'Unknown User') AS user,
         c."createdAt" AS time,
         'commented on' AS action,
@@ -62,6 +66,8 @@ const getRecentActivity = async (req, res, next) => {
 
     const formatted = result.rows.map(r => ({
       id: r.id,
+      userId: r.userId,
+      projectId: r.projectId,
       user: r.user,
       time: new Date(r.time).toLocaleString(),
       action: r.action,
@@ -111,6 +117,7 @@ const getPointsLeaderboard = async (req, res, next) => {
   try {
     const result = await pool.query(`
       SELECT 
+        e.id,
         e."firstName" || ' ' || e."lastName" AS name,
         COALESCE(SUM(t.points), 0)::int AS "totalPoints"
       FROM employee e
@@ -233,6 +240,29 @@ const getTaskCompletionRate = async (req, res, next) => {
 };
 
 
+const getActiveProjectsThisWeek = async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        p.id,
+        p.name,
+        COUNT(t.id)::int AS "activityCount",
+        COUNT(t.id) FILTER (WHERE t.status = 'completed')::int AS "completedTasks",
+        COUNT(t.id) FILTER (WHERE t.status != 'completed')::int AS "ongoingTasks"
+      FROM projects p
+      JOIN task t ON t."projectId" = p.id
+      WHERE p."organiationId" = $1::uuid
+        AND (t."updatedAt" >= NOW() - INTERVAL '7 days' OR t."createdAt" >= NOW() - INTERVAL '7 days')
+      GROUP BY p.id, p.name
+      ORDER BY "activityCount" DESC
+    `, [req.user.organization_uuid]);
+
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 module.exports = {
   getAverageTaskCompletionTime,
@@ -241,5 +271,6 @@ module.exports = {
   getMonthlyProductivityTrend,
   getTaskCompletionRate,
   getRecentActivity,
-  getDashboardSummary
+  getDashboardSummary,
+  getActiveProjectsThisWeek
 };

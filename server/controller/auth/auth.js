@@ -10,17 +10,22 @@ const bcrypt = require('bcryptjs');
 const login = async (req, res, next) => {
     const schema = Joi.object({
         email: Joi.string().email().required(),
-        password: Joi.string().min(4).required()
+        password: Joi.string().min(4).required(),
+        deviceId: Joi.string().optional(), // For device tracking
+        deviceName: Joi.string().optional(),
+        deviceType: Joi.string().optional(),
+        browser: Joi.string().optional(),
+        os: Joi.string().optional()
     });
 
     const { error } = schema.validate(req.body);
     if (error) return next(new BadRequestError(error.details[0].message));
 
-    const { email, password } = req.body;
+    const { email, password, deviceId, deviceName, deviceType, browser, os } = req.body;
 
     try {
         const result = await pool.query(
-            'SELECT id, email, password, role, "organiationId" FROM employee WHERE email = $1 AND is_archived = false',
+            'SELECT id, email, password, role, "organiationId", "lastDeviceId" FROM employee WHERE email = $1 AND is_archived = false',
             [email]
         );
 
@@ -36,10 +41,24 @@ const login = async (req, res, next) => {
 
         const token = generateJwtToken(user.email, user.role, user.id, user.organiationId);
 
-
         res.cookie('token', token, { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 24 });
 
-        res.status(200).json({ user: {}, token });
+        // Track device on login
+        const deviceInfo = {
+            deviceId,
+            deviceName,
+            deviceType,
+            browser,
+            os
+        };
+
+        // Return device tracking info for frontend
+        res.status(200).json({
+            user: {},
+            token,
+            deviceInfo,
+            lastDeviceId: user.lastDeviceId
+        });
     } catch (error) {
         next(error);
     }
@@ -162,7 +181,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                     COALESCE(SUM(
                         CASE
                             WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN
-                                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
                             ELSE
                                 t.points
                         END
@@ -170,7 +189,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                 FROM employee e
                 LEFT JOIN task t ON (
                     (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR
-                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= NOW() - INTERVAL '7 days'
@@ -187,7 +206,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                                  AND t."completedAt" < CURRENT_DATE THEN
                                 CASE
                                     WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN
-                                        t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                                        t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
                                     ELSE
                                         t.points
                                 END
@@ -198,7 +217,7 @@ const getEmployeesByOrg = async (req, res, next) => {
                 FROM employee e
                 LEFT JOIN task t ON (
                     (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR
-                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                 -- We only count tasks that were assigned/existing yesterday
                 AND t."createdAt" < CURRENT_DATE
@@ -384,20 +403,20 @@ const exportUsers = async (req, res, next) => {
     try {
         const result = await pool.query(
             `WITH WeeklyStats AS (
-                SELECT 
+                SELECT
                     e.id,
                     COALESCE(SUM(
-                        CASE 
-                            WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN 
-                                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
-                            ELSE 
-                                t.points 
+                        CASE
+                            WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN
+                                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
+                            ELSE
+                                t.points
                         END
                     ), 0) as "weeklyPoints"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR
+                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= NOW() - INTERVAL '7 days'
@@ -405,20 +424,20 @@ const exportUsers = async (req, res, next) => {
                 GROUP BY e.id
              ),
              YesterdayStats AS (
-                SELECT 
+                SELECT
                     e.id,
                     COALESCE(SUM(
-                        CASE 
-                            WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN 
-                                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
-                            ELSE 
-                                t.points 
+                        CASE
+                            WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN
+                                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
+                            ELSE
+                                t.points
                         END
                     ), 0) as "yesterdayPoints"
                 FROM employee e
                 LEFT JOIN task t ON (
-                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
-                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
+                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR
+                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
                 )
                     AND LOWER(t.status) IN ('done', 'completed')
                     AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day'
@@ -426,12 +445,12 @@ const exportUsers = async (req, res, next) => {
                 WHERE e."organiationId" = $1
                 GROUP BY e.id
              )
-             SELECT 
-                e.id, 
-                e."firstName", 
-                e."lastName", 
-                e.email, 
-                e.position, 
+             SELECT
+                e.id,
+                e."firstName",
+                e."lastName",
+                e.email,
+                e.position,
                 e.role,
                 e."updatedAt",
                 e.dob,
@@ -496,6 +515,93 @@ const exportUsers = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+// ==================== DEVICE TRACKING ====================
+
+// Set primary device on first login
+const setPrimaryDevice = async (req, res, next) => {
+    const { user_uuid } = req.user;
+    const { deviceId, deviceName, deviceType, browser, os } = req.body;
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const existingResult = await client.query(
+            `SELECT id, "isPrimary" FROM device WHERE "deviceId" = $1 AND "employeeId" = $2`,
+            [deviceId, user_uuid]
+        );
+
+        if (existingResult.rowCount > 0) {
+            // Update existing device
+            await client.query(
+                `UPDATE device SET "deviceName" = $1, "deviceType" = $2, browser = $3, os = $4, "lastUsedAt" = NOW() WHERE id = $5`,
+                [deviceName, deviceType, browser, os, existingResult.rows[0].id]
+            );
+        } else {
+            // Insert new device
+            await client.query(
+                `INSERT INTO device ("deviceId", "deviceName", "deviceType", browser, os, "employeeId", "isPrimary")
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [deviceId, deviceName || null, deviceType || null, browser || null, os || null, user_uuid, true]
+            );
+        }
+
+        // Update employee's lastDeviceId
+        await client.query(
+            `UPDATE employee SET "lastDeviceId" = $1 WHERE id = $2`,
+            [deviceId, user_uuid]
+        );
+
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Device registered' });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        next(error);
+    } finally {
+        client.release();
+    }
+};
+
+// Check for device change on login
+const checkDeviceChange = async (req, res, next) => {
+    const { user_uuid } = req.user;
+    const { deviceId } = req.body;
+
+    try {
+        const result = await pool.query(
+            `SELECT id FROM device WHERE "deviceId" = $1 AND "employeeId" = $2`,
+            [deviceId, user_uuid]
+        );
+
+        if (result.rowCount === 0) {
+            return res.json({ isNewDevice: true, message: 'New device detected' });
+        }
+
+        // Check if device differs from last attendance
+        const attendanceResult = await pool.query(
+            `SELECT "deviceId", "checkIn" FROM attendance
+             WHERE "employeeId" = $1
+             ORDER BY "checkIn" DESC
+             LIMIT 1`,
+            [user_uuid]
+        );
+
+        if (attendanceResult.rowCount > 0) {
+            const lastAttendance = attendanceResult.rows[0];
+            if (lastAttendance.deviceId !== deviceId) {
+                return res.json({
+                    deviceChanged: true,
+                    lastUsedDevice: lastAttendance.deviceId,
+                    lastAttendanceAt: lastAttendance.checkIn
+                });
+            }
+        }
+
+        res.json({ isNewDevice: false, message: 'Device recognized' });
+    } catch (error) {
+        next(error);
+    }
+};
 
 module.exports = {
     login,
@@ -508,5 +614,7 @@ module.exports = {
     changePassword,
     deleteEmployee,
     exportUsers,
-    getSkills
+    getSkills,
+    setPrimaryDevice,
+    checkDeviceChange
 };

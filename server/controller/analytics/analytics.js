@@ -54,7 +54,7 @@ const getTaskInsights = async (req, res, next) => {
 
         // Stuck Tasks (not updated in > 5 days)
         const stuckTasksResult = await pool.query(
-            `SELECT t.id, t.description, t.status, t."updatedAt", u."firstName", u."lastName"
+            `SELECT t.id, t.description, t.status, t."updatedAt", u."firstName", u."lastName", u.id as "userId", p.id as "projectId"
        FROM task t
        JOIN projects p ON t."projectId" = p.id
        LEFT JOIN employee u ON t."assignedTo" = u.id::text

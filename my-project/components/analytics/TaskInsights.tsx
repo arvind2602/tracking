@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import axios from '@/lib/axios';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Clock, AlertCircle } from "lucide-react";
 import { formatDateTimeIST, formatDateIST } from "@/lib/utils";
@@ -18,6 +19,8 @@ interface StuckTask {
     updatedAt: string;
     firstName: string;
     lastName: string;
+    userId: string;
+    projectId: string;
 }
 
 interface TaskInsightsData {
@@ -72,7 +75,14 @@ export function TaskInsights() {
                                     <div>
                                         <p className="text-sm font-medium truncate max-w-[200px]">{task.description}</p>
                                         <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                            {task.firstName} {task.lastName} •
+                                            {task.userId ? (
+                                                <Link href={`/dashboard/users/${task.userId}`} className="hover:text-primary hover:underline transition-colors">
+                                                    {task.firstName} {task.lastName}
+                                                </Link>
+                                            ) : (
+                                                <span>{task.firstName} {task.lastName}</span>
+                                            )}
+                                            •
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>

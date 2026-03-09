@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import axios from '@/lib/axios';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
@@ -79,13 +80,17 @@ export function EmployeePerformance() {
                                 <div key={emp.id} className="space-y-1">
                                     <div className="flex justify-between text-sm items-center">
                                         <div className="flex items-center gap-2">
-                                            <Avatar className="h-6 w-6">
-                                                <AvatarImage src={emp.image} alt={emp.firstName} className="object-cover" />
-                                                <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
-                                                    {emp.firstName[0]}{emp.lastName[0]}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            <span className="font-medium">{emp.firstName} {emp.lastName}</span>
+                                            <Link href={`/dashboard/users/${emp.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                                                <Avatar className="h-6 w-6">
+                                                    <AvatarImage src={emp.image} alt={emp.firstName} className="object-cover" />
+                                                    <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
+                                                        {emp.firstName[0]}{emp.lastName[0]}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <span className="font-medium hover:text-primary hover:underline transition-all">
+                                                    {emp.firstName} {emp.lastName}
+                                                </span>
+                                            </Link>
                                         </div>
                                         <span className="text-muted-foreground">{activeLoad} active tasks</span>
                                     </div>
@@ -118,13 +123,17 @@ export function EmployeePerformance() {
                                         {index + 1}
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage src={emp.image} alt={emp.firstName} className="object-cover" />
-                                            <AvatarFallback className="text-xs bg-muted text-muted-foreground">
-                                                {emp.firstName[0]}{emp.lastName[0]}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <p className="text-sm font-medium">{emp.firstName} {emp.lastName}</p>
+                                        <Link href={`/dashboard/users/${emp.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={emp.image} alt={emp.firstName} className="object-cover" />
+                                                <AvatarFallback className="text-xs bg-muted text-muted-foreground">
+                                                    {emp.firstName[0]}{emp.lastName[0]}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <p className="text-sm font-medium hover:text-primary hover:underline transition-all">
+                                                {emp.firstName} {emp.lastName}
+                                            </p>
+                                        </Link>
                                     </div>
                                 </div>
                                 <div className="font-bold text-primary">{emp.pointsLast30Days} pts</div>

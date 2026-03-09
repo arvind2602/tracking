@@ -99,13 +99,13 @@ const getDashboardAll = async (req, res, next) => {
           COALESCE(SUM(
             CASE 
               WHEN t.type = 'SHARED' THEN 
-                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
               ELSE 
                 t.points 
             END
           ), 0)::int AS "totalPoints"
         FROM employee e
-        LEFT JOIN task t ON (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
+        LEFT JOIN task t ON (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
         WHERE e."organiationId" = $1::uuid AND e.is_archived = false
         GROUP BY e.id
         ORDER BY "totalPoints" DESC
@@ -118,13 +118,13 @@ const getDashboardAll = async (req, res, next) => {
           COALESCE(SUM(
             CASE 
               WHEN t.type = 'SHARED' THEN 
-                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
               ELSE 
                 t.points 
             END
           ), 0)::int AS "totalPoints"
         FROM employee e
-        LEFT JOIN task t ON (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
+        LEFT JOIN task t ON (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
         WHERE e."organiationId" = $1::uuid AND e.is_archived = false AND t.status = 'completed'
         GROUP BY e.id
         ORDER BY "totalPoints" DESC
@@ -157,7 +157,7 @@ const getDashboardAll = async (req, res, next) => {
             )::float
           END AS "completionRate"
         FROM employee e
-        LEFT JOIN task t ON (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
+        LEFT JOIN task t ON (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
         WHERE e."organiationId" = $1::uuid AND e.is_archived = false
         GROUP BY e.id
         ORDER BY "completionRate" DESC
@@ -170,7 +170,7 @@ const getDashboardAll = async (req, res, next) => {
           e."firstName" || ' ' || e."lastName" AS name,
           AVG(EXTRACT(EPOCH FROM (t."updatedAt" - t.assigned_at)) * 1000)::bigint AS "averageCompletionTime"
         FROM employee e
-        LEFT JOIN task t ON (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
+        LEFT JOIN task t ON (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
         WHERE e."organiationId" = $1::uuid AND e.is_archived = false
           AND t.status = 'completed' 
           AND t.assigned_at IS NOT NULL
@@ -222,14 +222,14 @@ const getDashboardAll = async (req, res, next) => {
           COALESCE(SUM(
             CASE 
               WHEN t.type = 'SHARED' THEN 
-                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
               ELSE 
                 t.points 
             END
           ), 0)::int AS points
         FROM projects p
         CROSS JOIN employee e
-        LEFT JOIN task t ON t."projectId" = p.id AND (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
+        LEFT JOIN task t ON t."projectId" = p.id AND (t."assignedTo" = e.id::text OR (t.type = 'SHARED' AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id)))
         WHERE p."organiationId" = $1::uuid 
           AND e."organiationId" = $1::uuid 
           AND e.is_archived = false

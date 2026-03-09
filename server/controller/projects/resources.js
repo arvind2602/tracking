@@ -25,14 +25,14 @@ const getProjectResources = async (req, res, next) => {
         COALESCE(
           (SELECT json_agg(json_build_object(
             'id', na.id, 'name', na.name, 'url', na.url, 'fileType', na."fileType", 'size', na.size, 'heading', na.heading
-          )) FROM "NoteAttachment" na WHERE na."noteId" = n.id), '[]'::json
+          )) FROM note_attachment na WHERE na."noteId" = n.id), '[]'::json
         ) as attachments,
         COALESCE(
           (SELECT json_agg(json_build_object(
             'id', nl.id, 'name', nl.name, 'url', nl.url, 'heading', nl.heading
-          )) FROM "NoteLink" nl WHERE nl."noteId" = n.id), '[]'::json
+          )) FROM note_link nl WHERE nl."noteId" = n.id), '[]'::json
         ) as links
-      FROM "Note" n
+      FROM note n
       LEFT JOIN employee e ON n."authorId" = e.id
       WHERE n."projectId" = $1 AND n."organizationId" = $2
     `;
@@ -48,12 +48,12 @@ const getProjectResources = async (req, res, next) => {
         COALESCE(
           (SELECT json_agg(json_build_object(
             'id', ca.id, 'name', ca.name, 'url', ca.url, 'fileType', ca."fileType", 'size', ca.size, 'heading', ca.heading
-          )) FROM "CommentAttachment" ca WHERE ca."commentId" = c.id), '[]'::json
+          )) FROM comment_attachment ca WHERE ca."commentId" = c.id), '[]'::json
         ) as attachments,
         COALESCE(
           (SELECT json_agg(json_build_object(
             'id', cl.id, 'name', cl.name, 'url', cl.url, 'heading', cl.heading
-          )) FROM "CommentLink" cl WHERE cl."commentId" = c.id), '[]'::json
+          )) FROM comment_link cl WHERE cl."commentId" = c.id), '[]'::json
         ) as links
       FROM comment c
       JOIN task t ON c."taskId" = t.id

@@ -100,7 +100,7 @@ const getProject = async (req, res, next) => {
         hasPrevPage: page > 1
       },
       holdHistory: (await pool.query(
-        'SELECT "startDate", "endDate", reason FROM "ProjectHoldHistory" WHERE "projectId" = $1 ORDER BY "startDate" DESC',
+        'SELECT "startDate", "endDate", reason FROM project_hold_history WHERE "projectId" = $1 ORDER BY "startDate" DESC',
         [id]
       )).rows
     });
@@ -457,7 +457,7 @@ const holdProject = async (req, res, next) => {
       );
 
       await client.query(
-        'INSERT INTO "ProjectHoldHistory" ("projectId", reason, "startDate") VALUES ($1, $2, NOW())',
+        'INSERT INTO project_hold_history ("projectId", reason, "startDate") VALUES ($1, $2, NOW())',
         [id, reason || '']
       );
 
@@ -496,7 +496,7 @@ const resumeProject = async (req, res, next) => {
       );
 
       await client.query(
-        'UPDATE "ProjectHoldHistory" SET "endDate" = NOW() WHERE "projectId" = $1 AND "endDate" IS NULL',
+        'UPDATE project_hold_history SET "endDate" = NOW() WHERE "projectId" = $1 AND "endDate" IS NULL',
         [id]
       );
 

@@ -8,6 +8,10 @@ employee.post('/login', employeeController.login);
 
 employee.post('/forget-password', employeeController.forgetPassword);
 
+// Device tracking routes (no auth required for first-time device setup)
+employee.post('/device/primary', authMiddleware, employeeController.setPrimaryDevice);
+employee.post('/device/check-change', authMiddleware, employeeController.checkDeviceChange);
+
 // Protected Routes
 employee.use(authMiddleware);
 employee.get('/organization', employeeController.getEmployeesByOrg);

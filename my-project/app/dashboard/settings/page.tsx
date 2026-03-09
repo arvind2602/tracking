@@ -3,11 +3,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import axios from '@/lib/axios';
-import { Settings, Layout, Save, Loader2, Building, Upload, X, Link } from 'lucide-react';
+import { Settings, Layout, Save, Loader2, Building, Upload, X, Link, MapPin } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { toast } from "react-hot-toast";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useRouter } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
@@ -24,7 +25,13 @@ export default function OrganizationSettings() {
         name: '',
         showBanner: true,
         showLoginPopup: false,
-        logo: ''
+        logo: '',
+        geofencingEnabled: false,
+        latitude: 0,
+        longitude: 0,
+        radius: 100,
+        weekOffs: ['Sunday'] as string[],
+        wfhEnabled: false
     });
 
     useEffect(() => {
@@ -86,6 +93,12 @@ export default function OrganizationSettings() {
             formData.append('name', settings.name);
             formData.append('showBanner', String(settings.showBanner));
             formData.append('showLoginPopup', String(settings.showLoginPopup));
+            formData.append('geofencingEnabled', String(settings.geofencingEnabled));
+            formData.append('latitude', String(settings.latitude));
+            formData.append('longitude', String(settings.longitude));
+            formData.append('radius', String(settings.radius));
+            formData.append('weekOffs', JSON.stringify(settings.weekOffs));
+            formData.append('wfhEnabled', String(settings.wfhEnabled));
 
             // If it's a file, upload it. If it's a string, send as URL
             if (logoFile) {
@@ -235,44 +248,127 @@ export default function OrganizationSettings() {
                     </CardContent>
                 </Card>
 
-                {/* Preferences Block */}
+                {/* Attendance & Geofencing Block */}
                 <Card className="border-sidebar-border bg-sidebar/50 backdrop-blur-xl shadow-xl overflow-hidden relative group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
                     <CardHeader>
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-500/10 rounded-lg">
-                                <Layout className="h-5 w-5 text-blue-500" />
+                            <div className="p-2 bg-emerald-500/10 rounded-lg">
+                                <MapPin className="h-5 w-5 text-emerald-500" />
                             </div>
                             <div>
-                                <CardTitle className="text-xl">Display Preferences</CardTitle>
-                                <CardDescription>Manage global dashboard visibility settings.</CardDescription>
+                                <CardTitle className="text-xl">Attendance & Geofencing</CardTitle>
+                                <CardDescription>Configure office location radius and attendance rules.</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-between p-4 rounded-xl bg-sidebar-accent/30 border border-sidebar-border hover:border-blue-500/20 transition-all duration-300">
+                    <CardContent className="space-y-6">
+                        <div className="flex items-center justify-between p-4 rounded-xl bg-sidebar-accent/30 border border-sidebar-border">
                             <div className="space-y-1">
-                                <h4 className="text-sm font-semibold text-foreground">Performance Banner</h4>
+                                <h4 className="text-sm font-semibold text-foreground">Enable Geofencing</h4>
                                 <p className="text-xs text-muted-foreground max-w-md">
-                                    Show/hide the top banner (birthdays, star performers, alerts).
+                                    Restrict check-ins to a specific physical location.
                                 </p>
                             </div>
                             <Switch
-                                checked={settings.showBanner}
-                                onCheckedChange={(checked: boolean) => setSettings({ ...settings, showBanner: checked })}
+                                checked={settings.geofencingEnabled}
+                                onCheckedChange={(checked: boolean) => setSettings({ ...settings, geofencingEnabled: checked })}
                             />
                         </div>
-                        <div className="flex items-center justify-between p-4 rounded-xl bg-sidebar-accent/30 border border-sidebar-border hover:border-blue-500/20 transition-all duration-300">
-                            <div className="space-y-1">
-                                <h4 className="text-sm font-semibold text-foreground">Login Performance Popup</h4>
-                                <p className="text-xs text-muted-foreground max-w-md">
-                                    Show employees a popup on login highlighting last month&apos;s star performer and personal performance tips.
-                                </p>
+
+                        {settings.geofencingEnabled && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 animate-in slide-in-from-top-2 duration-300">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Latitude</label>
+                                    <Input
+                                        type="number"
+                                        value={settings.latitude || ''}
+                                        onChange={(e) => setSettings({ ...settings, latitude: parseFloat(e.target.value) })}
+                                        className="bg-background"
+                                        placeholder="0.0000"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Longitude</label>
+                                    <Input
+                                        type="number"
+                                        value={settings.longitude || ''}
+                                        onChange={(e) => setSettings({ ...settings, longitude: parseFloat(e.target.value) })}
+                                        className="bg-background"
+                                        placeholder="0.0000"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Radius (meters)</label>
+                                    <Input
+                                        type="number"
+                                        value={settings.radius || 100}
+                                        onChange={(e) => setSettings({ ...settings, radius: parseFloat(e.target.value) })}
+                                        className="bg-background"
+                                        placeholder="100"
+                                    />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full text-xs"
+                                        onClick={() => {
+                                            if (navigator.geolocation) {
+                                                navigator.geolocation.getCurrentPosition((pos) => {
+                                                    setSettings({
+                                                        ...settings,
+                                                        latitude: pos.coords.latitude,
+                                                        longitude: pos.coords.longitude
+                                                    });
+                                                    toast.success("Location captured from browser");
+                                                });
+                                            }
+                                        }}
+                                    >
+                                        Capture Current Location
+                                    </Button>
+                                </div>
                             </div>
-                            <Switch
-                                checked={settings.showLoginPopup}
-                                onCheckedChange={(checked: boolean) => setSettings({ ...settings, showLoginPopup: checked })}
-                            />
+                        )}
+
+                        <div className="space-y-4 pt-2">
+                            <div className="flex items-center justify-between p-4 rounded-xl bg-sidebar-accent/30 border border-sidebar-border">
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-semibold text-foreground">Allow WFH Days</h4>
+                                    <p className="text-xs text-muted-foreground">Employees can mark themselves as Working From Home.</p>
+                                </div>
+                                <Switch
+                                    checked={settings.wfhEnabled}
+                                    onCheckedChange={(checked: boolean) => setSettings({ ...settings, wfhEnabled: checked })}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground ml-1">Week Offs</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                                        <button
+                                            key={day}
+                                            onClick={() => {
+                                                const current = Array.isArray(settings.weekOffs) ? settings.weekOffs : [];
+                                                const updated = current.includes(day)
+                                                    ? current.filter(d => d !== day)
+                                                    : [...current, day];
+                                                setSettings({ ...settings, weekOffs: updated });
+                                            }}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-full text-xs font-bold transition-all",
+                                                (Array.isArray(settings.weekOffs) && settings.weekOffs.includes(day))
+                                                    ? "bg-primary text-white"
+                                                    : "bg-sidebar-accent text-muted-foreground hover:bg-sidebar-accent/50"
+                                            )}
+                                        >
+                                            {day.substring(0, 3)}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

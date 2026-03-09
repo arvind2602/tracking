@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import axios from '@/lib/axios';
+import Link from 'next/link';
 
 async function getTasksPerEmployee() {
   const res = await axios.get('/reports/tasks-per-employee');
@@ -11,6 +12,7 @@ async function getTasksPerEmployee() {
 }
 
 interface EmployeeTask {
+  id: string;
   name: string;
   taskCount: number;
   totalPoints: number;
@@ -29,25 +31,33 @@ export function TasksPerEmployee() {
     <div>
       <h3 className="text-lg font-medium">Tasks per Employee</h3>
       <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Employee</TableHead>
-            <TableHead>Task Count</TableHead>
-            <TableHead>Total Points</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data?.map((emp: EmployeeTask) => (
-            <TableRow key={emp.name + emp.taskCount}>
-              <TableCell>{emp.name}</TableCell>
-              <TableCell>{emp.taskCount}</TableCell>
-              <TableCell>{emp.totalPoints}</TableCell>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee</TableHead>
+              <TableHead>Task Count</TableHead>
+              <TableHead>Total Points</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {data?.map((emp: EmployeeTask) => (
+              <TableRow key={emp.id || emp.name}>
+                <TableCell className="font-medium">
+                  {emp.id ? (
+                    <Link href={`/dashboard/users/${emp.id}`} className="hover:text-primary hover:underline transition-colors">
+                      {emp.name}
+                    </Link>
+                  ) : (
+                    emp.name
+                  )}
+                </TableCell>
+                <TableCell>{emp.taskCount}</TableCell>
+                <TableCell>{emp.totalPoints}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

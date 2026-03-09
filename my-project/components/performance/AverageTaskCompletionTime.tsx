@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import axios from '@/lib/axios';
+import Link from 'next/link';
 
 async function getAverageTaskCompletionTime() {
   const res = await axios.get('/performance/average-task-completion-time');
@@ -29,23 +30,27 @@ export function AverageTaskCompletionTime() {
     <div>
       <h3 className="text-lg font-medium">Average Task Completion Time</h3>
       <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Employee</TableHead>
-            <TableHead>Average Completion Time (hours)</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data?.map((emp: AverageCompletionTime) => (
-            <TableRow key={emp.id}>
-              <TableCell>{emp.name}</TableCell>
-              <TableCell>{(emp.averageCompletionTime / (1000 * 60 * 60)).toFixed(2)}</TableCell>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee</TableHead>
+              <TableHead>Average Completion Time (hours)</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {data?.map((emp: AverageCompletionTime) => (
+              <TableRow key={emp.id}>
+                <TableCell className="font-medium">
+                  <Link href={`/dashboard/users/${emp.id}`} className="hover:text-primary hover:underline transition-colors">
+                    {emp.name}
+                  </Link>
+                </TableCell>
+                <TableCell>{(emp.averageCompletionTime / (1000 * 60 * 60)).toFixed(2)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

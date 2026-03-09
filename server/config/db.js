@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 
 // Load environment variables
 dotenv.config();
-// Centralized database configuration
+
 const dbUrl = process.env.DATABASE_URL;
 
 if (!dbUrl) {
@@ -18,19 +18,13 @@ const dbConfig = {
     connectionTimeoutMillis: 20000
 };
 
-/**
- * Creates and configures a PostgreSQL connection pool
- * @returns {Pool} Configured connection pool instance
- */
 const createPool = () => {
     const pool = new Pool(dbConfig);
 
-    // Error handling for idle clients
     pool.on('error', (err, _client) => {
         console.error('Unexpected error on idle client:', err.message);
     });
 
-    // Connection validation on acquire
     pool.on('acquire', async (client) => {
         try {
             await client.query('SELECT NOW()');
@@ -42,10 +36,21 @@ const createPool = () => {
     return pool;
 };
 
-// Singleton pool instance
 const dbPool = createPool();
 
-// Graceful shutdown handler
+// Create a separate query function that uses the original pool.query
+const customQuery = async (text, params) => {
+    try {
+        // Use the prototype's query or the original pool instance's underlying query
+        // Since we already overwrote pool.query, we need to be careful.
+        // The safest way is to NOT overwrite pool.query if we want to use it inside customQuery.
+        const result = await dbPool.query(text, params);
+        return result;
+    } catch (err) {
+        throw new Error(`Database query failed: ${err.message}`, { cause: err });
+    }
+};
+
 const shutdownPool = async () => {
     try {
         await dbPool.end();
@@ -55,19 +60,11 @@ const shutdownPool = async () => {
     }
 };
 
-// Query wrapper for better error handling
-const query = async (text, params) => {
-    try {
-        const result = await dbPool.query(text, params);
-        return result;
-    } catch (err) {
-        throw new Error(`Database query failed: ${err.message}`, { cause: err });
-    }
-};
+// Instead of overwriting, we export an object that matches the expected patterns
+// OR we export the pool and add a DIFFERENT function name for the wrapper.
 
-// Export database utilities
 module.exports = {
     pool: dbPool,
-    query,
+    query: customQuery,
     shutdownPool
 };

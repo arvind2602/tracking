@@ -43,7 +43,7 @@ const getLoginPopupData = async (req, res, next) => {
            COALESCE(SUM(
              CASE
                WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN
-                 t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                 t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
                ELSE t.points
              END
            ), 0)::int AS points
@@ -51,7 +51,7 @@ const getLoginPopupData = async (req, res, next) => {
          LEFT JOIN task t ON (
            (t.type::text = 'SINGLE' AND t."assignedTo" = e.id::text) OR
            (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (
-             SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id
+             SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id
            ))
          )
            AND LOWER(t.status) IN ('done', 'completed')
@@ -71,7 +71,7 @@ const getLoginPopupData = async (req, res, next) => {
            COALESCE(SUM(
              CASE
                WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN
-                 t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                 t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
                ELSE t.points
              END
            ), 0)::float AS "totalPoints",
@@ -83,7 +83,7 @@ const getLoginPopupData = async (req, res, next) => {
            (SELECT COUNT(*)::int
             FROM task t2
             WHERE (t2."assignedTo" = $1::text OR EXISTS (
-              SELECT 1 FROM "TaskAssignee" ta2 WHERE ta2."taskId" = t2.id AND ta2."employeeId" = $1::uuid
+              SELECT 1 FROM task_assignee ta2 WHERE ta2."taskId" = t2.id AND ta2."employeeId" = $1::uuid
             ))
             AND t2."createdAt" >= date_trunc('month', NOW() - INTERVAL '1 month')
             AND t2."createdAt" < date_trunc('month', NOW())
@@ -92,7 +92,7 @@ const getLoginPopupData = async (req, res, next) => {
          WHERE (
            (t.type::text = 'SINGLE' AND t."assignedTo" = $1::text) OR
            (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (
-             SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid
+             SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid
            ))
          )
            AND LOWER(t.status) IN ('done', 'completed')
@@ -112,7 +112,7 @@ const getLoginPopupData = async (req, res, next) => {
          WHERE (
            (t.type::text = 'SINGLE' AND t."assignedTo" = $1::text) OR
            (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (
-             SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid
+             SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid
            ))
          )
            AND t."createdAt" >= date_trunc('month', NOW() - INTERVAL '1 month')

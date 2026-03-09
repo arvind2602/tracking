@@ -9,36 +9,42 @@ datasource db {
 }
 
 model organiation {
-  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime?  @updatedAt
-  showBanner     Boolean    @default(false)
-  logo           String?
-  showLoginPopup Boolean?   @default(false)
-  notes          Note[]
-  Site           Site[]
-  employees      employee[]
-  projects       projects[]
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime?              @updatedAt
+  showBanner            Boolean                @default(false)
+  logo                  String?
+  showLoginPopup        Boolean?               @default(false)
+  geofencingEnabled     Boolean?               @default(false) // Toggle for geofencing
+  weekOffs              String[]               @default(["Sunday"])
+  holidays              Json[]                 @default([]) // [{date: '2024-01-01', name: 'New Year'}]
+  wfhEnabled            Boolean?               @default(false)
+  notes                 Note[]
+  employees             employee[]
+  projects              projects[]
+  shifts                Shift[]
+  geofences             Geofence[]
+  organizationGeofences OrganizationGeofence[]
 
   @@index([name])
 }
 
 model employee {
-  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   firstName        String
   lastName         String
   email            String
   position         String
   role             role
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime?      @updatedAt
-  is_archived      Boolean        @default(false)
-  organiationId    String         @db.Uuid
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime?       @updatedAt
+  is_archived      Boolean         @default(false)
+  organiationId    String          @db.Uuid
   password         String
   lastDeviceId     String?
-  responsibilities String[]       @default([])
-  skills           String[]       @default([])
+  responsibilities String[]        @default([])
+  skills           String[]        @default([])
   bloodGroup       String?
   dob              DateTime?
   image            String?
@@ -46,13 +52,15 @@ model employee {
   joiningDate      DateTime?
   emergencyContact String?
   address          String?
-  authoredNotes    Note[]         @relation("NoteAuthor")
-  noteTags         NoteTag[]      @relation("NoteTagged")
+  authoredNotes    Note[]          @relation("NoteAuthor")
+  noteTags         NoteTag[]       @relation("NoteTagged")
   taskAssignees    TaskAssignee[]
-  TimeLog          TimeLog[]
   comments         comment[]
-  organiation      organiation    @relation(fields: [organiationId], references: [id])
-  headedProjects   projects[]     @relation("ProjectHead")
+  organiation      organiation     @relation(fields: [organiationId], references: [id])
+  headedProjects   projects[]      @relation("ProjectHead")
+  devices          Device[]
+  attendances      Attendance[]
+  employeeShifts   EmployeeShift[]
 
   @@index([organiationId, is_archived])
   @@index([organiationId, role])
@@ -93,6 +101,7 @@ model ProjectHoldHistory {
   project   projects  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
+  @@map("project_hold_history")
 }
 
 model task {
@@ -139,6 +148,7 @@ model TaskAssignee {
   @@unique([taskId, employeeId])
   @@index([taskId])
   @@index([employeeId])
+  @@map("task_assignee")
 }
 
 model comment {
@@ -168,6 +178,7 @@ model CommentAttachment {
   comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@index([commentId])
+  @@map("comment_attachment")
 }
 
 model CommentLink {
@@ -179,34 +190,7 @@ model CommentLink {
   comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@index([commentId])
-}
-
-model Site {
-  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String
-  description    String?
-  latitude       Float
-  longitude      Float
-  organizationId String      @db.Uuid
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime?
-  organiation    organiation @relation(fields: [organizationId], references: [id])
-}
-
-model TimeLog {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  employeeId String    @db.Uuid
-  checkIn    DateTime  @default(now())
-  checkOut   DateTime?
-  type       LogType   @default(WORK)
-  reason     String?
-  latitude   Float?
-  longitude  Float?
-  deviceId   String?
-  deviceType String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime?
-  employee   employee  @relation(fields: [employeeId], references: [id])
+  @@map("comment_link")
 }
 
 model Note {
@@ -232,6 +216,7 @@ model Note {
   @@index([authorId])
   @@index([projectId])
   @@index([isPinned, organizationId])
+  @@map("note")
 }
 
 model NoteAttachment {
@@ -245,6 +230,7 @@ model NoteAttachment {
   note     Note    @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@index([noteId])
+  @@map("note_attachment")
 }
 
 model NoteLink {
@@ -256,6 +242,7 @@ model NoteLink {
   note    Note    @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@index([noteId])
+  @@map("note_link")
 }
 
 model NoteTag {
@@ -268,6 +255,7 @@ model NoteTag {
   @@unique([noteId, employeeId])
   @@index([noteId])
   @@index([employeeId])
+  @@map("note_tag")
 }
 
 enum ProjectStatus {
@@ -307,4 +295,134 @@ enum NoteType {
   PERSONAL
   ORGANIZATIONAL
   PROJECT
+  LEAVE // For leave requests - employee tags admins
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  WFH
+  LEAVE
+  HOLIDAY
+}
+
+model Device {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceId    String // Device fingerprint or identifier
+  deviceName  String?
+  deviceType  String? // mobile, desktop, tablet
+  browser     String?
+  os          String?
+  isActive    Boolean      @default(true)
+  isPrimary   Boolean      @default(false)
+  employeeId  String       @db.Uuid
+  createdAt   DateTime     @default(now())
+  lastUsedAt  DateTime?    @updatedAt
+  employee    employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendances Attendance[]
+
+  @@unique([deviceId, employeeId])
+  @@index([employeeId, isPrimary])
+  @@index([deviceId])
+  @@map("device")
+}
+
+model Attendance {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId     String           @db.Uuid
+  date           DateTime         @db.Date
+  checkIn        DateTime?        @default(now())
+  checkOut       DateTime?
+  status         AttendanceStatus @default(PRESENT)
+  latitude       Float?
+  longitude      Float?
+  location       String?
+  ipAddress      String?
+  deviceId       String?
+  deviceName     String?
+  workHours      Float? // calculated hours
+  lateBy         Int? // minutes late
+  shiftId        String?          @db.Uuid
+  notes          String?
+  deviceMismatch Boolean          @default(false)
+  withinGeofence Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime?        @updatedAt
+  employee       employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift          Shift?           @relation(fields: [shiftId], references: [id])
+  geofence       Geofence?        @relation(fields: [geofenceId], references: [id])
+  geofenceId     String?          @db.Uuid
+  device         Device?          @relation(fields: [deviceId], references: [id])
+
+  @@unique([employeeId, date])
+  @@index([employeeId, date])
+  @@index([date])
+  @@index([status])
+  @@index([shiftId])
+  @@map("attendance")
+}
+
+model Shift {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String // e.g., Morning, Evening, Night
+  startTime      String // HH:mm format (e.g., "09:00")
+  endTime        String // HH:mm format (e.g., "18:00")
+  gracePeriod    Int             @default(15) // minutes late before marking as late
+  officeHours    Float           @default(8) // expected hours per day
+  isActive       Boolean         @default(true)
+  organizationId String          @db.Uuid
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime?       @updatedAt
+  organization   organiation     @relation(fields: [organizationId], references: [id])
+  attendance     Attendance[]
+  employeeShifts EmployeeShift[]
+
+  @@index([organizationId])
+  @@map("shift")
+}
+
+model EmployeeShift {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId String   @db.Uuid
+  shiftId    String   @db.Uuid
+  employee   employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift      Shift    @relation(fields: [shiftId], references: [id])
+
+  @@unique([employeeId, shiftId])
+  @@index([employeeId])
+  @@index([shiftId])
+  @@map("employeeshift")
+}
+
+model Geofence {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String
+  latitude              Float
+  longitude             Float
+  radius                Float // in meters
+  isActive              Boolean                @default(true)
+  organizationId        String                 @db.Uuid
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime?              @updatedAt
+  organization          organiation            @relation(fields: [organizationId], references: [id])
+  attendance            Attendance[]
+  organizationGeofences OrganizationGeofence[]
+
+  @@index([organizationId])
+  @@map("geofence")
+}
+
+model OrganizationGeofence {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String      @db.Uuid
+  geofenceId     String      @db.Uuid
+  isEnabled      Boolean     @default(false)
+  organization   organiation @relation(fields: [organizationId], references: [id])
+  geofence       Geofence    @relation(fields: [geofenceId], references: [id])
+
+  @@unique([organizationId, geofenceId])
+  @@index([geofenceId])
+  @@map("organizationgeofence")
 }

@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import axios from '@/lib/axios';
+import Link from 'next/link';
 import { useState } from 'react';
 import { ArrowUpDown, Trophy, Target, CheckCircle, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -222,7 +223,9 @@ export function EmployeePerformanceTable() {
                                         </div>
                                     </td>
                                     <td className="px-2 py-2 md:px-4 md:py-3 font-semibold text-foreground text-xs md:text-sm">
-                                        {emp.name}
+                                        <Link href={`/dashboard/users/${emp.id}`} className="hover:text-primary hover:underline transition-colors">
+                                            {emp.name}
+                                        </Link>
                                     </td>
                                     <td className="px-2 py-2 md:px-4 md:py-3 text-center">
                                         <span className="inline-flex items-center justify-center px-1.5 py-0.5 md:px-2 md:py-1 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono text-xs min-w-[2rem] md:min-w-[3rem]">

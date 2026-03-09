@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import axios from '@/lib/axios';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -65,7 +66,11 @@ export function ProjectsAtRisk() {
                         ) : (
                             projects.map((project) => (
                                 <TableRow key={project.id}>
-                                    <TableCell className="font-medium">{project.name}</TableCell>
+                                    <TableCell className="font-medium">
+                                        <Link href={`/dashboard/projects/${project.id}`} className="hover:text-primary hover:underline transition-colors">
+                                            {project.name}
+                                        </Link>
+                                    </TableCell>
                                     <TableCell>
                                         <TooltipProvider>
                                             <Tooltip>

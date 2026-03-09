@@ -150,6 +150,7 @@ export default function DashboardLayout({
 
   const allNavItems = [
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
+    // { href: '/dashboard/attendance', icon: Activity, label: 'Attendance' },
     { href: '/dashboard/tasks', icon: Code, label: 'Tasks' },
     { href: '/dashboard/users', icon: GraduationCap, label: 'Users' },
     { href: '/dashboard/projects', icon: Code, label: 'Projects' },
@@ -158,7 +159,7 @@ export default function DashboardLayout({
   ];
 
   const navItems = userRole === 'USER'
-    ? allNavItems.filter(item => item.label === 'Tasks' || item.label === 'Profile')
+    ? allNavItems.filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance')
     : allNavItems;
 
   if (isLoading) {

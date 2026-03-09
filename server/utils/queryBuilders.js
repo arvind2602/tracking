@@ -16,7 +16,7 @@ const buildWeeklyStatsCTE = (orgParamRef) => `
       COALESCE(SUM(
         CASE 
           WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN 
-            t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+            t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
           ELSE t.points 
         END
       ), 0) as "weeklyPoints"
@@ -24,7 +24,7 @@ const buildWeeklyStatsCTE = (orgParamRef) => `
     LEFT JOIN task t ON (
       (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
       (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (
-        SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id
+        SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id
       ))
     )
       AND LOWER(t.status) IN ('done', 'completed')
@@ -49,7 +49,7 @@ const buildYesterdayStatsCTE = (orgParamRef) => `
                AND t."completedAt" < CURRENT_DATE THEN
             CASE 
               WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN 
-                t.points / GREATEST((SELECT COUNT(*) FROM "TaskAssignee" ta WHERE ta."taskId" = t.id), 1)
+                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
               ELSE t.points 
             END
           ELSE 0
@@ -60,7 +60,7 @@ const buildYesterdayStatsCTE = (orgParamRef) => `
     LEFT JOIN task t ON (
       (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR 
       (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (
-        SELECT 1 FROM "TaskAssignee" ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id
+        SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id
       ))
     )
       AND LOWER(t.status) IN ('done', 'completed')
@@ -122,24 +122,24 @@ const buildPerformerStatsCTEs = () => `
  * @returns {Promise<any>} Result of the callback
  */
 const withTransaction = async (pool, callback) => {
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const result = await callback(client);
-        await client.query('COMMIT');
-        return result;
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 module.exports = {
-    buildWeeklyStatsCTE,
-    buildYesterdayStatsCTE,
-    buildProjectStatsCTE,
-    buildPerformerStatsCTEs,
-    withTransaction,
+  buildWeeklyStatsCTE,
+  buildYesterdayStatsCTE,
+  buildProjectStatsCTE,
+  buildPerformerStatsCTEs,
+  withTransaction,
 };

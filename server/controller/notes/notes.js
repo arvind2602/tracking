@@ -54,7 +54,7 @@ const createNote = async (req, res, next) => {
         const newNote = await withTransaction(pool.pool, async (client) => {
             // Insert Note
             const noteResult = await client.query(
-                `INSERT INTO "Note" (title, content, type, "organizationId", "authorId", "projectId", "isPinned", "createdAt", "updatedAt")
+                `INSERT INTO note (title, content, type, "organizationId", "authorId", "projectId", "isPinned", "createdAt", "updatedAt")
            VALUES ($1, $2, $3, $4, $5, $6, false, NOW(), NOW())
            RETURNING *`,
                 [title, content, type, organizationId, authorId, projectId || null]
@@ -65,7 +65,7 @@ const createNote = async (req, res, next) => {
             if (tags && tags.length > 0) {
                 for (const employeeId of tags) {
                     await client.query(
-                        `INSERT INTO "NoteTag" ("noteId", "employeeId") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                        `INSERT INTO note_tag ("noteId", "employeeId") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
                         [note.id, employeeId]
                     );
                 }
@@ -75,7 +75,7 @@ const createNote = async (req, res, next) => {
             if (attachments && attachments.length > 0) {
                 for (const att of attachments) {
                     await client.query(
-                        `INSERT INTO "NoteAttachment" ("noteId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
+                        `INSERT INTO note_attachment ("noteId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
                         [note.id, att.name, att.url, att.fileType, att.size || null, att.heading || null]
                     );
                 }
@@ -85,7 +85,7 @@ const createNote = async (req, res, next) => {
             if (links && links.length > 0) {
                 for (const link of links) {
                     await client.query(
-                        `INSERT INTO "NoteLink" ("noteId", name, url, heading) VALUES ($1, $2, $3, $4)`,
+                        `INSERT INTO note_link ("noteId", name, url, heading) VALUES ($1, $2, $3, $4)`,
                         [note.id, link.name, link.url, link.heading || null]
                     );
                 }
@@ -113,7 +113,7 @@ const getNotes = async (req, res, next) => {
             // Personal: only own notes OR notes where user is tagged
             // If employeeId is provided and requester is ADMIN, allow seeing that employee's personal notes
             const filterUserId = (employeeId && req.user.role === 'ADMIN') ? employeeId : authorId;
-            whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
+            whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
             whereClauses.push(`n.type = 'PERSONAL'`);
             values.push(filterUserId);
             paramIdx++;
@@ -121,7 +121,7 @@ const getNotes = async (req, res, next) => {
             // Organizational: visible to all in org
             whereClauses.push(`n.type = 'ORGANIZATIONAL'`);
             if (employeeId) {
-                whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
+                whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
                 values.push(employeeId);
                 paramIdx++;
             }
@@ -134,7 +134,7 @@ const getNotes = async (req, res, next) => {
                 paramIdx++;
             }
             if (employeeId) {
-                whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
+                whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
                 values.push(employeeId);
                 paramIdx++;
             }
@@ -142,11 +142,11 @@ const getNotes = async (req, res, next) => {
             // If no type specified, return ORG and PROJECT, plus PERSONAL where owner or tagged
             // If employeeId is specified, restrict to notes related to that employee
             if (employeeId) {
-                whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
+                whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
                 values.push(employeeId);
                 paramIdx++;
             } else {
-                whereClauses.push(`(n.type IN ('ORGANIZATIONAL', 'PROJECT') OR (n.type = 'PERSONAL' AND (n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM "NoteTag" nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))))`);
+                whereClauses.push(`(n.type IN ('ORGANIZATIONAL', 'PROJECT') OR (n.type = 'PERSONAL' AND (n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))))`);
                 values.push(authorId);
                 paramIdx++;
             }
@@ -162,8 +162,8 @@ const getNotes = async (req, res, next) => {
             SELECT n.*, 
                    e."firstName" as "authorFirstName", e."lastName" as "authorLastName",
                    p.name as "projectName",
-                   (SELECT COUNT(*) FROM "NoteAttachment" na WHERE na."noteId" = n.id) as "attachmentCount"
-            FROM "Note" n
+                   (SELECT COUNT(*) FROM note_attachment na WHERE na."noteId" = n.id) as "attachmentCount"
+            FROM note n
             JOIN employee e ON n."authorId" = e.id
             LEFT JOIN projects p ON n."projectId" = p.id
             WHERE ${whereClauses.join(' AND ')}
@@ -178,19 +178,19 @@ const getNotes = async (req, res, next) => {
             const noteIds = notes.map(n => n.id);
             const tagsRes = await pool.query(`
                 SELECT nt.*, e."firstName", e."lastName", e.email 
-                FROM "NoteTag" nt
+                FROM note_tag nt
                 JOIN employee e ON nt."employeeId" = e.id
                 WHERE nt."noteId" = ANY($1::uuid[])
             `, [noteIds]);
 
             const tags = tagsRes.rows;
             const attRes = await pool.query(`
-                SELECT * FROM "NoteAttachment" WHERE "noteId" = ANY($1::uuid[])
+                SELECT * FROM note_attachment WHERE "noteId" = ANY($1::uuid[])
             `, [noteIds]);
             const attachments = attRes.rows;
 
             const linksRes = await pool.query(`
-                SELECT * FROM "NoteLink" WHERE "noteId" = ANY($1::uuid[])
+                SELECT * FROM note_link WHERE "noteId" = ANY($1::uuid[])
             `, [noteIds]);
             const links = linksRes.rows;
 
@@ -213,7 +213,7 @@ const getPinnedNotes = async (req, res, next) => {
         // Auto-unpin expired notes
         try {
             await pool.query(`
-                UPDATE "Note" 
+                UPDATE note 
                 SET "isPinned" = false, "pinUntil" = NULL 
                 WHERE "organizationId" = $1 AND "isPinned" = true AND "pinUntil" IS NOT NULL AND "pinUntil" < NOW()
             `, [organizationId]);
@@ -224,7 +224,7 @@ const getPinnedNotes = async (req, res, next) => {
         // Get currently pinned ORG notes
         const result = await pool.query(`
             SELECT n.*, e."firstName" as "authorFirstName", e."lastName" as "authorLastName"
-            FROM "Note" n
+            FROM note n
             JOIN employee e ON n."authorId" = e.id
             WHERE n."organizationId" = $1 AND n."isPinned" = true AND n.type = 'ORGANIZATIONAL'
             ORDER BY n."updatedAt" DESC
@@ -243,7 +243,7 @@ const getNoteById = async (req, res, next) => {
     try {
         const result = await pool.query(`
             SELECT n.*, e."firstName" as "authorFirstName", e."lastName" as "authorLastName", p.name as "projectName"
-            FROM "Note" n
+            FROM note n
             JOIN employee e ON n."authorId" = e.id
             LEFT JOIN projects p ON n."projectId" = p.id
             WHERE n.id = $1 AND n."organizationId" = $2
@@ -255,22 +255,22 @@ const getNoteById = async (req, res, next) => {
 
         // Access control check for personal notes
         if (note.type === 'PERSONAL' && note.authorId !== authorId) {
-            const tagCheck = await pool.query(`SELECT 1 FROM "NoteTag" WHERE "noteId" = $1 AND "employeeId" = $2`, [id, authorId]);
+            const tagCheck = await pool.query(`SELECT 1 FROM note_tag WHERE "noteId" = $1 AND "employeeId" = $2`, [id, authorId]);
             if (tagCheck.rowCount === 0) return next(new NotFoundError('Note not found'));
         }
 
         // Fetch attachments
-        const attRes = await pool.query(`SELECT * FROM "NoteAttachment" WHERE "noteId" = $1`, [id]);
+        const attRes = await pool.query(`SELECT * FROM note_attachment WHERE "noteId" = $1`, [id]);
         note.attachments = attRes.rows;
 
         // Fetch links
-        const linksRes = await pool.query(`SELECT * FROM "NoteLink" WHERE "noteId" = $1`, [id]);
+        const linksRes = await pool.query(`SELECT * FROM note_link WHERE "noteId" = $1`, [id]);
         note.links = linksRes.rows;
 
         // Fetch tags
         const tagRes = await pool.query(`
             SELECT nt.*, e."firstName", e."lastName", e.email 
-            FROM "NoteTag" nt
+            FROM note_tag nt
             JOIN employee e ON nt."employeeId" = e.id
             WHERE nt."noteId" = $1
         `, [id]);
@@ -312,7 +312,7 @@ const updateNote = async (req, res, next) => {
     const { title, content, type, projectId, tags, attachments, links } = value;
 
     try {
-        const noteCheck = await pool.query(`SELECT "authorId" FROM "Note" WHERE id = $1 AND "organizationId" = $2`, [id, organizationId]);
+        const noteCheck = await pool.query(`SELECT "authorId" FROM note WHERE id = $1 AND "organizationId" = $2`, [id, organizationId]);
         if (noteCheck.rowCount === 0) return next(new NotFoundError('Note not found'));
 
         // Only author (or maybe admin) can update
@@ -340,21 +340,21 @@ const updateNote = async (req, res, next) => {
             if (updateValues.length > 0) {
                 updateValues.push(id);
                 updateValues.push(organizationId);
-                const q = `UPDATE "Note" SET ${updateQuery.join(', ')} WHERE id = $${paramIdx} AND "organizationId" = $${paramIdx + 1} RETURNING *`;
+                const q = `UPDATE note SET ${updateQuery.join(', ')} WHERE id = $${paramIdx} AND "organizationId" = $${paramIdx + 1} RETURNING *`;
                 const res = await client.query(q, updateValues);
                 returnedNote = res.rows[0];
             } else {
-                const res = await client.query(`SELECT * FROM "Note" WHERE id = $1`, [id]);
+                const res = await client.query(`SELECT * FROM note WHERE id = $1`, [id]);
                 returnedNote = res.rows[0];
             }
 
             // Sync Tags
             if (tags !== undefined) {
-                await client.query(`DELETE FROM "NoteTag" WHERE "noteId" = $1`, [id]);
+                await client.query(`DELETE FROM note_tag WHERE "noteId" = $1`, [id]);
                 if (tags.length > 0) {
                     for (const employeeId of tags) {
                         await client.query(
-                            `INSERT INTO "NoteTag" ("noteId", "employeeId") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                            `INSERT INTO note_tag ("noteId", "employeeId") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
                             [id, employeeId]
                         );
                     }
@@ -363,11 +363,11 @@ const updateNote = async (req, res, next) => {
 
             // Sync Attachments
             if (attachments !== undefined) {
-                await client.query(`DELETE FROM "NoteAttachment" WHERE "noteId" = $1`, [id]);
+                await client.query(`DELETE FROM note_attachment WHERE "noteId" = $1`, [id]);
                 if (attachments.length > 0) {
                     for (const att of attachments) {
                         await client.query(
-                            `INSERT INTO "NoteAttachment" ("noteId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
+                            `INSERT INTO note_attachment ("noteId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
                             [id, att.name, att.url, att.fileType, att.size || null, att.heading || null]
                         );
                     }
@@ -376,11 +376,11 @@ const updateNote = async (req, res, next) => {
 
             // Sync Links
             if (links !== undefined) {
-                await client.query(`DELETE FROM "NoteLink" WHERE "noteId" = $1`, [id]);
+                await client.query(`DELETE FROM note_link WHERE "noteId" = $1`, [id]);
                 if (links.length > 0) {
                     for (const link of links) {
                         await client.query(
-                            `INSERT INTO "NoteLink" ("noteId", name, url, heading) VALUES ($1, $2, $3, $4)`,
+                            `INSERT INTO note_link ("noteId", name, url, heading) VALUES ($1, $2, $3, $4)`,
                             [id, link.name, link.url, link.heading || null]
                         );
                     }
@@ -401,14 +401,14 @@ const deleteNote = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
 
     try {
-        const noteCheck = await pool.query(`SELECT "authorId" FROM "Note" WHERE id = $1 AND "organizationId" = $2`, [id, organizationId]);
+        const noteCheck = await pool.query(`SELECT "authorId" FROM note WHERE id = $1 AND "organizationId" = $2`, [id, organizationId]);
         if (noteCheck.rowCount === 0) return next(new NotFoundError('Note not found'));
 
         if (noteCheck.rows[0].authorId !== authorId && req.user.role !== 'ADMIN') {
             return next(new AuthorizationError('Not authorized to delete this note'));
         }
 
-        await pool.query(`DELETE FROM "Note" WHERE id = $1`, [id]);
+        await pool.query(`DELETE FROM note WHERE id = $1`, [id]);
         res.json({ message: 'Note deleted' });
     } catch (err) { next(err); }
 };
@@ -433,7 +433,7 @@ const pinNote = async (req, res, next) => {
     const { duration } = value;
 
     try {
-        const noteCheck = await pool.query(`SELECT "authorId", type FROM "Note" WHERE id = $1 AND "organizationId" = $2`, [id, organizationId]);
+        const noteCheck = await pool.query(`SELECT "authorId", type FROM note WHERE id = $1 AND "organizationId" = $2`, [id, organizationId]);
         if (noteCheck.rowCount === 0) return next(new NotFoundError('Note not found'));
         const note = noteCheck.rows[0];
 
@@ -457,7 +457,7 @@ const pinNote = async (req, res, next) => {
         }
 
         const result = await pool.query(`
-            UPDATE "Note" SET "isPinned" = true, "pinUntil" = $1, "updatedAt" = NOW() 
+            UPDATE note SET "isPinned" = true, "pinUntil" = $1, "updatedAt" = NOW() 
             WHERE id = $2 RETURNING *
         `, [pinUntil, id]);
 
@@ -473,7 +473,7 @@ const unpinNote = async (req, res, next) => {
     const isAdmin = req.user.role === 'ADMIN';
 
     try {
-        const noteCheck = await pool.query(`SELECT "authorId", type FROM "Note" WHERE id = $1 AND "organizationId" = $2`, [id, organizationId]);
+        const noteCheck = await pool.query(`SELECT "authorId", type FROM note WHERE id = $1 AND "organizationId" = $2`, [id, organizationId]);
         if (noteCheck.rowCount === 0) return next(new NotFoundError('Note not found'));
         const note = noteCheck.rows[0];
 
@@ -485,7 +485,7 @@ const unpinNote = async (req, res, next) => {
         }
 
         const result = await pool.query(`
-            UPDATE "Note" SET "isPinned" = false, "pinUntil" = NULL, "updatedAt" = NOW() 
+            UPDATE note SET "isPinned" = false, "pinUntil" = NULL, "updatedAt" = NOW() 
             WHERE id = $1 RETURNING *
         `, [id]);
 

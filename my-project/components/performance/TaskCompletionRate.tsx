@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import axios from '@/lib/axios';
+import Link from 'next/link';
 
 async function getTaskCompletionRate() {
   const res = await axios.get('/performance/task-completion-rate');
@@ -39,7 +40,11 @@ export function TaskCompletionRate() {
           <TableBody>
             {data?.map((emp: TaskCompletion) => (
               <TableRow key={emp.id}>
-                <TableCell>{emp.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link href={`/dashboard/users/${emp.id}`} className="hover:text-primary hover:underline transition-colors">
+                    {emp.name}
+                  </Link>
+                </TableCell>
                 <TableCell>{!isNaN(Number(emp.completionRate)) ? Number(emp.completionRate).toFixed(2) : '0.00'}%</TableCell>
               </TableRow>
             ))}

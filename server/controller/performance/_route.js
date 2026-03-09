@@ -22,5 +22,6 @@ performance.get('/monthly-productivity-trend', performanceController.getMonthlyP
 performance.get('/task-completion-rate', performanceController.getTaskCompletionRate);
 performance.get('/recent-activity', performanceController.getRecentActivity);
 performance.get('/dashboard-summary', performanceController.getDashboardSummary);
+performance.get('/active-projects-this-week', performanceController.getActiveProjectsThisWeek);
 
 module.exports = performance;
