@@ -26,6 +26,7 @@ model organiation {
   shifts                Shift[]
   geofences             Geofence[]
   organizationGeofences OrganizationGeofence[]
+  qrLocations           QRLocation[]
 
   @@index([name])
 }
@@ -61,6 +62,7 @@ model employee {
   devices          Device[]
   attendances      Attendance[]
   employeeShifts   EmployeeShift[]
+  qrVisits         QRVisit[]
 
   @@index([organiationId, is_archived])
   @@index([organiationId, role])
@@ -425,4 +427,39 @@ model OrganizationGeofence {
   @@unique([organizationId, geofenceId])
   @@index([geofenceId])
   @@map("organizationgeofence")
+}
+
+model QRLocation {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  latitude       Float
+  longitude      Float
+  radius         Float       @default(50) // meters
+  organizationId String      @db.Uuid
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime?   @updatedAt
+  organization   organiation @relation(fields: [organizationId], references: [id])
+  visits         QRVisit[]
+
+  @@index([organizationId])
+  @@map("qr_location")
+}
+
+model QRVisit {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  locationId     String     @db.Uuid
+  employeeId     String     @db.Uuid
+  deviceId       String
+  timestamp      DateTime   @default(now())
+  userLat        Float
+  userLng        Float
+  distance       Float // distance from location in meters
+  isValid        Boolean    @default(true)
+  deviceMismatch Boolean    @default(false)
+  location       QRLocation @relation(fields: [locationId], references: [id])
+  employee       employee   @relation(fields: [employeeId], references: [id])
+
+  @@index([locationId])
+  @@index([employeeId])
+  @@map("qr_visit")
 }

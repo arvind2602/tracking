@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Code, GraduationCap, LogOut, Menu, X, Activity, ChevronLeft, ChevronRight, User, Settings, NotebookPen } from 'lucide-react';
+import { Home, Code, GraduationCap, LogOut, Menu, X, Activity, ChevronLeft, ChevronRight, User, Settings, NotebookPen, QrCode } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import axios from '@/lib/axios';
@@ -156,10 +156,11 @@ export default function DashboardLayout({
     { href: '/dashboard/projects', icon: Code, label: 'Projects' },
     { href: '/dashboard/profile', icon: User, label: 'Profile' },
     { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
+    { href: '/dashboard/qr', icon: QrCode, label: 'QR Verification' },
   ];
 
   const navItems = userRole === 'USER'
-    ? allNavItems.filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance')
+    ? allNavItems.filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance' || item.label === 'QR Verification')
     : allNavItems;
 
   if (isLoading) {

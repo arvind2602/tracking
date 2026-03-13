@@ -9,6 +9,7 @@ const performanceRoutes = require('./performance/_route');
 const analyticsRoutes = require('./analytics/_route');
 const reportRoutes = require('./reports/_route');
 const attendanceRoutes = require('./attendance/_route');
+const qrRoutes = require('./qr-verification/_route');
 
 // Mount sub-routers
 organization.use('/projects', projectsRoutes);
@@ -20,5 +21,6 @@ organization.use('/performance', performanceRoutes);
 organization.use('/analytics', analyticsRoutes);
 organization.use('/reports', reportRoutes);
 organization.use('/attendance', attendanceRoutes);
+organization.use('/qr', qrRoutes);
 
 module.exports = organization;
