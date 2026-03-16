@@ -27,6 +27,7 @@ model organiation {
   geofences             Geofence[]
   organizationGeofences OrganizationGeofence[]
   qrLocations           QRLocation[]
+  buildings             Building[]
 
   @@index([name])
 }
@@ -323,7 +324,6 @@ model Device {
   createdAt   DateTime     @default(now())
   lastUsedAt  DateTime?    @updatedAt
   employee    employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  attendances Attendance[]
 
   @@unique([deviceId, employeeId])
   @@index([employeeId, isPrimary])
@@ -356,7 +356,8 @@ model Attendance {
   shift          Shift?           @relation(fields: [shiftId], references: [id])
   geofence       Geofence?        @relation(fields: [geofenceId], references: [id])
   geofenceId     String?          @db.Uuid
-  device         Device?          @relation(fields: [deviceId], references: [id])
+  // device         Device?          @relation(fields: [deviceId], references: [id])
+  // Commenting out conflicting relation for now to allow push
 
   @@unique([employeeId, date])
   @@index([employeeId, date])
@@ -436,13 +437,71 @@ model QRLocation {
   longitude      Float
   radius         Float       @default(50) // meters
   organizationId String      @db.Uuid
+  zoneId         String?     @unique @db.Uuid // Optional link to indoor hierarchy
   createdAt      DateTime    @default(now())
   updatedAt      DateTime?   @updatedAt
   organization   organiation @relation(fields: [organizationId], references: [id])
+  zone           Zone?       @relation(fields: [zoneId], references: [id])
   visits         QRVisit[]
 
   @@index([organizationId])
   @@map("qr_location")
+}
+
+model Building {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  address        String?
+  latitude       Float
+  longitude      Float
+  organizationId String      @db.Uuid
+  organization   organiation @relation(fields: [organizationId], references: [id])
+  floors         Floor[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime?   @updatedAt
+
+  @@index([organizationId])
+  @@map("building")
+}
+
+model Floor {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  level       Int
+  name        String
+  mapImageUrl String?   @db.Text
+  buildingId  String    @db.Uuid
+  building    Building  @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  zones       Zone[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime? @updatedAt
+
+  @@index([buildingId])
+  @@map("floor")
+}
+
+model Zone {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  type       ZoneType    @default(WORKSPACE)
+  x          Float // Relative X on Floor Plan (0-100)
+  y          Float // Relative Y on Floor Plan (0-100)
+  floorId    String      @db.Uuid
+  floor      Floor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  qrLocation QRLocation?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime?   @updatedAt
+
+  @@index([floorId])
+  @@map("zone")
+}
+
+enum ZoneType {
+  MEETING_ROOM
+  WORKSPACE
+  CAFETERIA
+  HALLWAY
+  ENTRY_EXIT
+  OTHER
 }
 
 model QRVisit {

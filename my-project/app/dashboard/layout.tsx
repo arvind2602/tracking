@@ -156,7 +156,7 @@ export default function DashboardLayout({
     { href: '/dashboard/projects', icon: Code, label: 'Projects' },
     { href: '/dashboard/profile', icon: User, label: 'Profile' },
     { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
-    { href: '/dashboard/qr', icon: QrCode, label: 'QR Verification' },
+    // { href: '/dashboard/qr', icon: QrCode, label: 'QR Verification' },
   ];
 
   const navItems = userRole === 'USER'

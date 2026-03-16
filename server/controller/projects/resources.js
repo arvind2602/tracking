@@ -16,6 +16,8 @@ const getProjectResources = async (req, res, next) => {
 
     // 2. Fetch Note Resources
     // We get Notes connected to this project
+    // Filter: ORGANIZATIONAL notes visible to all, 
+    // PERSONAL/PROJECT notes only visible to author, tagged users, or admins
     const noteResourcesQuery = `
       SELECT 
         'note' as "sourceType",
@@ -34,9 +36,16 @@ const getProjectResources = async (req, res, next) => {
         ) as links
       FROM note n
       LEFT JOIN employee e ON n."authorId" = e.id
-      WHERE n."projectId" = $1 AND n."organizationId" = $2
+      WHERE n."projectId" = $1 
+        AND n."organizationId" = $2
+        AND (
+          n.type = 'ORGANIZATIONAL'
+          OR $3 = 'ADMIN'
+          OR n."authorId" = $4
+          OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $4)
+        )
     `;
-    const noteRes = await pool.query(noteResourcesQuery, [projectId, organiationId]);
+    const noteRes = await pool.query(noteResourcesQuery, [projectId, organiationId, req.user.role, req.user.user_uuid]);
 
     // 3. Fetch Comment Resources (Tasks -> Comments)
     const commentResourcesQuery = `

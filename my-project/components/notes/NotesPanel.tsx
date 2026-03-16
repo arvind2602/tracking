@@ -64,7 +64,7 @@ export function NotesPanel({ open, onClose }: Props) {
             />
 
             {/* Panel */}
-            <div className="fixed top-0 right-0 h-full w-full max-w-xl bg-background/98 dark:bg-background/98 backdrop-blur-xl border-l border-border shadow-2xl z-[101] flex flex-col animate-in slide-in-from-right duration-300 ease-out">
+            <div className="fixed top-0 right-0 h-full w-full max-w-4xl bg-background/98 dark:bg-background/98 backdrop-blur-xl border-l border-border shadow-2xl z-[101] flex flex-col animate-in slide-in-from-right duration-300 ease-out">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-background to-muted/30">
                     <div className="flex items-center gap-3">
