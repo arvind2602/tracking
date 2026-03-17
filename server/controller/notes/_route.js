@@ -19,5 +19,6 @@ notes.put('/:id', notesController.updateNote);
 notes.delete('/:id', notesController.deleteNote);
 notes.put('/:id/pin', notesController.pinNote);
 notes.put('/:id/unpin', notesController.unpinNote);
+notes.post('/:id/convert-to-task', notesController.convertToTask);
 
 module.exports = notes;

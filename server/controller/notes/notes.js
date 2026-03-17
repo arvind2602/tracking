@@ -9,7 +9,7 @@ const createNote = async (req, res, next) => {
     const schema = Joi.object({
         title: Joi.string().required(),
         content: Joi.array().items(Joi.string().allow('')).default([]),
-        type: Joi.string().valid('PERSONAL', 'ORGANIZATIONAL', 'PROJECT').required(),
+        type: Joi.string().valid('PERSONAL', 'ORGANIZATIONAL', 'PROJECT', 'TODO').required(),
         projectId: Joi.string().uuid().optional().allow(null),
         tags: Joi.array().items(Joi.string().uuid()).optional().default([]),
         attachments: Joi.array().items(Joi.object({
@@ -34,16 +34,16 @@ const createNote = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
 
     try {
-        if (type === 'PROJECT' && !projectId) {
-            return next(new BadRequestError('Project ID is required for PROJECT note type'));
+        if ((type === 'PROJECT' || type === 'TODO') && !projectId) {
+            return next(new BadRequestError(`Project ID is required for ${type} note type`));
         }
 
         if (type === 'ORGANIZATIONAL' && req.user.role !== 'ADMIN') {
             return next(new AuthorizationError('Only admins can create organizational notes'));
         }
 
-        // Verify project belongs to org if type is PROJECT
-        if (type === 'PROJECT') {
+        // Verify project belongs to org if type is PROJECT or TODO
+        if (type === 'PROJECT' || type === 'TODO') {
             const projectCheck = await pool.query(
                 'SELECT id FROM projects WHERE id = $1 AND "organiationId" = $2',
                 [projectId, organizationId]
@@ -133,8 +133,18 @@ const getNotes = async (req, res, next) => {
                 values.push(projectId);
                 paramIdx++;
             }
-            
-            // Apply author or tag restriction
+
+            whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
+            values.push(filterUserId);
+            paramIdx++;
+        } else if (type === 'TODO') {
+            // Todo: visible only to author OR users who are tagged
+            whereClauses.push(`n.type = 'TODO'`);
+            if (projectId) {
+                whereClauses.push(`n."projectId" = $${paramIdx}`);
+                values.push(projectId);
+                paramIdx++;
+            }
             const filterUserId = (employeeId && req.user.role === 'ADMIN') ? employeeId : authorId;
             whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
             values.push(filterUserId);
@@ -145,11 +155,11 @@ const getNotes = async (req, res, next) => {
             // OR (PERSONAL/PROJECT only if author or tagged)
             whereClauses.push(`(
                 n.type = 'ORGANIZATIONAL' 
-                OR (n.type IN ('PERSONAL', 'PROJECT') AND (n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid)))
+                OR (n.type IN ('PERSONAL', 'PROJECT', 'TODO') AND (n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid)))
             )`);
             values.push(authorId);
             paramIdx++;
-            
+
             if (employeeId) {
                 whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
                 values.push(employeeId);
@@ -294,7 +304,7 @@ const updateNote = async (req, res, next) => {
     const schema = Joi.object({
         title: Joi.string().optional(),
         content: Joi.array().items(Joi.string()).optional(),
-        type: Joi.string().valid('PERSONAL', 'ORGANIZATIONAL', 'PROJECT').optional(),
+        type: Joi.string().valid('PERSONAL', 'ORGANIZATIONAL', 'PROJECT', 'TODO').optional(),
         projectId: Joi.string().uuid().optional().allow(null),
         tags: Joi.array().items(Joi.string().uuid()).optional(),
         attachments: Joi.array().items(Joi.object({
@@ -520,6 +530,80 @@ const uploadAttachments = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+// 10. Convert Note to Task
+const convertToTask = async (req, res, next) => {
+    const { id } = req.params;
+    const { projectId, points = 0, priority = 'MEDIUM', dueDate = null } = req.body;
+    const authorId = req.user.user_uuid;
+    const organizationId = req.user.organization_uuid;
+
+    // Security Check: Only ADMIN can convert
+    if (req.user.role !== 'ADMIN') {
+        return next(new AuthorizationError('Only admins can convert notes to tasks'));
+    }
+
+    try {
+        const noteResult = await pool.query(
+            `SELECT * FROM note WHERE id = $1 AND "organizationId" = $2`,
+            [id, organizationId]
+        );
+
+        if (noteResult.rowCount === 0) return next(new NotFoundError('Note not found'));
+        const note = noteResult.rows[0];
+
+        // Ensure note is either PROJECT or TODO type
+        if (!['PROJECT', 'TODO'].includes(note.type)) {
+            return next(new BadRequestError('Only PROJECT or TODO notes can be converted to tasks'));
+        }
+
+        const targetProjectId = projectId || note.projectId;
+        if (!targetProjectId) {
+            return next(new BadRequestError('Project ID is required for conversion'));
+        }
+
+        // Verify project belongs to org
+        const projectCheck = await pool.query(
+            'SELECT id FROM projects WHERE id = $1 AND "organiationId" = $2',
+            [targetProjectId, organizationId]
+        );
+        if (projectCheck.rowCount === 0) return next(new NotFoundError('Project not found'));
+
+        const newTask = await withTransaction(pool.pool, async (client) => {
+            // 1. Create the Task
+            // Use note title as description, and combine content points if any
+            const description = note.content && note.content.length > 0
+                ? `${note.title}\n\nNotes:\n- ${note.content.join('\n- ')}`
+                : note.title;
+
+            const taskResult = await client.query(
+                `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "type")
+                 VALUES ($1, 'pending', $2, $2, $3, $4, NOW(), $5, $6, 'SINGLE')
+                 RETURNING *`,
+                [description, authorId, points, targetProjectId, priority, dueDate]
+            );
+            const task = taskResult.rows[0];
+
+            // 2. Add creator as initial assignee
+            await client.query(
+                `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+                 VALUES ($1, $2, 1, false, NOW())`,
+                [task.id, authorId]
+            );
+
+            // 3. Mark the note as "converted" (we don't have a field for this, so maybe just change title or record in links?)
+            // Updating the note title to indicate it's been converted
+            await client.query(
+                `UPDATE note SET title = $1, "updatedAt" = NOW() WHERE id = $2`,
+                [`[Converted to Task] ${note.title}`, id]
+            );
+
+            return task;
+        });
+
+        res.status(201).json(newTask);
+    } catch (err) { next(err); }
+};
+
 module.exports = {
     createNote,
     getNotes,
@@ -529,5 +613,6 @@ module.exports = {
     deleteNote,
     pinNote,
     unpinNote,
-    uploadAttachments
+    uploadAttachments,
+    convertToTask
 };

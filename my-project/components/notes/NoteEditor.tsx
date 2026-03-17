@@ -87,7 +87,7 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
     }, [token]);
 
     useEffect(() => {
-        if (type === 'PROJECT') {
+        if (type === 'PROJECT' || type === 'TODO') {
             axiosInstance.get<Project[]>('/projects').then(res => setProjects(res.data));
         }
     }, [type]);
@@ -241,7 +241,7 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
             title,
             content: filteredPoints,
             type,
-            projectId: type === 'PROJECT' ? projectId : null,
+            projectId: (type === 'PROJECT' || type === 'TODO') ? projectId : null,
             tags: tags,
             attachments: attachments.map(a => ({
                 name: a.name,
@@ -333,11 +333,17 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
                                         Project
                                     </div>
                                 </SelectItem>
+                                <SelectItem value="TODO">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-rose-500" />
+                                        Todo
+                                    </div>
+                                </SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
-                    {type === 'PROJECT' && (
+                    {(type === 'PROJECT' || type === 'TODO') && (
                         <div className="flex-1 animate-in fade-in zoom-in-95 duration-200">
                             <Select value={projectId} onValueChange={setProjectId} required>
                                 <SelectTrigger className="bg-background/50 border-border/50 h-10">
@@ -678,7 +684,7 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
                     </Button>
                     <Button
                         type="submit"
-                        disabled={isPending || !title.trim() || (type === 'PROJECT' && !projectId)}
+                        disabled={isPending || !title.trim() || ((type === 'PROJECT' || type === 'TODO') && !projectId)}
                         className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] px-5"
                     >
                         {isPending ? (

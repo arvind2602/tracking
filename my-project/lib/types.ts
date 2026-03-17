@@ -107,7 +107,7 @@ export interface User {
   organizationId: string;
 }
 
-export type NoteType = 'PERSONAL' | 'ORGANIZATIONAL' | 'PROJECT';
+export type NoteType = 'PERSONAL' | 'ORGANIZATIONAL' | 'PROJECT' | 'TODO';
 
 export interface NoteAttachment {
   id: string;

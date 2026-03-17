@@ -27,9 +27,13 @@ interface AddTaskFormProps {
   parentId?: string;
   parentTask?: Task | null;
   currentUserId?: string | null;
+  initialData?: {
+    description?: string;
+    projectId?: string;
+  };
 }
 
-export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, parentTask, currentUserId }: AddTaskFormProps) {
+export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, parentTask, currentUserId, initialData }: AddTaskFormProps) {
   const [percentage, setPercentage] = useState<string>("");
   // Multi-select state
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
@@ -47,10 +51,10 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
     parentId?: string;
     type: "SINGLE" | "SHARED" | "SEQUENTIAL";
   }>({
-    description: "",
+    description: initialData?.description || "",
     status: "pending",
     points: "",
-    projectId: "",
+    projectId: initialData?.projectId || "",
     priority: "MEDIUM",
     dueDate: "",
     parentId: parentId || (parentTask ? parentTask.id : undefined),

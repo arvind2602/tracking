@@ -160,7 +160,9 @@ export default function DashboardLayout({
   ];
 
   const navItems = userRole === 'USER'
-    ? allNavItems.filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance' || item.label === 'QR Verification')
+    ? allNavItems
+        .filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance' || item.label === 'QR Verification')
+        .map(item => item.label === 'QR Verification' ? { ...item, href: '/dashboard/qr/scan' } : item)
     : allNavItems;
 
   if (isLoading) {
@@ -268,29 +270,55 @@ export default function DashboardLayout({
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden relative z-10 transition-all duration-300">
+        <header className="flex items-center justify-between p-4 bg-card/50 backdrop-blur-md border-b border-border h-16 shrink-0">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="md:hidden text-foreground hover:bg-accent p-2 rounded-lg transition-colors">
+              <Menu className="h-6 w-6" />
+            </button>
+            <div className="hidden md:flex items-center gap-2">
+              <div className="h-8 w-8 bg-blue-500/10 rounded-lg flex items-center justify-center text-blue-500">
+                <Activity className="h-5 w-5" />
+              </div>
+              <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+                {pathname === '/dashboard' ? 'Overview' : pathname.split('/').pop()?.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+              </span>
+            </div>
+            {/* Mobile Logo */}
+            <Link href="/dashboard" className="md:hidden flex items-center gap-2 text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+              {orgSettings?.logo ? (
+                <img src={getProxiedImageUrl(orgSettings.logo)} alt="Logo" className="h-6 w-6 object-contain rounded" />
+              ) : (
+                <Activity className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+              )}
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/dashboard/qr/scan" 
+              className="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl transition-all border border-primary/20 shadow-lg group flex items-center gap-2"
+              title="QR Scanner"
+            >
+              <QrCode className="h-5 w-5 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider">Scanner</span>
+            </Link>
+
+            <button
+              onClick={() => setIsNotesPanelOpen(true)}
+              className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+              title="Quick Notes"
+            >
+              <NotebookPen className="h-5 w-5" />
+              <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider text-white">Notes</span>
+            </button>
+          </div>
+        </header>
+
         <BirthdayBanner />
         <div className="px-6 md:px-8 pt-4 pb-0">
           <PinnedNotesBanner />
         </div>
-        <header className="md:hidden flex items-center justify-between p-4 bg-card border-b border-border">
-          <button onClick={() => setIsSidebarOpen(true)} className="text-foreground">
-            <Menu className="h-6 w-6" />
-          </button>
-          <Link href="/dashboard" className="flex items-center gap-2 text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-            {orgSettings?.logo ? (
-              <img src={getProxiedImageUrl(orgSettings.logo)} alt="Logo" className="h-6 w-6 object-contain rounded" />
-            ) : (
-              <Activity className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-            )}
-            <span>{orgSettings?.name || 'Dashboard'}</span>
-          </Link>
-          <button
-            onClick={() => setIsNotesPanelOpen(true)}
-            className="flex items-center justify-center h-10 w-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl shadow-lg"
-          >
-            <NotebookPen className="h-5 w-5 text-white" />
-          </button>
-        </header>
+        
         <main className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar relative">
           {/* FAB - Floating Action Button */}
           <button

@@ -298,6 +298,7 @@ enum NoteType {
   PERSONAL
   ORGANIZATIONAL
   PROJECT
+  TODO
   LEAVE // For leave requests - employee tags admins
 }
 

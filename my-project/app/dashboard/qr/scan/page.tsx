@@ -183,7 +183,7 @@ export default function RealQRScanner() {
                         <div className="relative mx-auto w-48 h-48 flex items-center justify-center bg-accent/30 rounded-3xl border-2 border-dashed border-border group overflow-hidden">
                             <QrCode className="h-24 w-24 text-muted-foreground opacity-30 group-hover:scale-110 transition-transform duration-500" />
                             <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end justify-center pb-4">
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">System Ready</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-primary">System Ready</span>
                             </div>
                         </div>
                         
@@ -193,7 +193,7 @@ export default function RealQRScanner() {
                             </p>
                             <button
                                 onClick={() => setStatus('scanning')}
-                                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-3"
+                                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 rounded-2xl font-bold uppercase tracking-wider shadow-xl shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                             >
                                 <Camera className="h-5 w-5" />
                                 Start Scanner
@@ -205,7 +205,7 @@ export default function RealQRScanner() {
                 {status === 'scanning' && (
                     <div className="space-y-4">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-primary animate-pulse flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-primary animate-pulse flex items-center gap-2">
                                 <div className={`h-2 w-2 rounded-full ${scanStatus === 'QR Detected!' ? 'bg-green-500' : 'bg-primary'}`}></div>
                                 {scanStatus}
                             </span>
@@ -229,7 +229,7 @@ export default function RealQRScanner() {
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <h3 className="text-xl font-black uppercase tracking-widest">
+                            <h3 className="text-xl font-bold uppercase tracking-wider">
                                 Validating...
                             </h3>
                             <p className="text-xs text-muted-foreground animate-pulse font-mono">
@@ -245,8 +245,8 @@ export default function RealQRScanner() {
                             <CheckCircle2 className="h-12 w-12 text-green-500" />
                         </div>
                         <div className="space-y-1">
-                            <h3 className="text-2xl font-black text-green-500 uppercase tracking-tighter">Verified</h3>
-                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
+                            <h3 className="text-2xl font-bold text-green-500 uppercase tracking-tight">Verified</h3>
+                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                                 Presence Logged Securely
                             </p>
                         </div>
@@ -264,7 +264,7 @@ export default function RealQRScanner() {
 
                         <button
                             onClick={reset}
-                            className="w-full bg-secondary hover:bg-accent text-secondary-foreground py-4 rounded-2xl font-black uppercase tracking-widest border border-border transition-all"
+                            className="w-full bg-secondary hover:bg-accent text-secondary-foreground py-4 rounded-2xl font-bold uppercase tracking-wider border border-border transition-all"
                         >
                             Next Scan
                         </button>
@@ -277,8 +277,8 @@ export default function RealQRScanner() {
                             <AlertCircle className="h-12 w-12 text-red-500" />
                         </div>
                         <div className="space-y-1">
-                            <h3 className="text-2xl font-black text-red-500 uppercase tracking-tighter">Denied</h3>
-                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
+                            <h3 className="text-2xl font-bold text-red-500 uppercase tracking-tight">Denied</h3>
+                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                                 Location Mismatch
                             </p>
                         </div>
@@ -297,7 +297,7 @@ export default function RealQRScanner() {
 
                         <button
                             onClick={reset}
-                            className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-red-500/20 active:scale-95 transition-all"
+                            className="w-full bg-red-500 hover:bg-red-600 text-white py-4 rounded-2xl font-bold uppercase tracking-wider shadow-xl shadow-red-500/20 active:scale-95 transition-all"
                         >
                             Try Again
                         </button>
@@ -308,11 +308,11 @@ export default function RealQRScanner() {
             <div className="flex items-center justify-center gap-6 text-muted-foreground/40">
                 <div className="flex items-center gap-1.5">
                     <ShieldCheck className="h-4 w-4" />
-                    <span className="text-[8px] uppercase font-black tracking-[0.2em]">Verified Link</span>
+                    <span className="text-[8px] uppercase font-bold tracking-wider">Verified Link</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <Lock className="h-4 w-4" />
-                    <span className="text-[8px] uppercase font-black tracking-[0.2em]">AES-256</span>
+                    <span className="text-[8px] uppercase font-bold tracking-wider">AES-256</span>
                 </div>
             </div>
 

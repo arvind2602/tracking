@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Search, Plus, Keyboard, FileText, Briefcase, User, FolderKanban } from 'lucide-react';
+import { X, Search, Plus, Keyboard, FileText, Briefcase, User, FolderKanban, LayoutList as Playout } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,6 +18,7 @@ const noteTypeIcons = {
     PERSONAL: { icon: User, label: 'Personal', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
     ORGANIZATIONAL: { icon: Briefcase, label: 'Organizational', color: 'text-amber-500', bg: 'bg-amber-500/10' },
     PROJECT: { icon: FolderKanban, label: 'Project', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+    TODO: { icon: Playout, label: 'Todo', color: 'text-rose-500', bg: 'bg-rose-500/10' },
 };
 
 export function NotesPanel({ open, onClose }: Props) {
@@ -94,8 +95,8 @@ export function NotesPanel({ open, onClose }: Props) {
                             {/* Quick Create Buttons */}
                             <div className="p-4 pb-2">
                                 <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">Quick Create</p>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {(['PERSONAL', 'ORGANIZATIONAL', 'PROJECT'] as NoteType[]).map((type) => {
+                                <div className="grid grid-cols-4 gap-2">
+                                    {(['PERSONAL', 'ORGANIZATIONAL', 'PROJECT', 'TODO'] as NoteType[]).map((type) => {
                                         const config = noteTypeIcons[type];
                                         const Icon = config.icon;
                                         return (
@@ -141,6 +142,7 @@ export function NotesPanel({ open, onClose }: Props) {
                                         <TabsTrigger value="PERSONAL" className="flex-1 text-xs py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Personal</TabsTrigger>
                                         <TabsTrigger value="ORGANIZATIONAL" className="flex-1 text-xs py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm truncate">Org</TabsTrigger>
                                         <TabsTrigger value="PROJECT" className="flex-1 text-xs py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Project</TabsTrigger>
+                                        <TabsTrigger value="TODO" className="flex-1 text-xs py-1.5 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm">Todo</TabsTrigger>
                                     </TabsList>
                                 </Tabs>
                             </div>

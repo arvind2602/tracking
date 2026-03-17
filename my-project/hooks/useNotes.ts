@@ -172,3 +172,33 @@ export const useUnpinNote = () => {
         },
     });
 };
+// Convert Note to Task
+export const useConvertNoteToTask = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, projectId, points, priority, dueDate }: { 
+            id: string; 
+            projectId?: string; 
+            points?: number; 
+            priority?: string; 
+            dueDate?: string | null 
+        }) => {
+            const { data } = await axios.post(`/notes/${id}/convert-to-task`, { 
+                projectId, 
+                points, 
+                priority, 
+                dueDate 
+            });
+            return data;
+        },
+        onSuccess: () => {
+            toast.success('Note converted to task successfully');
+            queryClient.invalidateQueries({ queryKey: ['notes'] });
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        },
+        onError: (error: ApiError) => {
+            toast.error(error.response?.data?.message || 'Failed to convert note to task');
+        },
+    });
+};
