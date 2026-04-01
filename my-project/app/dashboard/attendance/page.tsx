@@ -86,40 +86,42 @@ export default function AttendancePage() {
                     </p>
                 </div>
 
-                {isAdmin && (
-                    <div className="flex bg-muted p-1 rounded-xl border border-border">
-                        <button
-                            onClick={() => setActiveTab('personal')}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                                activeTab === 'personal' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            <UserIcon className="w-4 h-4" />
-                            Personal
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('organization')}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                                activeTab === 'organization' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            <Users className="w-4 h-4" />
-                            Org Feed
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('config')}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                                activeTab === 'config' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            <SettingsIcon className="w-4 h-4" />
-                            Rules
-                        </button>
-                    </div>
-                )}
+                <div className="flex bg-muted p-1 rounded-xl border border-border">
+                    <button
+                        onClick={() => setActiveTab('personal')}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                            activeTab === 'personal' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        <UserIcon className="w-4 h-4" />
+                        Personal
+                    </button>
+                    {isAdmin && (
+                        <>
+                            <button
+                                onClick={() => setActiveTab('organization')}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                                    activeTab === 'organization' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <Users className="w-4 h-4" />
+                                Org Feed
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('config')}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                                    activeTab === 'config' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <SettingsIcon className="w-4 h-4" />
+                                Rules
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
