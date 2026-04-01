@@ -414,6 +414,7 @@ model Geofence {
   attendance            Attendance[]
   organizationGeofences OrganizationGeofence[]
 
+  @@unique([organizationId, name])
   @@index([organizationId])
   @@map("geofence")
 }

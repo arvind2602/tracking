@@ -191,7 +191,7 @@ const updateOrganizationSettings = async (req, res, next) => {
                     const gfResult = await client.query(
                         `INSERT INTO geofence (name, latitude, longitude, radius, "organizationId")
                          VALUES ($1, $2, $3, $4, $5)
-                         ON CONFLICT ("organizationId") DO UPDATE SET
+                         ON CONFLICT ("organizationId", name) DO UPDATE SET
                            latitude = EXCLUDED.latitude,
                            longitude = EXCLUDED.longitude,
                            radius = EXCLUDED.radius,
