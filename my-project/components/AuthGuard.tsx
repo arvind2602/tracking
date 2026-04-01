@@ -27,8 +27,15 @@ export default function AuthGuard({ children }: AuthGuardProps) {
       const userRole = payload.user.role;
 
       if (userRole === 'USER') {
-        // Allow access to login, tasks, and profile routes
-        if (pathname !== '/' && !pathname.startsWith('/dashboard/tasks') && !pathname.startsWith('/dashboard/profile')) {
+        // Allow access to essential dashboard routes
+        const isAllowedPath = 
+          pathname === '/' || 
+          pathname.startsWith('/dashboard/tasks') || 
+          pathname.startsWith('/dashboard/profile') ||
+          pathname.startsWith('/dashboard/attendance') ||
+          pathname.startsWith('/dashboard/qr');
+
+        if (!isAllowedPath) {
           router.push('/dashboard/tasks');
         }
       }
