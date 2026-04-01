@@ -224,7 +224,8 @@ const checkIn = async (req, res, next) => {
     if (geofenceResult.rowCount > 0) {
       const gf = geofenceResult.rows[0];
       const distance = calculateDistance(lat, lng, gf.latitude, gf.longitude);
-      withinGeofence = distance <= gf.radius;
+      const radius = Math.max(gf.radius, 100); // Minimum 100m radius to account for GPS drift
+      withinGeofence = distance <= radius;
 
       if (!withinGeofence) {
         // Still allow check-in but mark as outside geofence
