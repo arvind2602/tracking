@@ -68,6 +68,14 @@ export default function RealQRScanner() {
     useEffect(() => {
         if (status === 'scanning' && !cameraReady) {
             startScanner();
+            // Pre-request location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => setCoordinates({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                    (err) => console.warn('Pre-scan location request failed', err),
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            }
         }
 
         return () => {
@@ -144,7 +152,14 @@ export default function RealQRScanner() {
             },
             (err) => {
                 console.error(err);
-                toast.error("GPS Access Denied");
+                let msg = "GPS Access Denied";
+                if (err.code === err.PERMISSION_DENIED) {
+                    msg = "Location permission denied. Please allow location access in your browser settings and try again.";
+                } else if (err.code === err.TIMEOUT) {
+                    msg = "Location request timed out. Please ensure GPS is enabled and try again.";
+                }
+                setVerificationResult({ message: msg });
+                toast.error(msg);
                 setStatus('failed');
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }

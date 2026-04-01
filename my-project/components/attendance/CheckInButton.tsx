@@ -19,6 +19,8 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<AttendanceStatus | null>(null);
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [locationError, setLocationError] = useState<string | null>(null);
+    const [isRequestingLocation, setIsRequestingLocation] = useState(false);
 
     const fetchStatus = async () => {
         try {
@@ -40,17 +42,44 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
         }
     };
 
+    const requestLocation = () => {
+        if (!window.isSecureContext) {
+            setLocationError('Location access requires a secure (HTTPS) connection. Please contact your administrator.');
+            return;
+        }
+
+        if (!navigator.geolocation) {
+            setLocationError('Geolocation is not supported by your browser');
+            return;
+        }
+
+        setIsRequestingLocation(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                setLocationError(null);
+                setIsRequestingLocation(false);
+            },
+            (err) => {
+                let msg = 'Failed to get location';
+                if (err.code === err.PERMISSION_DENIED) {
+                    msg = 'Location access denied. Please click "Allow" when prompted or enable location in your browser settings.';
+                } else if (err.code === err.POSITION_UNAVAILABLE) {
+                    msg = 'Location information is unavailable. Ensure GPS is turned on.';
+                } else if (err.code === err.TIMEOUT) {
+                    msg = 'Location request timed out. Please try again.';
+                }
+                setLocationError(msg);
+                setIsRequestingLocation(false);
+                console.error('Location error', err);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+    };
+
     useEffect(() => {
         fetchStatus();
-
-        // Get location early
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                (err) => console.error('Location error', err),
-                { enableHighAccuracy: true }
-            );
-        }
+        requestLocation();
     }, []);
 
     const handleAction = async (type: 'in' | 'out') => {
@@ -160,9 +189,39 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
                 )}
 
                 {!location && !isCheckedOut && (
-                    <p className="text-[10px] text-center text-amber-500 font-medium">
-                        Waiting for GPS signal... Please enable location.
-                    </p>
+                    <div className="space-y-2">
+                        {locationError ? (
+                            <div className="flex flex-col gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                <p className="text-[10px] text-center text-red-500 font-medium">
+                                    {locationError}
+                                </p>
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={requestLocation}
+                                    className="h-7 text-[10px] uppercase font-bold tracking-tight border-red-500/30 hover:bg-red-500/10"
+                                >
+                                    Try Again
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                <p className="text-[10px] text-center text-amber-500 font-medium animate-pulse">
+                                    {isRequestingLocation ? 'Requesting GPS Access...' : 'Waiting for GPS signal...'}
+                                </p>
+                                {!isRequestingLocation && (
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={requestLocation}
+                                        className="h-7 text-[10px] uppercase font-bold tracking-tight"
+                                    >
+                                        Enable Location
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
 
