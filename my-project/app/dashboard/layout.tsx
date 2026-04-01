@@ -150,7 +150,7 @@ export default function DashboardLayout({
 
   const allNavItems = [
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
-    // { href: '/dashboard/attendance', icon: Activity, label: 'Attendance' },
+    { href: '/dashboard/attendance', icon: Activity, label: 'Attendance' },
     { href: '/dashboard/tasks', icon: Code, label: 'Tasks' },
     { href: '/dashboard/users', icon: GraduationCap, label: 'Users' },
     { href: '/dashboard/projects', icon: Code, label: 'Projects' },
@@ -161,8 +161,8 @@ export default function DashboardLayout({
 
   const navItems = userRole === 'USER'
     ? allNavItems
-        .filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance' || item.label === 'QR Verification')
-        .map(item => item.label === 'QR Verification' ? { ...item, href: '/dashboard/qr/scan' } : item)
+      .filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance' || item.label === 'QR Verification')
+      .map(item => item.label === 'QR Verification' ? { ...item, href: '/dashboard/qr/scan' } : item)
     : allNavItems;
 
   if (isLoading) {
@@ -294,8 +294,8 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-3">
-            <Link 
-              href="/dashboard/qr/scan" 
+            <Link
+              href="/dashboard/qr/scan"
               className="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl transition-all border border-primary/20 shadow-lg group flex items-center gap-2"
               title="QR Scanner"
             >
@@ -318,7 +318,7 @@ export default function DashboardLayout({
         <div className="px-6 md:px-8 pt-4 pb-0">
           <PinnedNotesBanner />
         </div>
-        
+
         <main className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar relative">
           {/* FAB - Floating Action Button */}
           <button
