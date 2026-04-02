@@ -22,13 +22,15 @@ import {
     Settings as SettingsIcon,
     LayoutGrid,
     PlaneTakeoff,
-    Activity
+    Activity,
+    Clock
 } from 'lucide-react';
-import { AttendanceFeedTable } from "@/components/dashboard/AttendanceTable";
+import { AttendanceFeedTable, LiveWorkHours } from "@/components/dashboard/AttendanceTable";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { jwtDecode } from 'jwt-decode';
+import { toast } from 'react-hot-toast';
 
 async function fetchAttendanceHistory() {
     const res = await axios.get('/attendance/history');
@@ -74,6 +76,55 @@ export default function AttendancePage() {
         record.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.status?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handleExport = () => {
+        const dataToExport = activeTab === 'personal' ? history : orgAttendance;
+        if (!dataToExport || dataToExport.length === 0) {
+            toast.error('No data available to export');
+            return;
+        }
+
+        const headers = activeTab === 'personal' 
+            ? ['Date', 'Check In', 'Check Out', 'Work Hours', 'Status', 'Late By (min)']
+            : ['Employee', 'Email', 'Position', 'Date', 'Check In', 'Check Out', 'Work Hours', 'Status', 'Within Geofence', 'Device Mismatch'];
+
+        const rows = dataToExport.map((r: any) => {
+            if (activeTab === 'personal') {
+                return [
+                    format(new Date(r.date), 'yyyy-MM-dd'),
+                    r.checkIn ? format(new Date(r.checkIn), 'HH:mm:ss') : 'N/A',
+                    r.checkOut ? format(new Date(r.checkOut), 'HH:mm:ss') : 'N/A',
+                    r.workHours || 0,
+                    r.status,
+                    r.lateBy || 0
+                ];
+            } else {
+                return [
+                    `${r.firstName} ${r.lastName}`,
+                    r.email,
+                    r.position,
+                    format(new Date(r.date), 'yyyy-MM-dd'),
+                    r.checkIn ? format(new Date(r.checkIn), 'HH:mm:ss') : 'N/A',
+                    r.checkOut ? format(new Date(r.checkOut), 'HH:mm:ss') : 'N/A',
+                    r.workHours || 0,
+                    r.status,
+                    r.withinGeofence ? 'Yes' : 'No',
+                    r.deviceMismatch ? 'Yes' : 'No'
+                ];
+            }
+        });
+
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `attendance_${activeTab}_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success(`Exported ${dataToExport.length} records`);
+    };
 
     const isAdmin = userRole === 'ADMIN';
 
@@ -232,7 +283,10 @@ export default function AttendancePage() {
                                         <Filter className="w-4 h-4" />
                                         Filter
                                     </button>
-                                    <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity">
+                                    <button 
+                                        onClick={handleExport}
+                                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+                                    >
                                         <Download className="w-4 h-4" />
                                         Export
                                     </button>
@@ -314,8 +368,14 @@ export default function AttendancePage() {
                                                             </td>
                                                             <td className="px-6 py-4">
                                                                 <div className="flex items-center gap-2">
-                                                                    <Timer className="w-4 h-4 text-muted-foreground" />
-                                                                    <span className="text-sm font-bold text-foreground">{record.workHours || '0.00'}h</span>
+                                                                    <Clock className={cn("w-4 h-4", !record.checkOut ? "text-emerald-500" : "text-muted-foreground")} />
+                                                                    <span className="text-sm font-bold text-foreground">
+                                                                        <LiveWorkHours 
+                                                                            checkIn={record.checkIn} 
+                                                                            checkOut={record.checkOut} 
+                                                                            initialWorkHours={record.workHours} 
+                                                                        />
+                                                                    </span>
                                                                 </div>
                                                             </td>
                                                             <td className="px-6 py-4">

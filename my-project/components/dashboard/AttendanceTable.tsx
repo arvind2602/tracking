@@ -37,7 +37,7 @@ async function getOrganizationAttendance() {
 }
 
 // Sub-component to handle the running timer for work hours
-function LiveWorkHours({ checkIn, checkOut, initialWorkHours }: { 
+export function LiveWorkHours({ checkIn, checkOut, initialWorkHours }: { 
   checkIn: string; 
   checkOut: string | null; 
   initialWorkHours: number | null 
