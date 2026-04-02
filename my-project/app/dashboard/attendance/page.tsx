@@ -21,8 +21,10 @@ import {
     User as UserIcon,
     Settings as SettingsIcon,
     LayoutGrid,
-    PlaneTakeoff
+    PlaneTakeoff,
+    Activity
 } from 'lucide-react';
+import { AttendanceFeedTable } from "@/components/dashboard/AttendanceTable";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -237,121 +239,125 @@ export default function AttendancePage() {
                                 </div>
                             </div>
 
-                            <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr className="bg-muted/50 border-b border-border">
-                                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                                    {activeTab === 'personal' ? 'Date' : 'Employee'}
-                                                </th>
-                                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">In / Out</th>
-                                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Work Hours</th>
-                                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
-                                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Flags</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-border">
-                                            {(activeTab === 'personal' ? isHistoryLoading : isOrgLoading) ? (
-                                                [...Array(5)].map((_, i) => (
-                                                    <tr key={i}>
-                                                        <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
-                                                        <td className="px-6 py-4"><Skeleton className="h-4 w-32" /></td>
-                                                        <td className="px-6 py-4"><Skeleton className="h-4 w-16" /></td>
-                                                        <td className="px-6 py-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
-                                                        <td className="px-6 py-4"><Skeleton className="h-4 w-8" /></td>
-                                                    </tr>
-                                                ))
-                                            ) : (activeTab === 'personal' ? filteredHistory : filteredOrg)?.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground italic">
-                                                        No records found
-                                                    </td>
+                            {activeTab === 'organization' ? (
+                                <AttendanceFeedTable searchTerm={searchTerm} />
+                            ) : (
+                                <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-muted/50 border-b border-border">
+                                                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                                        {activeTab === 'personal' ? 'Date' : 'Employee'}
+                                                    </th>
+                                                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">In / Out</th>
+                                                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Work Hours</th>
+                                                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                                                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Flags</th>
                                                 </tr>
-                                            ) : (
-                                                (activeTab === 'personal' ? filteredHistory : filteredOrg)?.map((record: any) => (
-                                                    <tr key={record.id} className="hover:bg-muted/30 transition-colors group">
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={cn(
-                                                                    "p-2 rounded-lg",
-                                                                    activeTab === 'personal' ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"
-                                                                )}>
-                                                                    {activeTab === 'personal' ? <Calendar className="w-4 h-4" /> : <UserIcon className="w-4 h-4" />}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-sm font-bold text-foreground">
-                                                                        {activeTab === 'personal'
-                                                                            ? format(new Date(record.date), 'MMM dd, yyyy')
-                                                                            : `${record.firstName} ${record.lastName}`}
-                                                                    </p>
-                                                                    <p className="text-[10px] text-muted-foreground">
-                                                                        {activeTab === 'personal'
-                                                                            ? format(new Date(record.date), 'EEEE')
-                                                                            : record.position}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-sm font-medium">
-                                                            <div className="space-y-1">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                                    <span className="text-foreground">{record.checkIn ? format(new Date(record.checkIn), 'HH:mm') : '--:--'}</span>
-                                                                    <span className="text-muted-foreground text-[10px]">IN</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                                                    <span className="text-foreground">{record.checkOut ? format(new Date(record.checkOut), 'HH:mm') : '--:--'}</span>
-                                                                    <span className="text-muted-foreground text-[10px]">OUT</span>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <Timer className="w-4 h-4 text-muted-foreground" />
-                                                                <span className="text-sm font-bold text-foreground">{record.workHours || '0.00'}h</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <p className={cn(
-                                                                "inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",
-                                                                record.status === 'PRESENT' && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-                                                                record.status === 'LATE' && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-                                                                record.status === 'ABSENT' && "bg-red-500/10 text-red-600 dark:text-red-400"
-                                                            )}>
-                                                                {record.status}
-                                                            </p>
-                                                            {record.lateBy > 0 && (
-                                                                <p className="text-[10px] text-amber-500 font-medium mt-1">Late by {record.lateBy} min</p>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-2">
-                                                                {record.deviceMismatch && (
-                                                                    <Smartphone
-                                                                        className="w-4 h-4 text-red-500"
-                                                                        data-title="Device Mismatch"
-                                                                    />
-                                                                )}
-                                                                {record.withinGeofence === false && (
-                                                                    <MapPin
-                                                                        className="w-4 h-4 text-amber-500"
-                                                                        data-title="Outside Geofence"
-                                                                    />
-                                                                )}
-                                                                {!record.deviceMismatch && record.withinGeofence !== false && (
-                                                                    <CheckCircle2 className="w-4 h-4 text-emerald-500/50" />
-                                                                )}
-                                                            </div>
+                                            </thead>
+                                            <tbody className="divide-y divide-border">
+                                                {(activeTab === 'personal' ? isHistoryLoading : isOrgLoading) ? (
+                                                    [...Array(5)].map((_, i) => (
+                                                        <tr key={i}>
+                                                            <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                                                            <td className="px-6 py-4"><Skeleton className="h-4 w-32" /></td>
+                                                            <td className="px-6 py-4"><Skeleton className="h-4 w-16" /></td>
+                                                            <td className="px-6 py-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                                                            <td className="px-6 py-4"><Skeleton className="h-4 w-8" /></td>
+                                                        </tr>
+                                                    ))
+                                                ) : (activeTab === 'personal' ? filteredHistory : filteredOrg)?.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground italic">
+                                                            No records found
                                                         </td>
                                                     </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
+                                                ) : (
+                                                    (activeTab === 'personal' ? filteredHistory : filteredOrg)?.map((record: any) => (
+                                                        <tr key={record.id} className="hover:bg-muted/30 transition-colors group">
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className={cn(
+                                                                        "p-2 rounded-lg",
+                                                                        activeTab === 'personal' ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"
+                                                                    )}>
+                                                                        {activeTab === 'personal' ? <Calendar className="w-4 h-4" /> : <UserIcon className="w-4 h-4" />}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-sm font-bold text-foreground">
+                                                                            {activeTab === 'personal'
+                                                                                ? format(new Date(record.date), 'MMM dd, yyyy')
+                                                                                : `${record.firstName} ${record.lastName}`}
+                                                                        </p>
+                                                                        <p className="text-[10px] text-muted-foreground">
+                                                                            {activeTab === 'personal'
+                                                                                ? format(new Date(record.date), 'EEEE')
+                                                                                : record.position}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-sm font-medium">
+                                                                <div className="space-y-1">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                        <span className="text-foreground">{record.checkIn ? format(new Date(record.checkIn), 'HH:mm') : '--:--'}</span>
+                                                                        <span className="text-muted-foreground text-[10px]">IN</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                                                        <span className="text-foreground">{record.checkOut ? format(new Date(record.checkOut), 'HH:mm') : '--:--'}</span>
+                                                                        <span className="text-muted-foreground text-[10px]">OUT</span>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Timer className="w-4 h-4 text-muted-foreground" />
+                                                                    <span className="text-sm font-bold text-foreground">{record.workHours || '0.00'}h</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <p className={cn(
+                                                                    "inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",
+                                                                    record.status === 'PRESENT' && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                                                                    record.status === 'LATE' && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                                                                    record.status === 'ABSENT' && "bg-red-500/10 text-red-600 dark:text-red-400"
+                                                                )}>
+                                                                    {record.status}
+                                                                </p>
+                                                                {record.lateBy > 0 && (
+                                                                    <p className="text-[10px] text-amber-500 font-medium mt-1">Late by {record.lateBy} min</p>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    {record.deviceMismatch && (
+                                                                        <Smartphone
+                                                                            className="w-4 h-4 text-red-500"
+                                                                            data-title="Device Mismatch"
+                                                                        />
+                                                                    )}
+                                                                    {record.withinGeofence === false && (
+                                                                        <MapPin
+                                                                            className="w-4 h-4 text-amber-500"
+                                                                            data-title="Outside Geofence"
+                                                                        />
+                                                                    )}
+                                                                    {!record.deviceMismatch && record.withinGeofence !== false && (
+                                                                        <CheckCircle2 className="w-4 h-4 text-emerald-500/50" />
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </>
                     )}
                 </div>

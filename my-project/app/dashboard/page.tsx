@@ -23,6 +23,7 @@ import { RoleDistribution } from "@/components/reports/RoleDistribution";
 import { ProjectsAtRisk } from "@/components/analytics/ProjectsAtRisk";
 import { TaskInsights } from "@/components/analytics/TaskInsights";
 import { EmployeePerformance } from "@/components/analytics/EmployeePerformance";
+import { AttendanceFeedTable } from "@/components/dashboard/AttendanceTable";
 
 interface DecodedToken {
   user: {
@@ -172,12 +173,28 @@ export default function DashboardPage() {
         <EmployeePerformanceTable />
       </div>
 
+      {/* Attendance Activity Feed */}
+      <div className="bg-card border border-border rounded-[2rem] p-6 lg:p-8 hover:border-primary/50 transition-all duration-500 shadow-2xl shadow-blue-500/5">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <div>
+            <h3 className="text-2xl font-extrabold tracking-tight flex items-center gap-4 text-foreground">
+              <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                <Activity className="w-6 h-6 text-blue-400 animate-pulse" />
+              </div>
+              Organization Attendance Feed
+            </h3>
+            <p className="text-muted-foreground mt-2 text-sm font-medium">Real-time attendance tracking across your company.</p>
+          </div>
+          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-xs font-bold text-emerald-500 uppercase tracking-tighter">Live Monitoring</span>
+          </div>
+        </div>
+        <AttendanceFeedTable />
+      </div>
+
       {/* Recent Activity Feed */}
       <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-300">
-        <h3 className="text-lg font-bold mb-4 flex items-center gap-3 text-foreground">
-          <Activity className="w-5 h-5 text-blue-400" />
-          Recent Activity Feed
-        </h3>
         <RecentActivity />
       </div>
 
