@@ -331,15 +331,16 @@ const verifyScan = async (req, res, next) => {
         }
 
         // 2. Log the visit
+        const scanTime = new Date(timestamp);
         const visitResult = await client.query(
             `INSERT INTO qr_visit ("locationId", "employeeId", "deviceId", timestamp, "userLat", "userLng", distance, "isValid", "deviceMismatch")
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             VALUES ($1, $2, $3, $4::timestamp, $5, $6, $7, $8, $9)
              RETURNING id, "isValid", distance, "deviceMismatch"`,
             [
                 location_id,
                 user_uuid,
                 device_id,
-                new Date(timestamp),
+                scanTime,
                 user_gps.lat,
                 user_gps.lng,
                 distance,
@@ -351,14 +352,14 @@ const verifyScan = async (req, res, next) => {
         // --- PRODUCTION FEATURE: Attendance Integration ---
         // If valid, also mark user as present in the main attendance table if not already checked in
         if (isValid) {
-            const today = new Date().toISOString().split('T')[0];
+            const todayDate = scanTime.toISOString().split('T')[0];
             const checkInRes = await client.query(
                 `INSERT INTO attendance ("employeeId", date, "checkIn", status, location, "withinGeofence")
-                 VALUES ($1, $2, NOW(), 'PRESENT', $3, true)
+                 VALUES ($1, $2::date, $3::timestamp, 'PRESENT', $4, true)
                  ON CONFLICT ("employeeId", date) DO UPDATE 
-                 SET "checkOut" = CASE WHEN attendance."checkIn" IS NOT NULL THEN NOW() ELSE attendance."checkOut" END
-                 WHERE attendance.date = $2`,
-                [user_uuid, today, location.name]
+                 SET "checkOut" = CASE WHEN attendance."checkIn" IS NOT NULL THEN EXCLUDED."checkIn" ELSE attendance."checkOut" END
+                 WHERE attendance.date = $2::date`,
+                [user_uuid, todayDate, scanTime, location.name]
             );
         }
 

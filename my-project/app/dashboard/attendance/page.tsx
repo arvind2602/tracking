@@ -6,6 +6,7 @@ import axios from '@/lib/axios';
 import { CheckInButton } from '@/components/attendance/CheckInButton';
 import { ShiftManager } from '@/components/attendance/ShiftManager';
 import { HolidayManager } from '@/components/attendance/HolidayManager';
+import { LeaveHistory } from '@/components/attendance/LeaveHistory';
 import {
     Calendar,
     MapPin,
@@ -19,7 +20,8 @@ import {
     Users,
     User as UserIcon,
     Settings as SettingsIcon,
-    LayoutGrid
+    LayoutGrid,
+    PlaneTakeoff
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -38,7 +40,7 @@ async function fetchOrganizationAttendance() {
 
 export default function AttendancePage() {
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState<'personal' | 'organization' | 'config'>('personal');
+    const [activeTab, setActiveTab] = useState<'personal' | 'organization' | 'leaves' | 'config'>('personal');
     const [userRole, setUserRole] = useState<string>('USER');
 
     useEffect(() => {
@@ -121,6 +123,16 @@ export default function AttendancePage() {
                             </button>
                         </>
                     )}
+                    <button
+                        onClick={() => setActiveTab('leaves')}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                            activeTab === 'leaves' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        <PlaneTakeoff className="w-4 h-4" />
+                        Leaves
+                    </button>
                 </div>
             </div>
 
@@ -167,7 +179,7 @@ export default function AttendancePage() {
                                 </div>
                             </div>
                         </div>
-                    ) : (
+                    ) : activeTab === 'config' ? (
                         <div className="p-6 bg-purple-600/5 border border-purple-500/20 rounded-3xl space-y-4 text-purple-900 dark:text-purple-300">
                             <h3 className="text-lg font-bold flex items-center gap-2">
                                 <LayoutGrid className="w-5 h-5" />
@@ -175,7 +187,20 @@ export default function AttendancePage() {
                             </h3>
                             <p className="text-xs font-medium">Changes here affect the entire organization presence policy. Ensure all shifts are correctly timed for accurate late tracking.</p>
                         </div>
-                    )}
+                    ) : activeTab === 'leaves' ? (
+                        <div className="p-6 bg-amber-600/5 border border-amber-500/20 rounded-3xl space-y-4">
+                            <h4 className="flex items-center gap-2 font-bold text-amber-500">
+                                <PlaneTakeoff className="w-4 h-4" />
+                                Leave Policy
+                            </h4>
+                            <ul className="space-y-2 text-xs text-muted-foreground font-medium list-disc pl-4">
+                                <li>Submit leave at least 48 hours in advance.</li>
+                                <li>Approvals are subject to project requirements.</li>
+                                <li>Emergency leaves require manager notification.</li>
+                                <li>Check leave balance in profile section.</li>
+                            </ul>
+                        </div>
+                    ) : null}
                 </div>
 
                 {/* Right Section: Main Content */}
@@ -185,6 +210,8 @@ export default function AttendancePage() {
                             <ShiftManager />
                             <HolidayManager />
                         </div>
+                    ) : activeTab === 'leaves' ? (
+                        <LeaveHistory isAdmin={isAdmin} />
                     ) : (
                         <>
                             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">

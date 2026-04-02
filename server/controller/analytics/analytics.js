@@ -7,6 +7,7 @@ const getProjectsAtRisk = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
 
     try {
+        const today = req.query.today || new Date().toISOString();
         const result = await pool.query(
             `SELECT 
          p.id, 
@@ -14,16 +15,16 @@ const getProjectsAtRisk = async (req, res, next) => {
          p."endDate",
          COUNT(t.id) as "totalTasks",
          COUNT(CASE WHEN t.status = 'completed' THEN 1 END) as "completedTasks",
-         COUNT(CASE WHEN t."dueDate" < NOW() AND t.status != 'completed' THEN 1 END) as "overdueTasks"
+         COUNT(CASE WHEN t."dueDate" < $2::timestamp AND t.status != 'completed' THEN 1 END) as "overdueTasks"
        FROM projects p
        LEFT JOIN task t ON p.id = t."projectId"
        WHERE p."organiationId" = $1 AND p.is_archived = false
        GROUP BY p.id
        HAVING 
-         (p."endDate" < NOW() + INTERVAL '7 days' AND p."endDate" > NOW()) 
+         (p."endDate" < $2::timestamp + INTERVAL '7 days' AND p."endDate" > $2::timestamp) 
          OR 
-         COUNT(CASE WHEN t."dueDate" < NOW() AND t.status != 'completed' THEN 1 END) > 0`,
-            [organizationId]
+         COUNT(CASE WHEN t."dueDate" < $2::timestamp AND t.status != 'completed' THEN 1 END) > 0`,
+            [organizationId, today]
         );
 
         const projects = result.rows.map(p => ({
@@ -53,6 +54,7 @@ const getTaskInsights = async (req, res, next) => {
         );
 
         // Stuck Tasks (not updated in > 5 days)
+        const today = req.query.today || new Date().toISOString();
         const stuckTasksResult = await pool.query(
             `SELECT t.id, t.description, t.status, t."updatedAt", u."firstName", u."lastName", u.id as "userId", p.id as "projectId"
        FROM task t
@@ -60,8 +62,8 @@ const getTaskInsights = async (req, res, next) => {
        LEFT JOIN employee u ON t."assignedTo" = u.id::text
        WHERE p."organiationId" = $1 
          AND t.status != 'completed' 
-         AND t."updatedAt" < NOW() - INTERVAL '5 days'`,
-            [organizationId]
+         AND t."updatedAt" < $2::timestamp - INTERVAL '5 days'`,
+            [organizationId, today]
         );
 
         res.json({
@@ -78,6 +80,7 @@ const getEmployeePerformance = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
 
     try {
+        const today = req.query.today || new Date().toISOString();
         const result = await pool.query(
             `SELECT 
          e.id, 
@@ -90,11 +93,11 @@ const getEmployeePerformance = async (req, res, next) => {
          COUNT(t.id) as "totalAssigned",
          COUNT(CASE WHEN LOWER(t.status) IN ('done', 'completed') THEN 1 END) as "completedTasks",
          COUNT(CASE WHEN LOWER(t.status) IN ('pending', 'todo', 'in-progress') THEN 1 END) as "pendingTasks",
-         COUNT(CASE WHEN t."dueDate" < NOW() AND LOWER(t.status) NOT IN ('done', 'completed') THEN 1 END) as "overdueTasks",
+         COUNT(CASE WHEN t."dueDate" < $2::timestamp AND LOWER(t.status) NOT IN ('done', 'completed') THEN 1 END) as "overdueTasks",
          
          -- Points Analysis
          COALESCE(SUM(CASE WHEN LOWER(t.status) IN ('done', 'completed') THEN t.points ELSE 0 END), 0) as "totalPoints",
-         COALESCE(SUM(CASE WHEN LOWER(t.status) IN ('done', 'completed') AND t."updatedAt" > NOW() - INTERVAL '30 days' THEN t.points ELSE 0 END), 0) as "pointsLast30Days",
+         COALESCE(SUM(CASE WHEN LOWER(t.status) IN ('done', 'completed') AND t."updatedAt" > $2::timestamp - INTERVAL '30 days' THEN t.points ELSE 0 END), 0) as "pointsLast30Days",
          
          -- Efficiency Metric (Avg Completion Time in Hours)
          ROUND(AVG(CASE WHEN LOWER(t.status) IN ('done', 'completed') THEN EXTRACT(EPOCH FROM (t."updatedAt" - t."createdAt"))/3600 ELSE NULL END)::numeric, 1) as "avgCompletionTimeHours"
@@ -104,7 +107,7 @@ const getEmployeePerformance = async (req, res, next) => {
        WHERE e."organiationId" = $1 AND e.is_archived = false
        GROUP BY e.id
        ORDER BY "totalPoints" DESC`,
-            [organizationId]
+            [organizationId, today]
         );
 
         res.json(result.rows);

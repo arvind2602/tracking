@@ -28,6 +28,7 @@ model organiation {
   organizationGeofences OrganizationGeofence[]
   qrLocations           QRLocation[]
   buildings             Building[]
+  leaves                Leave[]
 
   @@index([name])
 }
@@ -64,6 +65,7 @@ model employee {
   attendances      Attendance[]
   employeeShifts   EmployeeShift[]
   qrVisits         QRVisit[]
+  leaves           Leave[]
 
   @@index([organiationId, is_archived])
   @@index([organiationId, role])
@@ -520,7 +522,35 @@ model QRVisit {
   location       QRLocation @relation(fields: [locationId], references: [id])
   employee       employee   @relation(fields: [employeeId], references: [id])
 
-  @@index([locationId])
   @@index([employeeId])
+  @@index([locationId])
   @@map("qr_visit")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model Leave {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId     String      @db.Uuid
+  organizationId String      @db.Uuid
+  startDate      DateTime    @db.Date
+  endDate        DateTime    @db.Date
+  type           String // e.g., Sick, Casual, Earned
+  reason         String
+  status         LeaveStatus @default(PENDING)
+  adminNote      String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime?   @updatedAt
+  employee       employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organization   organiation @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("leave")
 }

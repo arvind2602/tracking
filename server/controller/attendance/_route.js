@@ -16,19 +16,21 @@ attendance.post('/geofence/set', authMiddleware, attendanceController.setOrganiz
 attendance.post('/check-in', authMiddleware, attendanceController.checkIn);
 attendance.post('/check-out', authMiddleware, attendanceController.checkOut);
 
+const leaveController = require('./leave');
+
 // ==================== LEAVE REQUESTS ====================
 
-// Submit leave request (creates note with tags)
-attendance.post('/leave/request', authMiddleware, attendanceController.requestLeave);
+// Submit leave request
+attendance.post('/leave/apply', authMiddleware, leaveController.applyLeave);
 
 // Get my leave requests
-attendance.get('/leave/my-requests', authMiddleware, attendanceController.getMyLeaveRequests);
+attendance.get('/leave/my', authMiddleware, leaveController.getMyLeaves);
 
 // Get all leave requests (admin)
-attendance.get('/leave/requests', authMiddleware, attendanceController.getLeaveRequests);
+attendance.get('/leave/org', authMiddleware, leaveController.getOrgLeaves);
 
 // Approve/reject leave request
-attendance.post('/leave/update', authMiddleware, attendanceController.updateLeaveRequest);
+attendance.patch('/leave/:id/status', authMiddleware, leaveController.updateLeaveStatus);
 
 // ==================== ATTENDANCE HISTORY ====================
 

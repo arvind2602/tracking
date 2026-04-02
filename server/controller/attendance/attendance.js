@@ -193,7 +193,7 @@ const setOrganizationGeofence = async (req, res, next) => {
 
 const checkIn = async (req, res, next) => {
   const { user_uuid } = req.user;
-  const { latitude, longitude, location, deviceId, deviceName } = req.body;
+  const { latitude, longitude, location, deviceId, deviceName, deviceTime } = req.body;
 
   // Validate required fields
   if (latitude === undefined || longitude === undefined || latitude === 'null' || longitude === 'null') {
@@ -235,10 +235,13 @@ const checkIn = async (req, res, next) => {
     }
 
     // Check if user already checked in today
+    const checkTime = deviceTime ? new Date(deviceTime) : new Date();
+    const checkDate = checkTime.toISOString().split('T')[0];
+
     const existingResult = await client.query(
       `SELECT id, "checkIn", "checkOut", status FROM attendance
-       WHERE "employeeId" = $1 AND date = CURRENT_DATE`,
-      [user_uuid]
+       WHERE "employeeId" = $1 AND date = $2::date`,
+      [user_uuid, checkDate]
     );
 
     if (existingResult.rowCount > 0) {
@@ -265,11 +268,10 @@ const checkIn = async (req, res, next) => {
       const shift = shiftResult.rows[0];
       shiftId = shift.id;
       const [shiftH, shiftM] = shift.startTime.split(':').map(Number);
-      const now = new Date();
-      const shiftStartTime = new Date(now);
+      const shiftStartTime = new Date(checkTime);
       shiftStartTime.setHours(shiftH, shiftM, 0, 0);
 
-      const diffMs = now - shiftStartTime;
+      const diffMs = checkTime - shiftStartTime;
       const diffMins = Math.floor(diffMs / (1000 * 60));
 
       if (diffMins > shift.gracePeriod) {
@@ -300,7 +302,7 @@ const checkIn = async (req, res, next) => {
     // Insert or update attendance for check-in
     const insertResult = await client.query(
       `INSERT INTO attendance ("employeeId", date, "checkIn", latitude, longitude, location, "deviceId", "deviceName", status, "lateBy", "shiftId", "deviceMismatch", "withinGeofence")
-       VALUES ($1, CURRENT_DATE, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       VALUES ($1, $2::date, $3::timestamp, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        ON CONFLICT ("employeeId", date)
        DO UPDATE SET
          "checkIn" = EXCLUDED."checkIn",
@@ -317,7 +319,8 @@ const checkIn = async (req, res, next) => {
        RETURNING id, "checkIn", status`,
       [
         user_uuid,
-        new Date(),
+        checkDate,
+        checkTime,
         lat,
         lng,
         location || null,
@@ -351,7 +354,7 @@ const checkIn = async (req, res, next) => {
 
 const checkOut = async (req, res, next) => {
   const { user_uuid } = req.user;
-  const { latitude, longitude, location } = req.body;
+  const { latitude, longitude, location, deviceTime } = req.body;
 
   const lat = latitude === 'null' || latitude === null ? null : parseFloat(latitude);
   const lng = longitude === 'null' || longitude === null ? null : parseFloat(longitude);
@@ -361,11 +364,14 @@ const checkOut = async (req, res, next) => {
     await client.query('BEGIN');
 
     // Get today's attendance
-    const result = await pool.query(
+    const checkTime = deviceTime ? new Date(deviceTime) : new Date();
+    const checkDate = checkTime.toISOString().split('T')[0];
+
+    const result = await client.query(
       `SELECT id, "checkIn", "checkOut", status, "workHours"
        FROM attendance
-       WHERE "employeeId" = $1 AND date = CURRENT_DATE`,
-      [user_uuid]
+       WHERE "employeeId" = $1 AND date = $2::date`,
+      [user_uuid, checkDate]
     );
 
     if (result.rowCount === 0) {
@@ -380,21 +386,20 @@ const checkOut = async (req, res, next) => {
 
     // Calculate work hours
     const checkInTime = new Date(attendance.checkIn);
-    const checkOutTime = new Date();
-    const workHours = (checkOutTime - checkInTime) / (1000 * 60 * 60); // in hours
+    const workHours = (checkTime - checkInTime) / (1000 * 60 * 60); // in hours
 
     // Update attendance with check-out
-    const updateResult = await pool.query(
+    const updateResult = await client.query(
       `UPDATE attendance
-       SET "checkOut" = $1,
+       SET "checkOut" = $1::timestamp,
            latitude = COALESCE(latitude, $2),
            longitude = COALESCE(longitude, $3),
            location = COALESCE(location, $4),
            "workHours" = $5,
-           "updatedAt" = NOW()
+           "updatedAt" = $1::timestamp
        WHERE id = $6
        RETURNING id, "checkIn", "checkOut", "workHours", status`,
-      [checkOutTime, lat, lng, location || null, Math.round(workHours * 100) / 100, attendance.id]
+      [checkTime, lat, lng, location || null, Math.round(workHours * 100) / 100, attendance.id]
     );
 
     await client.query('COMMIT');
@@ -426,7 +431,8 @@ const requestLeave = async (req, res, next) => {
     startDate: Joi.date().iso().required(),
     endDate: Joi.date().iso().required(),
     leaveType: Joi.string().valid('SICK', 'CASUAL', 'PAYED', 'UNPAID').required(),
-    tagAdminIds: Joi.array().items(Joi.string()).optional()
+    tagAdminIds: Joi.array().items(Joi.string()).optional(),
+    deviceTime: Joi.date().iso().optional()
   });
 
   const { error } = schema.validate(req.body);
@@ -436,12 +442,13 @@ const requestLeave = async (req, res, next) => {
   try {
     await client.query('BEGIN');
 
+    const taskTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
     // Create note for leave request
     const noteResult = await pool.query(
-      `INSERT INTO note (title, type, "organizationId", "authorId", content)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO note (title, type, "organizationId", "authorId", content, "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6::timestamp, $6::timestamp)
        RETURNING id, title, type, "createdAt"`,
-      [title, 'LEAVE', req.user.organization_uuid, user_uuid, JSON.stringify({ ...req.body, type: leaveType })]
+      [title, 'LEAVE', req.user.organization_uuid, user_uuid, JSON.stringify({ ...req.body, status: 'pending', type: leaveType }), taskTime]
     );
 
     const noteId = noteResult.rows[0].id;
@@ -548,14 +555,15 @@ const updateLeaveRequest = async (req, res, next) => {
   }
 
   try {
+    const updateTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
     const result = await pool.query(
       `UPDATE note
        SET content = jsonb_set(content, '{status}', to_jsonb($1::text)),
            "isPinned" = true,
-           "updatedAt" = NOW()
+           "updatedAt" = $3::timestamp
        WHERE id = $2
        RETURNING id, content`,
-      [status.toLowerCase(), noteId]
+      [status.toLowerCase(), noteId, updateTime]
     );
 
     if (result.rowCount === 0) {

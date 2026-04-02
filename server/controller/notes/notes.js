@@ -51,13 +51,14 @@ const createNote = async (req, res, next) => {
             if (projectCheck.rowCount === 0) return next(new NotFoundError('Project not found'));
         }
 
+        const taskTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
         const newNote = await withTransaction(pool.pool, async (client) => {
             // Insert Note
             const noteResult = await client.query(
                 `INSERT INTO note (title, content, type, "organizationId", "authorId", "projectId", "isPinned", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, $5, $6, false, NOW(), NOW())
+           VALUES ($1, $2, $3, $4, $5, $6, false, $7::timestamp, $7::timestamp)
            RETURNING *`,
-                [title, content, type, organizationId, authorId, projectId || null]
+                [title, content, type, organizationId, authorId, projectId || null, taskTime]
             );
             const note = noteResult.rows[0];
 
@@ -227,11 +228,12 @@ const getPinnedNotes = async (req, res, next) => {
     try {
         // Auto-unpin expired notes
         try {
+            const today = req.query.today || new Date().toISOString();
             await pool.query(`
                 UPDATE note 
                 SET "isPinned" = false, "pinUntil" = NULL 
-                WHERE "organizationId" = $1 AND "isPinned" = true AND "pinUntil" IS NOT NULL AND "pinUntil" < NOW()
-            `, [organizationId]);
+                WHERE "organizationId" = $1 AND "isPinned" = true AND "pinUntil" IS NOT NULL AND "pinUntil" < $2::timestamp
+            `, [organizationId, today]);
         } catch (updateErr) {
             console.error("Error auto-unpinning notes:", updateErr);
         }
@@ -349,7 +351,9 @@ const updateNote = async (req, res, next) => {
             if (type !== undefined) { updateQuery.push(`type = $${paramIdx++}`); updateValues.push(type); }
             if (projectId !== undefined) { updateQuery.push(`"projectId" = $${paramIdx++}`); updateValues.push(projectId || null); }
 
-            updateQuery.push(`"updatedAt" = NOW()`);
+            const updateTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
+            updateQuery.push(`"updatedAt" = $${paramIdx++}::timestamp`);
+            updateValues.push(updateTime);
 
             let returnedNote;
             if (updateValues.length > 0) {
@@ -467,14 +471,15 @@ const pinNote = async (req, res, next) => {
                 'months': 'months'
             };
             const interval = `${duration.value} ${intervalMap[duration.unit]}`;
-            const timeRes = await pool.query(`SELECT NOW() + INTERVAL '${interval}' as "pinUntil"`);
+            const timeRes = await pool.query(`SELECT $1::timestamp + INTERVAL '${interval}' as "pinUntil"`, [req.body.deviceTime ? new Date(req.body.deviceTime) : new Date()]);
             pinUntil = timeRes.rows[0].pinUntil;
         }
 
+        const updateTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
         const result = await pool.query(`
-            UPDATE note SET "isPinned" = true, "pinUntil" = $1, "updatedAt" = NOW() 
-            WHERE id = $2 RETURNING *
-        `, [pinUntil, id]);
+            UPDATE note SET "isPinned" = true, "pinUntil" = $1::timestamp, "updatedAt" = $2::timestamp 
+            WHERE id = $3 RETURNING *
+        `, [pinUntil, updateTime, id]);
 
         res.json(result.rows[0]);
     } catch (err) { next(err); }
@@ -499,10 +504,11 @@ const unpinNote = async (req, res, next) => {
             return next(new AuthorizationError('Not authorized to unpin this note'));
         }
 
+        const updateTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
         const result = await pool.query(`
-            UPDATE note SET "isPinned" = false, "pinUntil" = NULL, "updatedAt" = NOW() 
-            WHERE id = $1 RETURNING *
-        `, [id]);
+            UPDATE note SET "isPinned" = false, "pinUntil" = NULL, "updatedAt" = $1::timestamp 
+            WHERE id = $2 RETURNING *
+        `, [updateTime, id]);
 
         res.json(result.rows[0]);
     } catch (err) { next(err); }
@@ -575,26 +581,27 @@ const convertToTask = async (req, res, next) => {
                 ? `${note.title}\n\nNotes:\n- ${note.content.join('\n- ')}`
                 : note.title;
 
+            const taskTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
             const taskResult = await client.query(
                 `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "type")
-                 VALUES ($1, 'pending', $2, $2, $3, $4, NOW(), $5, $6, 'SINGLE')
+                 VALUES ($1, 'pending', $2, $2, $3, $4, $5, $6, $7, 'SINGLE')
                  RETURNING *`,
-                [description, authorId, points, targetProjectId, priority, dueDate]
+                [description, authorId, points, targetProjectId, taskTime, priority, dueDate]
             );
             const task = taskResult.rows[0];
 
             // 2. Add creator as initial assignee
             await client.query(
                 `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
-                 VALUES ($1, $2, 1, false, NOW())`,
-                [task.id, authorId]
+                 VALUES ($1, $2, 1, false, $3)`,
+                [task.id, authorId, taskTime]
             );
 
             // 3. Mark the note as "converted" (we don't have a field for this, so maybe just change title or record in links?)
             // Updating the note title to indicate it's been converted
             await client.query(
-                `UPDATE note SET title = $1, "updatedAt" = NOW() WHERE id = $2`,
-                [`[Converted to Task] ${note.title}`, id]
+                `UPDATE note SET title = $1, "updatedAt" = $2 WHERE id = $3`,
+                [`[Converted to Task] ${note.title}`, taskTime, id]
             );
 
             return task;

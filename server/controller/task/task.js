@@ -16,7 +16,8 @@ const createTask = async (req, res, next) => {
     dueDate: Joi.date().optional().allow(null),
     parentId: Joi.string().optional().allow(null),
     type: Joi.string().valid('SINGLE', 'SHARED', 'SEQUENTIAL').default('SINGLE'),
-    assignees: Joi.array().items(Joi.string().uuid()).optional()
+    assignees: Joi.array().items(Joi.string().uuid()).optional(),
+    deviceTime: Joi.date().iso().optional()
   });
 
   const { error } = schema.validate(req.body);
@@ -46,12 +47,13 @@ const createTask = async (req, res, next) => {
     if (projectCheck.rowCount === 0) return next(new NotFoundError('Project not found'));
 
     // Transaction with dedicated client for safety
+    const taskTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
     const task = await withTransaction(pool.pool, async (client) => {
       const result = await client.query(
         `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, "dueDate", "parentId", "type")
-               VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                RETURNING *`,
-        [description, status, createdBy, finalAssignedTo, points, projectId, priority, dueDate, parentId, type]
+        [description, status, createdBy, finalAssignedTo, points, projectId, taskTime, priority, dueDate, parentId, type]
       );
       const newTask = result.rows[0];
 
@@ -61,16 +63,16 @@ const createTask = async (req, res, next) => {
         for (const assigneeId of assignees) {
           await client.query(
             `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
-                   VALUES ($1, $2, $3, $4, NOW())`,
-            [newTask.id, assigneeId, type === 'SEQUENTIAL' ? order++ : null, false]
+                   VALUES ($1, $2, $3, $4, $5)`,
+            [newTask.id, assigneeId, type === 'SEQUENTIAL' ? order++ : null, false, taskTime]
           );
         }
       } else if (finalAssignedTo) {
         // Populate TaskAssignee for SINGLE tasks too for consistency
         await client.query(
           `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
-               VALUES ($1, $2, $3, $4, NOW())`,
-          [newTask.id, finalAssignedTo, 1, false]
+               VALUES ($1, $2, $3, $4, $5)`,
+          [newTask.id, finalAssignedTo, 1, false, taskTime]
         );
       }
 
@@ -252,14 +254,14 @@ const getTaskByEmployee = async (req, res, next) => {
          COUNT(*) FILTER (WHERE t.status = 'pending') as "pendingCount",
          COUNT(*) FILTER (WHERE t.status = 'in-progress') as "inProgressCount",
          COUNT(*) FILTER (WHERE t.status = 'pending-review') as "pendingReviewCount",
-         COALESCE(SUM(
-           CASE 
-             WHEN t.type = 'SHARED' THEN 
-               t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
-             ELSE 
-               t.points 
-           END
-         ) FILTER (WHERE t.status = 'completed' AND t."updatedAt"::date = CURRENT_DATE), 0) as "pointsToday",
+          COALESCE(SUM(
+            CASE 
+              WHEN t.type = 'SHARED' THEN 
+                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
+              ELSE 
+                t.points 
+            END
+          ) FILTER (WHERE t.status = 'completed' AND t."updatedAt"::date = ($${paramIdx})::date), 0) as "pointsToday",
          
          -- Root Stats (For Pagination)
          COUNT(*) FILTER (WHERE t."parentId" IS NULL) as "rootTotal",
@@ -269,8 +271,8 @@ const getTaskByEmployee = async (req, res, next) => {
          COUNT(*) FILTER (WHERE t."parentId" IS NULL AND t.status = 'pending-review') as "rootPendingReview"
        FROM task t
        JOIN projects p ON t."projectId" = p.id
-       ${contextWhere}`,
-      contextParams
+        ${contextWhere}`,
+      [...contextParams, req.query.today || new Date().toISOString().split('T')[0]]
     );
     stats = statsResult.rows[0];
 
@@ -448,6 +450,7 @@ const updateTask = async (req, res, next) => {
   const { id } = req.params;
   const { description, status, assignedTo, points, priority, dueDate, completedAt } = req.body;
   const organiationId = req.user.organization_uuid;
+  const updateTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
 
   try {
     const result = await withTransaction(pool.pool, async (client) => {
@@ -475,8 +478,8 @@ const updateTask = async (req, res, next) => {
 
         if (currentIndex !== -1) {
           await client.query(
-            `UPDATE task_assignee SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
-            [assignees[currentIndex].id]
+            `UPDATE task_assignee SET "isCompleted" = true, "completedAt" = $1::timestamp WHERE id = $2`,
+            [updateTime, assignees[currentIndex].id]
           );
         }
 
@@ -485,13 +488,13 @@ const updateTask = async (req, res, next) => {
           const moveResult = await client.query(
             `UPDATE task t SET
                    "assignedTo" = $1,
-                   "assigned_at" = NOW(),
+                   "assigned_at" = $4::timestamp,
                    "status" = 'pending',
-                   "updatedAt" = NOW()
+                   "updatedAt" = $4::timestamp
                    FROM projects p
                    WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
                    RETURNING t.*`,
-            [nextAssignee.employeeId, id, organiationId]
+            [nextAssignee.employeeId, id, organiationId, updateTime]
           );
           return moveResult.rows[0];
         }
@@ -506,17 +509,17 @@ const updateTask = async (req, res, next) => {
                points = COALESCE($4, t.points),
                priority = COALESCE($5, t.priority),
                "dueDate" = COALESCE($6, t."dueDate"),
-               "assigned_at" = CASE WHEN $3 IS NOT NULL THEN NOW() ELSE t."assigned_at" END,
-               "completedAt" = COALESCE($9, CASE 
-                  WHEN $2::text IS NOT NULL AND LOWER($2) IN ('done', 'completed') THEN NOW()
+               "assigned_at" = CASE WHEN $3 IS NOT NULL THEN $9::timestamp ELSE t."assigned_at" END,
+               "completedAt" = COALESCE($10::timestamp, CASE 
+                  WHEN $2::text IS NOT NULL AND LOWER($2) IN ('done', 'completed') THEN $9::timestamp
                   WHEN $2::text IS NOT NULL AND LOWER($2) NOT IN ('done', 'completed') THEN NULL
                   ELSE t."completedAt"
                END),
-               "updatedAt" = NOW()
+               "updatedAt" = $9::timestamp
                FROM projects p
                WHERE t.id = $7 AND t."projectId" = p.id AND p."organiationId" = $8
                RETURNING t.*`,
-        [description, status, assignedTo, points, priority, dueDate, id, organiationId, completedAt]
+        [description, status, assignedTo, points, priority, dueDate, id, organiationId, updateTime, completedAt]
       );
       if (updateResult.rowCount === 0) {
         throw new NotFoundError('Task not found');
@@ -724,7 +727,8 @@ const getCommentsByTask = async (req, res, next) => {
 /** Change the status of a task. Handles sequential task hand-off logic. */
 const changeTaskStatus = async (req, res, next) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, deviceTime } = req.body;
+  const updateTime = deviceTime ? new Date(deviceTime) : new Date();
   const organiationId = req.user.organization_uuid;
   const userId = req.user.user_uuid;
   const userRole = req.user.role;
@@ -765,23 +769,22 @@ const changeTaskStatus = async (req, res, next) => {
 
         if (currentIndex !== -1) {
           await client.query(
-            `UPDATE task_assignee SET "isCompleted" = true, "completedAt" = NOW() WHERE id = $1`,
-            [assignees[currentIndex].id]
+            `UPDATE task_assignee SET "isCompleted" = true, "completedAt" = $1::timestamp WHERE id = $2`,
+            [updateTime, assignees[currentIndex].id]
           );
         }
 
         if (currentIndex !== -1 && currentIndex < assignees.length - 1) {
-          const nextAssignee = assignees[currentIndex + 1];
           const moveResult = await client.query(
             `UPDATE task t SET
                    "assignedTo" = $1,
-                   "assigned_at" = NOW(),
+                   "assigned_at" = $4::timestamp,
                    "status" = 'pending',
-                   "updatedAt" = NOW()
+                   "updatedAt" = $4::timestamp
                    FROM projects p
                    WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
                    RETURNING t.*`,
-            [nextAssignee.employeeId, id, organiationId]
+            [nextAssignee.employeeId, id, organiationId, updateTime]
           );
           return moveResult.rows[0];
         }
@@ -792,14 +795,14 @@ const changeTaskStatus = async (req, res, next) => {
         `UPDATE task t SET
                   status = $1,
                   "completedAt" = CASE 
-                     WHEN LOWER($1) IN ('done', 'completed') THEN NOW() 
+                     WHEN LOWER($1) IN ('done', 'completed') THEN $4::timestamp 
                      ELSE NULL 
                   END,
-                  "updatedAt" = NOW()
+                  "updatedAt" = $4::timestamp
                   FROM projects p
                   WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3
                   RETURNING t.*`,
-        [status, id, organiationId]
+        [status, id, organiationId, updateTime]
       );
       if (statusResult.rowCount === 0) {
         throw new NotFoundError('Task not found');

@@ -28,9 +28,9 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
       if (userRole === 'USER') {
         // Allow access to essential dashboard routes
-        const isAllowedPath = 
-          pathname === '/' || 
-          pathname.startsWith('/dashboard/tasks') || 
+        const isAllowedPath =
+          pathname === '/' ||
+          pathname.startsWith('/dashboard/tasks') ||
           pathname.startsWith('/dashboard/profile') ||
           pathname.startsWith('/dashboard/attendance') ||
           pathname.startsWith('/dashboard/qr');

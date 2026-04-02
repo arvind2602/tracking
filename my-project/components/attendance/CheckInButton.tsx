@@ -98,6 +98,7 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
                 latitude: location.lat,
                 longitude: location.lng,
                 deviceId,
+                deviceTime: new Date().toISOString(),
                 ...deviceInfo
             });
 
