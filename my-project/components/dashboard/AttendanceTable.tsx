@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import axios from '@/lib/axios';
-import { format, differenceInSeconds } from 'date-fns';
+import { format, differenceInSeconds, subDays, isAfter, startOfDay } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { 
   Clock, 
@@ -12,12 +12,16 @@ import {
   ArrowDownRight, 
   Activity, 
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Wifi,
+  Globe,
+  Smartphone
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 interface AttendanceRecord {
   id: string;
+  userId: string;
   date: string;
   checkIn: string;
   checkOut: string | null;
@@ -28,6 +32,15 @@ interface AttendanceRecord {
   position: string;
   workHours: number | null;
   withinGeofence: boolean;
+  deviceMismatch: boolean;
+  deviceName?: string;
+}
+
+interface AttendanceFilters {
+  statusFilter: string;
+  userFilter: string;
+  dateRangeFilter: string;
+  flagsFilter: string;
 }
 
 // Function to fetch attendance records
@@ -74,32 +87,22 @@ export function LiveWorkHours({ checkIn, checkOut, initialWorkHours }: {
   );
 }
 
-export function AttendanceFeedTable({ searchTerm = '' }: { searchTerm?: string }) {
-  const { data, isLoading, error } = useQuery<AttendanceRecord[]>({
-    queryKey: ['orgAttendance'],
-    queryFn: getOrganizationAttendance,
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
+export function AttendanceFeedTable({ 
+  data,
+  isLoading
+}: { 
+  data?: AttendanceRecord[];
+  isLoading?: boolean;
+}) {
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
     </div>
   );
-  if (error) return (
-    <div className="p-8 text-center text-red-500">
-      <AlertCircle className="w-12 h-12 mx-auto mb-4" />
-      <p>Failed to load attendance feed</p>
-    </div>
-  );
 
-  // Filter by search term
-  const filteredData = data?.filter(record => 
-    `${record.firstName || ''} ${record.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (record.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (record.status || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (record.position || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredData = data;
 
   // Group by date
   const groupedData = filteredData?.reduce((acc, record) => {
@@ -135,20 +138,22 @@ export function AttendanceFeedTable({ searchTerm = '' }: { searchTerm?: string }
             </h4>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-white/10 bg-white/5">
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Employee</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Check-In</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Check-Out</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Work Hours</th>
-                  <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Status</th>
+          <div className="overflow-hidden border border-border rounded-2xl bg-card shadow-sm">
+            <table className="w-full text-left text-xs md:text-sm border-collapse">
+              <thead className="bg-secondary text-foreground italic px-6 py-4 uppercase tracking-wider text-[10px] font-bold">
+                <tr className="border-b border-border">
+                  <th className="px-6 py-4 text-muted-foreground">Employee</th>
+                  <th className="px-6 py-4 text-center text-muted-foreground">Check-In</th>
+                  <th className="px-6 py-4 text-center text-muted-foreground">Check-Out</th>
+                  <th className="px-6 py-4 text-center text-muted-foreground">Work Hours</th>
+                  <th className="px-6 py-4 text-center text-muted-foreground">Signal</th>
+                  <th className="px-6 py-4 text-center text-muted-foreground">Device</th>
+                  <th className="px-6 py-4 text-right text-muted-foreground">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-border">
                 {groupedData[dateStr].map((record) => (
-                  <tr key={record.id} className="hover:bg-white/5 transition-colors group">
+                  <tr key={record.id} className="hover:bg-muted/50 transition-colors group bg-background">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
@@ -175,25 +180,63 @@ export function AttendanceFeedTable({ searchTerm = '' }: { searchTerm?: string }
                           <span className="font-medium">{format(new Date(record.checkOut), 'HH:mm:ss')}</span>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-sm italic">Active...</span>
+                        <span className={cn(
+                          "text-sm font-medium",
+                          dateStr !== today ? "text-amber-500 font-bold" : "text-muted-foreground italic animate-pulse"
+                        )}>
+                          {dateStr !== today ? 'NA' : 'Active...'}
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <Clock className={cn("w-4 h-4", !record.checkOut ? "text-emerald-500" : "text-muted-foreground")} />
-                        <LiveWorkHours 
-                          checkIn={record.checkIn} 
-                          checkOut={record.checkOut} 
-                          initialWorkHours={record.workHours} 
-                        />
+                        <Clock className={cn("w-4 h-4", !record.checkOut ? (dateStr !== today ? "text-amber-500" : "text-emerald-500") : "text-muted-foreground")} />
+                        {dateStr !== today && !record.checkOut ? (
+                          <span className="text-sm font-bold text-amber-500">NA</span>
+                        ) : (
+                          <LiveWorkHours 
+                            checkIn={record.checkIn} 
+                            checkOut={record.checkOut} 
+                            initialWorkHours={record.workHours} 
+                          />
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {record.withinGeofence ? (
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 text-emerald-600 rounded-lg border border-emerald-500/20">
+                            <Wifi className="w-3 h-3" />
+                            <span className="text-[10px] font-bold">OFFICE</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-rose-500/10 text-rose-600 rounded-lg border border-rose-500/20">
+                            <Globe className="w-3 h-3" />
+                            <span className="text-[10px] font-bold">REMOTE</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Smartphone className="w-3 h-3" />
+                          <span>{record.deviceName || 'Unknown'}</span>
+                        </div>
+                        {record.deviceMismatch && (
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-rose-500/10 text-rose-600 rounded-md border border-rose-500/20 text-[8px] font-black uppercase">
+                            <AlertCircle className="w-2.5 h-2.5" />
+                            Mismatch
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <span className={cn(
-                        "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter",
-                        record.status === 'PRESENT' ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
-                        record.status === 'LATE' ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" :
-                        "bg-red-500/10 text-red-500 border border-red-500/20"
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",
+                        record.status === 'PRESENT' ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+                        record.status === 'LATE' ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
+                        "bg-red-500/10 text-red-600 dark:text-red-400"
                       )}>
                         {record.status}
                       </span>
@@ -207,7 +250,7 @@ export function AttendanceFeedTable({ searchTerm = '' }: { searchTerm?: string }
       ))}
       
       {sortedDates.length === 0 && (
-        <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
+        <div className="text-center py-20 bg-muted/20 rounded-3xl border border-dashed border-border">
           <Activity className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-20" />
           <p className="text-muted-foreground font-medium">No attendance records found</p>
         </div>

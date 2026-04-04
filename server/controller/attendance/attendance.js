@@ -666,7 +666,7 @@ const getMonthlySummary = async (req, res, next) => {
 
 const getOrganizationAttendance = async (req, res, next) => {
   const orgId = req.user.organization_uuid;
-  const { date, status, employeeId } = req.query;
+  const { date, startDate, endDate, status, employeeId, deviceMismatch, withinGeofence, search } = req.query;
 
   let query = `
     SELECT a.id, a.date, a."checkIn", a."checkOut", a.status,
@@ -680,19 +680,54 @@ const getOrganizationAttendance = async (req, res, next) => {
   const params = [orgId];
   let paramIndex = 2;
 
+  if (search) {
+    query += ` AND (e."firstName" ILIKE $${paramIndex} OR e."lastName" ILIKE $${paramIndex} OR e.email ILIKE $${paramIndex})`;
+    params.push(`%${search}%`);
+    paramIndex++;
+  }
+
   if (date) {
     query += ` AND a.date = $${paramIndex}`;
     params.push(date);
     paramIndex++;
+  } else {
+    if (startDate) {
+      query += ` AND a.date >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+    if (endDate) {
+      query += ` AND a.date <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
+    }
   }
-  if (status) {
-    query += ` AND a.status = $${paramIndex}`;
-    params.push(status);
-    paramIndex++;
+
+  if (status && status !== 'all') {
+    if (status === 'MISSED') {
+      query += ` AND a."checkOut" IS NULL AND a.date < CURRENT_DATE`;
+    } else {
+      query += ` AND a.status = $${paramIndex}`;
+      params.push(status.toUpperCase());
+      paramIndex++;
+    }
   }
-  if (employeeId) {
+
+  if (employeeId && employeeId !== 'all') {
     query += ` AND a."employeeId" = $${paramIndex}`;
     params.push(employeeId);
+    paramIndex++;
+  }
+
+  if (deviceMismatch !== undefined && deviceMismatch !== 'all') {
+    query += ` AND a."deviceMismatch" = $${paramIndex}`;
+    params.push(deviceMismatch === 'true' || deviceMismatch === true);
+    paramIndex++;
+  }
+
+  if (withinGeofence !== undefined && withinGeofence !== 'all') {
+    query += ` AND a."withinGeofence" = $${paramIndex}`;
+    params.push(withinGeofence === 'true' || withinGeofence === true);
     paramIndex++;
   }
 

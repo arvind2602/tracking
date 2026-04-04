@@ -22,10 +22,34 @@ export const getDeviceId = (): string => {
 export const getDeviceInfo = () => {
     if (typeof window === 'undefined') return {};
 
+    const ua = navigator.userAgent;
+    const platform = navigator.platform;
+    const screen = window.screen;
+    const pixelRatio = window.devicePixelRatio || 1;
+    
+    let browserName = "Unknown";
+    if (ua.indexOf("Firefox") > -1) browserName = "Firefox";
+    else if (ua.indexOf("SamsungBrowser") > -1) browserName = "Samsung Browser";
+    else if (ua.indexOf("Opera") > -1 || ua.indexOf("OPR") > -1) browserName = "Opera";
+    else if (ua.indexOf("Trident") > -1) browserName = "IE";
+    else if (ua.indexOf("Edge") > -1) browserName = "Edge";
+    else if (ua.indexOf("Chrome") > -1) browserName = "Chrome";
+    else if (ua.indexOf("Safari") > -1) browserName = "Safari";
+
+    // More specific hardware telemetry
+    const cores = (navigator as any).hardwareConcurrency || 'N/A';
+    const memory = (navigator as any).deviceMemory || 'N/A'; // GB
+    const language = navigator.language;
+
     return {
-        deviceName: 'Web Browser',
-        deviceType: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-        browser: navigator.userAgent.split(' ')[0],
-        os: navigator.platform
+        deviceName: `${browserName} on ${platform} (${cores} CPU, ${memory}GB RAM)`,
+        deviceType: /Mobile|Android|iPhone/i.test(ua) ? 'mobile' : 'desktop',
+        browser: browserName,
+        os: platform,
+        resolution: `${screen.width}x${screen.height}`,
+        pixelRatio,
+        language,
+        cores,
+        memory
     };
 };
