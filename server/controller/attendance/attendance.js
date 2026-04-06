@@ -193,7 +193,8 @@ const setOrganizationGeofence = async (req, res, next) => {
 
 const checkIn = async (req, res, next) => {
   const { user_uuid } = req.user;
-  const { latitude, longitude, location, deviceId, deviceName, deviceTime } = req.body;
+  const { latitude, longitude, location, deviceId, deviceName, deviceTime, deviceType, browser, os } = req.body;
+  const ipAddress = getRequestIP(req);
 
   // Validate required fields
   if (latitude === undefined || longitude === undefined || latitude === 'null' || longitude === 'null') {
@@ -281,11 +282,23 @@ const checkIn = async (req, res, next) => {
     }
 
     // 2. Get Device Info and Check Mismatch
-    const currentDeviceResult = await client.query(
+    let currentDeviceResult = await client.query(
       `SELECT id FROM device WHERE "employeeId" = $1 AND "deviceId" = $2`,
       [user_uuid, deviceId]
     );
-    const deviceUuid = currentDeviceResult.rowCount > 0 ? currentDeviceResult.rows[0].id : null;
+    
+    let deviceUuid;
+    if (currentDeviceResult.rowCount > 0) {
+      deviceUuid = currentDeviceResult.rows[0].id;
+    } else {
+      // Auto-register this device if not found to ensure deviceId is recorded
+      const insertDeviceResult = await client.query(
+        `INSERT INTO device ("deviceId", "deviceName", "deviceType", browser, os, "employeeId", "isPrimary")
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [deviceId, deviceName || 'Unknown Device', deviceType || null, browser || null, os || null, user_uuid, false]
+      );
+      deviceUuid = insertDeviceResult.rows[0].id;
+    }
 
     const primaryDeviceResult = await client.query(
       `SELECT "deviceId" FROM device WHERE "employeeId" = $1 AND "isPrimary" = true`,
@@ -299,10 +312,13 @@ const checkIn = async (req, res, next) => {
       }
     }
 
+    // Fallback location string if none provided
+    const locationStr = location || `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
     // Insert or update attendance for check-in
     const insertResult = await client.query(
-      `INSERT INTO attendance ("employeeId", date, "checkIn", latitude, longitude, location, "deviceId", "deviceName", status, "lateBy", "shiftId", "deviceMismatch", "withinGeofence")
-       VALUES ($1, $2::date, $3::timestamp, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO attendance ("employeeId", date, "checkIn", latitude, longitude, location, "deviceId", "deviceName", "ipAddress", status, "lateBy", "shiftId", "deviceMismatch", "withinGeofence")
+       VALUES ($1, $2::date, $3::timestamp, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        ON CONFLICT ("employeeId", date)
        DO UPDATE SET
          "checkIn" = EXCLUDED."checkIn",
@@ -311,6 +327,7 @@ const checkIn = async (req, res, next) => {
          location = EXCLUDED.location,
          "deviceId" = EXCLUDED."deviceId",
          "deviceName" = EXCLUDED."deviceName",
+         "ipAddress" = EXCLUDED."ipAddress",
          status = EXCLUDED.status,
          "lateBy" = EXCLUDED."lateBy",
          "shiftId" = EXCLUDED."shiftId",
@@ -323,9 +340,10 @@ const checkIn = async (req, res, next) => {
         checkTime,
         lat,
         lng,
-        location || null,
+        locationStr,
         deviceUuid,
         deviceName || null,
+        ipAddress,
         status,
         lateBy,
         shiftId,
@@ -354,7 +372,8 @@ const checkIn = async (req, res, next) => {
 
 const checkOut = async (req, res, next) => {
   const { user_uuid } = req.user;
-  const { latitude, longitude, location, deviceTime } = req.body;
+  const { latitude, longitude, location, deviceId, deviceName, deviceTime, deviceType, browser, os } = req.body;
+  const ipAddress = getRequestIP(req);
 
   const lat = latitude === 'null' || latitude === null ? null : parseFloat(latitude);
   const lng = longitude === 'null' || longitude === null ? null : parseFloat(longitude);
@@ -388,6 +407,32 @@ const checkOut = async (req, res, next) => {
     const checkInTime = new Date(attendance.checkIn);
     const workHours = (checkTime - checkInTime) / (1000 * 60 * 60); // in hours
 
+    // Fallback location string if none provided
+    let locationStr = location;
+    if (!locationStr && lat && lng) {
+      locationStr = `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
+
+    // Handle device mapping
+    let deviceUuid = null;
+    if (deviceId) {
+      const currentDeviceResult = await client.query(
+        `SELECT id FROM device WHERE "employeeId" = $1 AND "deviceId" = $2`,
+        [user_uuid, deviceId]
+      );
+      
+      if (currentDeviceResult.rowCount > 0) {
+        deviceUuid = currentDeviceResult.rows[0].id;
+      } else {
+        const insertDeviceResult = await client.query(
+          `INSERT INTO device ("deviceId", "deviceName", "deviceType", browser, os, "employeeId", "isPrimary")
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [deviceId, deviceName || 'Unknown Device', deviceType || null, browser || null, os || null, user_uuid, false]
+        );
+        deviceUuid = insertDeviceResult.rows[0].id;
+      }
+    }
+
     // Update attendance with check-out
     const updateResult = await client.query(
       `UPDATE attendance
@@ -395,11 +440,24 @@ const checkOut = async (req, res, next) => {
            latitude = COALESCE(latitude, $2),
            longitude = COALESCE(longitude, $3),
            location = COALESCE(location, $4),
-           "workHours" = $5,
+           "ipAddress" = COALESCE("ipAddress", $5),
+           "deviceId" = COALESCE("deviceId", $6),
+           "deviceName" = COALESCE("deviceName", $7),
+           "workHours" = $8,
            "updatedAt" = $1::timestamp
-       WHERE id = $6
+       WHERE id = $9
        RETURNING id, "checkIn", "checkOut", "workHours", status`,
-      [checkTime, lat, lng, location || null, Math.round(workHours * 100) / 100, attendance.id]
+      [
+        checkTime, 
+        lat, 
+        lng, 
+        locationStr || null, 
+        ipAddress, 
+        deviceUuid, 
+        deviceName || null, 
+        Math.round(workHours * 100) / 100, 
+        attendance.id
+      ]
     );
 
     await client.query('COMMIT');

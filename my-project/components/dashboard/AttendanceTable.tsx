@@ -15,7 +15,8 @@ import {
   TrendingUp,
   Wifi,
   Globe,
-  Smartphone
+  Smartphone,
+  MapPin
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,8 @@ interface AttendanceRecord {
   withinGeofence: boolean;
   deviceMismatch: boolean;
   deviceName?: string;
+  ipAddress?: string;
+  location?: string;
 }
 
 interface AttendanceFilters {
@@ -221,10 +224,22 @@ export function AttendanceFeedTable({
                       <div className="flex flex-col items-center justify-center gap-1">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <Smartphone className="w-3 h-3" />
-                          <span>{record.deviceName || 'Unknown'}</span>
+                          <span className="max-w-[120px] truncate" title={record.deviceName}>{record.deviceName || 'Unknown'}</span>
                         </div>
+                        {record.ipAddress && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+                            <Activity className="w-2.5 h-2.5" />
+                            <span>{record.ipAddress}</span>
+                          </div>
+                        )}
+                        {record.location && (
+                          <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground/50 italic px-2 py-0.5 bg-muted/30 rounded">
+                            <MapPin className="w-2.5 h-2.5" />
+                            <span className="max-w-[100px] truncate" title={record.location}>{record.location}</span>
+                          </div>
+                        )}
                         {record.deviceMismatch && (
-                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-rose-500/10 text-rose-600 rounded-md border border-rose-500/20 text-[8px] font-black uppercase">
+                          <div className="flex items-center gap-1 px-1.5 py-0.5 bg-rose-500/10 text-rose-600 rounded-md border border-rose-500/20 text-[8px] font-black uppercase mt-0.5">
                             <AlertCircle className="w-2.5 h-2.5" />
                             Mismatch
                           </div>
