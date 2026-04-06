@@ -387,7 +387,7 @@ const checkOut = async (req, res, next) => {
     const checkDate = checkTime.toISOString().split('T')[0];
 
     const result = await client.query(
-      `SELECT id, "checkIn", "checkOut", status, "workHours"
+      `SELECT id, "checkIn", "checkOut", status, "workHours", "withinGeofence"
        FROM attendance
        WHERE "employeeId" = $1 AND date = $2::date`,
       [user_uuid, checkDate]
@@ -406,6 +406,26 @@ const checkOut = async (req, res, next) => {
     // Calculate work hours
     const checkInTime = new Date(attendance.checkIn);
     const workHours = (checkTime - checkInTime) / (1000 * 60 * 60); // in hours
+
+    // Get organization geofence settings
+    const geofenceResult = await client.query(
+      `SELECT g.latitude, g.longitude, g.radius, og."isEnabled"
+       FROM organizationgeofence og
+       JOIN geofence g ON g.id = og."geofenceId"
+       WHERE og."organizationId" = $1 AND og."isEnabled" = true`,
+      [req.user.organization_uuid]
+    );
+
+    let checkoutWithinGeofence = true;
+    if (geofenceResult.rowCount > 0 && lat !== null && lng !== null) {
+      const gf = geofenceResult.rows[0];
+      const distance = calculateDistance(lat, lng, gf.latitude, gf.longitude);
+      const radius = Math.max(gf.radius, 100); // Minimum 100m radius to account for GPS drift
+      checkoutWithinGeofence = distance <= radius;
+    }
+
+    // Final withinGeofence is true only if both check-in (stored) and check-out are within
+    const finalWithinGeofence = (attendance.withinGeofence !== false) && checkoutWithinGeofence;
 
     // Fallback location string if none provided
     let locationStr = location;
@@ -444,9 +464,10 @@ const checkOut = async (req, res, next) => {
            "deviceId" = COALESCE("deviceId", $6),
            "deviceName" = COALESCE("deviceName", $7),
            "workHours" = $8,
+           "withinGeofence" = $9,
            "updatedAt" = $1::timestamp
-       WHERE id = $9
-       RETURNING id, "checkIn", "checkOut", "workHours", status`,
+       WHERE id = $10
+       RETURNING id, "checkIn", "checkOut", "workHours", status, "withinGeofence"`,
       [
         checkTime, 
         lat, 
@@ -455,7 +476,8 @@ const checkOut = async (req, res, next) => {
         ipAddress, 
         deviceUuid, 
         deviceName || null, 
-        Math.round(workHours * 100) / 100, 
+        Math.round(workHours * 100) / 100,
+        finalWithinGeofence,
         attendance.id
       ]
     );
@@ -467,7 +489,8 @@ const checkOut = async (req, res, next) => {
       checkOutTime: updateResult.rows[0].checkOut,
       workHours: updateResult.rows[0].workHours,
       status: updateResult.rows[0].status,
-      message: 'Check-out successful'
+      withinGeofence: updateResult.rows[0].withinGeofence,
+      message: updateResult.rows[0].withinGeofence ? 'Check-out successful' : 'Check-out recorded outside geofence area'
     });
   } catch (error) {
     await client.query('ROLLBACK');
