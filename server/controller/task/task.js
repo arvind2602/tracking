@@ -171,19 +171,30 @@ const createTaskFromGoogleForm = async (req, res, next) => {
     }
 
     // 3. Format Description
-    const descriptionJson = {
-      bugTitle,
-      severity,
-      modules,
-      components,
-      envDetails,
-      steps,
-      expected,
-      attachments,
-      logs
-    };
+    const formatList = (val) => Array.isArray(val) ? val.join(', ') : (val || 'N/A');
 
-    const taskDescription = `${bugTitle}\n\nForm Data: ${JSON.stringify(descriptionJson, null, 2)}`;
+    const taskDescription = `
+### ${bugTitle || 'Bug Report'}
+
+**Severity:** ${severity || 'N/A'}
+**Modules:** ${formatList(modules)}
+**Components:** ${formatList(components)}
+
+#### Environment Details
+${envDetails || 'No details provided.'}
+
+#### Steps to Reproduce
+${steps || 'No steps provided.'}
+
+#### Expected Behavior
+${expected || 'No expected behavior provided.'}
+
+#### Logs / Error Messages
+${logs || 'No logs provided.'}
+
+#### Attachments
+${formatList(attachments)}
+`.trim();
 
     // 4. Create Task
     const priority = priorityMap[severity] || 'MEDIUM';
