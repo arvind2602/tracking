@@ -85,6 +85,145 @@ const createTask = async (req, res, next) => {
   }
 };
 
+const createTaskFromGoogleForm = async (req, res, next) => {
+  const {
+    'Bug Title': bugTitle,
+    'Severity': severity,
+    'Module': modules,
+    'Component / Module': components,
+    'Environment Details': envDetails,
+    'Steps to Reproduce': steps,
+    'Expected Behavior': expected,
+    'Attach Screenshot / Video': attachments,
+    'Logs / Error Messages': logs,
+    'Assigned to': assignedToField
+  } = req.body;
+
+  const createdBy = req.user.user_uuid;
+  const organiationId = req.user.organization_uuid;
+
+  // Mapping for Project IDs based on Module names
+  const projectMapping = {
+    'CRM': 'CRM',
+    'Academic': 'Academic',
+    'Admission/Fees': 'Admission Fees',
+    'Library Module': 'Library Module',
+    'TnP': 'TnP',
+    'Inventory Mgmt System': 'Inventory Mgmt System',
+    'Alumni': 'Alumni',
+    'Ticketing System': 'Ticketing System',
+    'Time table': 'Time table ',
+    'Question Paper': 'Question Paper',
+    'Hostel Management': 'Hostel Management'
+  };
+
+  // Map severity to Priority enum
+  const priorityMap = {
+    'Critical': 'HIGH',
+    'High': 'HIGH',
+    'Medium': 'MEDIUM',
+    'Low': 'LOW'
+  };
+
+  try {
+    // 1. Determine Project ID
+    let projectName = 'Task Manager'; // Default project
+    if (Array.isArray(modules) && modules.length > 0) {
+      projectName = projectMapping[modules[0]] || modules[0];
+    } else if (typeof modules === 'string') {
+      projectName = projectMapping[modules] || modules;
+    }
+
+    const projectResult = await pool.query(
+      'SELECT id FROM projects WHERE name ILIKE $1 AND "organiationId" = $2 LIMIT 1',
+      [projectName, organiationId]
+    );
+
+    let projectId;
+    if (projectResult.rowCount > 0) {
+      projectId = projectResult.rows[0].id;
+    } else {
+      // Fallback to "Task Manager" if it exists, otherwise use any active project or throw error
+      const fallbackResult = await pool.query(
+        'SELECT id FROM projects WHERE "organiationId" = $1 LIMIT 1',
+        [organiationId]
+      );
+      if (fallbackResult.rowCount === 0) throw new BadRequestError('No projects found in organization');
+      projectId = fallbackResult.rows[0].id;
+    }
+
+    // 2. Extract Assignee Emails and Find User IDs
+    const emails = [];
+    const assignedToString = Array.isArray(assignedToField) ? assignedToField.join(', ') : (assignedToField || '');
+    const emailRegex = /\(([^)]+)\)/g;
+    let match;
+    while ((match = emailRegex.exec(assignedToString)) !== null) {
+      emails.push(match[1]);
+    }
+
+    let assigneeIds = [];
+    if (emails.length > 0) {
+      const usersResult = await pool.query(
+        'SELECT id FROM employee WHERE email = ANY($1) AND "organiationId" = $2',
+        [emails, organiationId]
+      );
+      assigneeIds = usersResult.rows.map(r => r.id);
+    }
+
+    // 3. Format Description
+    const descriptionJson = {
+      bugTitle,
+      severity,
+      modules,
+      components,
+      envDetails,
+      steps,
+      expected,
+      attachments,
+      logs
+    };
+
+    const taskDescription = `${bugTitle}\n\nForm Data: ${JSON.stringify(descriptionJson, null, 2)}`;
+
+    // 4. Create Task
+    const priority = priorityMap[severity] || 'MEDIUM';
+    const finalAssignedTo = assigneeIds.length > 0 ? assigneeIds[0] : createdBy;
+
+    const task = await withTransaction(pool.pool, async (client) => {
+      const result = await client.query(
+        `INSERT INTO task (description, status, "createdBy", "assignedTo", points, "projectId", "assigned_at", priority, type)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+               RETURNING *`,
+        [taskDescription, 'pending', createdBy, finalAssignedTo, 0, projectId, new Date(), priority, assigneeIds.length > 1 ? 'SHARED' : 'SINGLE']
+      );
+      const newTask = result.rows[0];
+
+      // Create TaskAssignee records
+      if (assigneeIds.length > 0) {
+        for (const assigneeId of assigneeIds) {
+          await client.query(
+            `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+                   VALUES ($1, $2, $3, $4, $5)`,
+            [newTask.id, assigneeId, null, false, new Date()]
+          );
+        }
+      } else if (finalAssignedTo) {
+        await client.query(
+          `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+               VALUES ($1, $2, $3, $4, $5)`,
+          [newTask.id, finalAssignedTo, 1, false, new Date()]
+        );
+      }
+
+      return newTask;
+    });
+
+    res.status(201).json(task);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Export Tasks
 const exportTasks = async (req, res, next) => {
   const organiationId = req.user.organization_uuid;
@@ -898,5 +1037,6 @@ module.exports = {
   getCommentsByTask,
   changeTaskStatus,
   getTasksPerEmployee,
-  reorderTasks
+  reorderTasks,
+  createTaskFromGoogleForm
 };

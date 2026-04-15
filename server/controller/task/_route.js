@@ -6,6 +6,7 @@ const authMiddleware = require('../../middleware/authMiddleware');
 // Apply authentication middleware to all task routes
 task.use(authMiddleware);
 
+task.post('/google-form', taskController.createTaskFromGoogleForm);
 task.post('/', taskController.createTask);
 
 // Specific routes MUST come before generic :id routes
