@@ -172,6 +172,11 @@ const createTaskFromGoogleForm = async (req, res, next) => {
 
     // 3. Format Description
     const formatList = (val) => Array.isArray(val) ? val.join(', ') : (val || 'N/A');
+    const formatAttachments = (val) => {
+      if (!val) return 'N/A';
+      const items = Array.isArray(val) ? val : val.split(',').map(s => s.trim());
+      return items.map(id => `https://drive.google.com/file/d/${id}/view`).join('\n');
+    };
 
     const taskDescription = `
 ### ${bugTitle || 'Bug Report'}
@@ -193,7 +198,7 @@ ${expected || 'No expected behavior provided.'}
 ${logs || 'No logs provided.'}
 
 #### Attachments
-${formatList(attachments)}
+${formatAttachments(attachments)}
 `.trim();
 
     // 4. Create Task
