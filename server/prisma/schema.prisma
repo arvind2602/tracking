@@ -315,18 +315,18 @@ enum AttendanceStatus {
 }
 
 model Device {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  deviceId    String // Device fingerprint or identifier
-  deviceName  String?
-  deviceType  String? // mobile, desktop, tablet
-  browser     String?
-  os          String?
-  isActive    Boolean      @default(true)
-  isPrimary   Boolean      @default(false)
-  employeeId  String       @db.Uuid
-  createdAt   DateTime     @default(now())
-  lastUsedAt  DateTime?    @updatedAt
-  employee    employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceId   String // Device fingerprint or identifier
+  deviceName String?
+  deviceType String? // mobile, desktop, tablet
+  browser    String?
+  os         String?
+  isActive   Boolean   @default(true)
+  isPrimary  Boolean   @default(false)
+  employeeId String    @db.Uuid
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime? @updatedAt
+  employee   employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([deviceId, employeeId])
   @@index([employeeId, isPrimary])

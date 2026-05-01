@@ -3,10 +3,12 @@ const task = express.Router();
 const taskController = require('./task');
 const authMiddleware = require('../../middleware/authMiddleware');
 
-// Apply authentication middleware to all task routes
+// Public/Programmatic routes
+task.post('/google-form', taskController.createTaskFromGoogleForm);
+
+// Apply authentication middleware to all subsequent task routes
 task.use(authMiddleware);
 
-task.post('/google-form', taskController.createTaskFromGoogleForm);
 task.post('/', taskController.createTask);
 
 // Specific routes MUST come before generic :id routes

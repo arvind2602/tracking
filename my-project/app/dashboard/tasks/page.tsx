@@ -179,7 +179,8 @@ export default function Tasks() {
     if (!isInitialLoading) {
       fetchAllTasks(1);
     }
-  }, [statusFilter, projectFilter, userFilter, dateFilter, activeTab, sortBy, sortOrder, isInitialLoading, fetchAllTasks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, projectFilter, userFilter, dateFilter, activeTab, sortBy, sortOrder, isInitialLoading]);
 
   // Handle page change
   const handlePageChange = (newPage: number) => {

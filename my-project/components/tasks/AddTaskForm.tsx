@@ -16,8 +16,9 @@ import toast from "react-hot-toast";
 import { Task, User, Project } from "@/lib/types";
 import { Command, CommandGroup, CommandItem, CommandList, CommandInput, CommandEmpty } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { X, Check, Loader } from "lucide-react";
+import { X, Check, Loader, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 
 interface AddTaskFormProps {
   users: User[];
@@ -40,6 +41,7 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
   const [assignDropdownOpen, setAssignDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStructuring, setIsStructuring] = useState(false);
 
   const [form, setForm] = useState<{
     description: string;
@@ -127,6 +129,46 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
     });
   };
 
+  const handleAIStructure = async () => {
+    if (!form.description) {
+      toast.error("Please enter a description first");
+      return;
+    }
+    
+    setIsStructuring(true);
+    const toastId = toast.loading("AI is structuring your task...");
+    try {
+      // Assuming my_agents is on port 8000
+      const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL || "http://localhost:8000";
+      const response = await fetch(`${agentUrl}/tasks/structure`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: form.description })
+      });
+      
+      if (!response.ok) throw new Error("Failed to structure task");
+      
+      const data = await response.json();
+      
+      if (!data) {
+        throw new Error("Empty response from AI service");
+      }
+
+      setForm(prev => ({
+        ...prev,
+        description: data.description || prev.description,
+        points: (data.points ?? 0).toString(),
+        priority: data.priority || prev.priority
+      }));
+      toast.success("Task structured successfully!", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("AI structuring failed", { id: toastId });
+    } finally {
+      setIsStructuring(false);
+    }
+  };
+
   const handleAddTask = async () => {
     setIsLoading(true);
     const toastId = toast.loading(parentTask ? "Adding subtask..." : "Adding task...");
@@ -160,12 +202,24 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
   return (
     <div className="space-y-4 py-2">
       <div className="space-y-2">
-        <label className="text-sm font-medium leading-none">Task Description</label>
-        <Input
-          placeholder="Enter task details"
+        <div className="flex justify-between items-center">
+          <label className="text-sm font-medium leading-none">Task Description</label>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 gap-1.5"
+            onClick={handleAIStructure}
+            disabled={isStructuring || !form.description}
+          >
+            {isStructuring ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            AI Structure
+          </Button>
+        </div>
+        <Textarea
+          placeholder="Enter raw task details... (e.g. 'I need to design a login page with email and google auth')"
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
-          className="w-full"
+          className="w-full min-h-[120px] resize-none"
         />
       </div>
 

@@ -966,6 +966,20 @@ const changeTaskStatus = async (req, res, next) => {
     });
 
     res.json(result);
+
+    // Trigger AI Analysis if status is 'pending-review'
+    if (status === 'pending-review') {
+      const AGENT_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8000';
+      fetch(`${AGENT_URL}/tasks/analyze/${id}`, { method: 'POST' })
+        .then(response => {
+          if (!response.ok) {
+            console.error(`AI Agent trigger failed for task ${id}:`, response.statusText);
+          }
+        })
+        .catch(err => {
+          console.error(`AI Agent connection error for task ${id}:`, err.message);
+        });
+    }
   } catch (error) {
     next(error);
   }
