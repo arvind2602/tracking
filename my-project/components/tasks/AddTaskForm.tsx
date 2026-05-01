@@ -140,9 +140,13 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
     try {
       // Assuming my_agents is on port 8000
       const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL || "http://localhost:8000";
+      const agentApiKey = process.env.NEXT_PUBLIC_AGENT_API_KEY || "";
       const response = await fetch(`${agentUrl}/tasks/structure`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": agentApiKey,
+        },
         body: JSON.stringify({ description: form.description })
       });
       

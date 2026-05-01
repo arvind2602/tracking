@@ -970,7 +970,13 @@ const changeTaskStatus = async (req, res, next) => {
     // Trigger AI Analysis if status is 'pending-review'
     if (status === 'pending-review') {
       const AGENT_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8000';
-      fetch(`${AGENT_URL}/tasks/analyze/${id}`, { method: 'POST' })
+      const AGENT_KEY = process.env.AGENT_API_KEY || '';
+      fetch(`${AGENT_URL}/tasks/analyze/${id}`, { 
+        method: 'POST',
+        headers: {
+          'X-API-Key': AGENT_KEY
+        }
+      })
         .then(response => {
           if (!response.ok) {
             console.error(`AI Agent trigger failed for task ${id}:`, response.statusText);
