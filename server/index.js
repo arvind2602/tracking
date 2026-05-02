@@ -10,16 +10,22 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 
-const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [];
+const allowedOrigins = process.env.CORS_ORIGIN 
+    ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) 
+    : [];
 
 const corsOptions = {
     origin: (origin, callback) => {
         // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+        
+        // If whitelist is empty, we default to reflecting origin to prevent breaking production
+        // when env vars are missing. Otherwise, check the whitelist.
+        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
             callback(null, true);
         } else {
-            callback(new Error('Not allowed by CORS'));
+            // Return false instead of an Error to allow the middleware to handle it gracefully
+            callback(null, false);
         }
     },
     credentials: true,
