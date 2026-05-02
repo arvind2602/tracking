@@ -9,19 +9,6 @@
   "routes": [
     {
       "src": "/(.*)",
-      "methods": ["OPTIONS"],
-      "headers": {
-        "Access-Control-Allow-Origin": "https://vigtask.vercel.app",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-Requested-With, Origin, x-institute-id, x-api-key, X-API-Key, Access-Control-Allow-Headers, Access-Control-Request-Method, Access-Control-Request-Headers, Cache-Control, Pragma, If-Modified-Since",
-        "Access-Control-Allow-Credentials": "true",
-        "Access-Control-Max-Age": "86400"
-      },
-      "status": 204,
-      "continue": false
-    },
-    {
-      "src": "/(.*)",
       "dest": "index.js"
     }
   ]

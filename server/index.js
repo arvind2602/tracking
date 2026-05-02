@@ -10,37 +10,28 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 
-const allowedOrigins = process.env.CORS_ORIGIN 
-    ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) 
-    : [];
+// Manual CORS Middleware - Highly permissive and Brave/Chrome compatible
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    // For credentials:true, we must echo the origin or use a specific one. 
+    // We cannot use '*' with credentials.
+    if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization, Accept, Origin, x-institute-id, x-api-key, X-API-Key, Cache-Control, Pragma');
+    res.setHeader('Access-Control-Max-Age', '86400');
 
-const corsOptions = {
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-        'Content-Type', 
-        'Authorization', 
-        'Accept', 
-        'X-Requested-With', 
-        'Origin',
-        'x-institute-id',
-        'x-api-key',
-        'X-API-Key',
-        'Access-Control-Allow-Headers',
-        'Access-Control-Request-Method',
-        'Access-Control-Request-Headers',
-        'Cache-Control',
-        'Pragma',
-        'If-Modified-Since'
-    ],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
-    maxAge: 86400, // 24 hours
-    optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
-app.options(/(.*)/, cors(corsOptions)); // Handle preflight for all routes (Express 5 compatible)
+    // Handle Preflight
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    next();
+});
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: true }));
