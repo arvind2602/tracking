@@ -39,7 +39,12 @@ const corsOptions = {
         'x-institute-id',
         'x-api-key',
         'X-API-Key',
-        'X-Requested-With'
+        'Access-Control-Allow-Headers',
+        'Access-Control-Request-Method',
+        'Access-Control-Request-Headers',
+        'Cache-Control',
+        'Pragma',
+        'If-Modified-Since'
     ],
     exposedHeaders: ['Content-Range', 'X-Content-Range'],
     maxAge: 86400, // 24 hours
