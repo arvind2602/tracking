@@ -10,17 +10,29 @@ const app = express();
 
 const PORT = process.env.PORT || 5000;
 
-/** CORS — restrict origins in production, allow all in development. */
 const corsOptions = {
-    origin: process.env.CORS_ORIGIN
-        ? process.env.CORS_ORIGIN.split(',')
-        : '*',
+    origin: true, // Reflect the request origin to allow all origins with credentials
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+
+    allowedHeaders: [
+        'Content-Type', 
+        'Authorization', 
+        'Accept', 
+        'X-Requested-With', 
+        'Origin',
+        'x-institute-id',
+        'x-api-key'
+    ],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400, // 24 hours
+    optionsSuccessStatus: 200
 };
 
-app.use(express.json());
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight for all routes
+app.use(express.json());
+
 app.use(express.urlencoded({ extended: true }));
 app.use('/api', routes);
 
