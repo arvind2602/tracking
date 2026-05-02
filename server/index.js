@@ -15,19 +15,7 @@ const allowedOrigins = process.env.CORS_ORIGIN
     : [];
 
 const corsOptions = {
-    origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl)
-        if (!origin) return callback(null, true);
-        
-        // If whitelist is empty, we default to reflecting origin to prevent breaking production
-        // when env vars are missing. Otherwise, check the whitelist.
-        if (allowedOrigins.length === 0 || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-            callback(null, true);
-        } else {
-            // Return false instead of an Error to allow the middleware to handle it gracefully
-            callback(null, false);
-        }
-    },
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
