@@ -5,11 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"No tests configured yet\" && exit 0",
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "node api/index.js",
+    "dev": "nodemon api/index.js",
     "lint": "eslint .",
     "db:migrate": "npx prisma migrate dev",
-    "db:generate": "npx prisma generate"
+    "db:generate": "npx prisma generate",
+    "build": "npx prisma generate"
   },
   "keywords": [],
   "author": "",
