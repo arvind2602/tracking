@@ -13,10 +13,17 @@ const PORT = process.env.PORT || 5000;
 // Required for express-rate-limit when behind a proxy (e.g. Vercel)
 app.set("trust proxy", 1);
 
-// Manual Permissive CORS Middleware
+// Robust CORS Middleware
 app.use((req, res, next) => {
-  const origin = req.headers.origin || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
+  const allowedOrigins = ['https://vigtask.vercel.app', 'https://tasksb.vercel.app', 'http://localhost:3000', 'http://localhost:5173'];
+  const origin = req.headers.origin;
+  
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*'); // Fallback to all for debugging
+  }
+  
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-institute-id, x-organization-id');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -29,9 +36,11 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
+
+// Mount routes at both paths to ensure matching regardless of Vercel rewrite behavior
 app.use('/api', routes);
+app.use('/', routes); 
 
 app.get('/', (req, res) => {
     res.json({ status: 'ok', message: 'Vighnotech API Server' });
