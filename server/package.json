@@ -2,7 +2,7 @@
   "name": "server",
   "version": "1.0.0",
   "description": "Vighnotech Employee Tracker API",
-  "main": "index.js",
+  "main": "api/index.js",
   "scripts": {
     "test": "echo \"No tests configured yet\" && exit 0",
     "start": "node api/index.js",
