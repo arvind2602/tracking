@@ -20,7 +20,7 @@ interface Profile {
 
 interface IDCardTemplateProps {
     profile: Profile;
-    idCardRef: React.RefObject<HTMLDivElement | null>;
+    idCardRef: React.RefObject<HTMLDivElement>;
     onImageProcessed?: () => void;
     processedImage?: string | null;
     shouldProcess?: boolean;
