@@ -1,28 +1,33 @@
 const express = require('express');
 const routes = require('../controller/routes');
 
+const cors = require('cors');
+
 const app = express();
 
 // Trust proxy (Vercel)
 app.set('trust proxy', 1);
 
-// ✅ GLOBAL CORS (ALLOW ALL)
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-institute-id, x-organization-id'
-  );
-  res.header('Access-Control-Allow-Credentials', 'true');
+// ✅ Robust CORS configuration
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow all origins (logic similar to '*' but compliant with credentials)
+    callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept', 
+    'Origin', 
+    'x-institute-id', 
+    'x-organization-id'
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
 
-  // ✅ Handle preflight immediately
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
 
 // Body parsing
 app.use(express.json());
@@ -36,12 +41,10 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Error handler (still returns CORS headers)
+// Error handler
 app.use((err, req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Credentials', 'true');
-
   console.error(err);
+
 
   res.status(err.status || 500).json({
     message: err.message || 'Internal Server Error'
