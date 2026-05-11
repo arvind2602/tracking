@@ -18,8 +18,7 @@ const eslintConfig = [
       "react/no-unescaped-entities": "off",
       "@next/next/no-img-element": "off",
       "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-      "react-hooks/set-state-in-effect": "off"
+      "react-hooks/exhaustive-deps": "warn"
     }
   }
 ];

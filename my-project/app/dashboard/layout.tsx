@@ -52,7 +52,7 @@ export default function DashboardLayout({
     if (token) {
       try {
         const payload: DecodedToken = jwtDecode(token);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+
         setUserRole(payload.user.role);
       } catch (error) {
         console.error('Invalid token', error);

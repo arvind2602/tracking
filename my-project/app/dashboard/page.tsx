@@ -45,7 +45,7 @@ export default function DashboardPage() {
     if (token) {
       try {
         const payload: DecodedToken = jwtDecode(token);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+
         setUserName(payload.user.firstName);
       } catch (error) {
         console.error('Invalid token', error);
