@@ -1,0 +1,13 @@
+{
+  "name": "employee-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n client,server -c cyan,green \"npm run dev --prefix my-project\" \"npm run dev --prefix server\"",
+    "build": "npm run build --prefix my-project && npm run build --prefix server",
+    "start": "concurrently -n client,server -c cyan,green \"npm run start --prefix my-project\" \"npm run start --prefix server\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

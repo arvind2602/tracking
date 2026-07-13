@@ -38,12 +38,16 @@ export default function OrganizationSettings() {
         const token = localStorage.getItem('token');
         if (token) {
             try {
-                const decoded = jwtDecode<{ user: { role: string } }>(token);
-                if (decoded.user.role !== 'ADMIN') {
+                const decoded: any = jwtDecode(token);
+                const role = decoded?.user?.role;
+                
+                if (!role || role !== 'ADMIN') {
                     router.push('/dashboard');
                     return;
                 }
             } catch (e) {
+                console.error('Invalid token', e);
+                localStorage.removeItem('token');
                 router.push('/');
                 return;
             }

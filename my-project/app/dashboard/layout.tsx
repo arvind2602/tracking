@@ -51,11 +51,20 @@ export default function DashboardLayout({
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const payload: DecodedToken = jwtDecode(token);
+        const payload: any = jwtDecode(token);
+        const role = payload?.user?.role;
 
-        setUserRole(payload.user.role);
+        if (!role) {
+          console.error('Token missing user role information');
+          localStorage.removeItem('token');
+          router.push('/');
+          return;
+        }
+
+        setUserRole(role);
       } catch (error) {
         console.error('Invalid token', error);
+        localStorage.removeItem('token');
         router.push('/');
       }
     } else {
@@ -156,13 +165,11 @@ export default function DashboardLayout({
     { href: '/dashboard/projects', icon: Code, label: 'Projects' },
     { href: '/dashboard/profile', icon: User, label: 'Profile' },
     { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
-    { href: '/dashboard/qr', icon: QrCode, label: 'QR Verification' },
   ];
 
   const navItems = userRole === 'USER'
     ? allNavItems
-      .filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance' || item.label === 'QR Verification')
-      .map(item => item.label === 'QR Verification' ? { ...item, href: '/dashboard/qr/scan' } : item)
+      .filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance' || item.label === 'Projects')
     : allNavItems;
 
   if (isLoading) {
@@ -294,14 +301,7 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard/qr/scan"
-              className="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl transition-all border border-primary/20 shadow-lg group flex items-center gap-2"
-              title="QR Scanner"
-            >
-              <QrCode className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider">Scanner</span>
-            </Link>
+
 
             <button
               onClick={() => setIsNotesPanelOpen(true)}

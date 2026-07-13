@@ -79,14 +79,10 @@ const getOrganizationSettings = async (req, res, next) => {
 
     try {
         const result = await pool.query(
-            `SELECT o.id, o.name, "showBanner", "showLoginPopup", logo,
-                    "weekOffs", holidays, "wfhEnabled",
-                    og."isEnabled" as "geofencingEnabled",
-                    g.latitude, g.longitude, g.radius
-             FROM organiation o
-             LEFT JOIN organizationgeofence og ON o.id = og."organizationId" AND og."isEnabled" = true
-             LEFT JOIN geofence g ON g.id = og."geofenceId"
-             WHERE o.id = $1`,
+            `SELECT id, name, "showBanner", "showLoginPopup", logo,
+                    "weekOffs", holidays, "wfhEnabled", "geofencingEnabled"
+             FROM organiation
+             WHERE id = $1`,
             [orgId]
         );
 
@@ -102,7 +98,7 @@ const getOrganizationSettings = async (req, res, next) => {
 
 const updateOrganizationSettings = async (req, res, next) => {
     const orgId = req.user.organization_uuid;
-    const { name, showBanner, logo, geofencingEnabled, geofenceId, latitude, longitude, radius } = req.body;
+    const { name, showBanner, logo, geofencingEnabled } = req.body;
 
     if (req.user.role !== 'ADMIN') {
         return next(new BadRequestError('Only admins can update organization settings'));
@@ -173,57 +169,24 @@ const updateOrganizationSettings = async (req, res, next) => {
                 paramIndex++;
             }
 
+            if (geofencingEnabled !== undefined) {
+                const geofencingEnabledBool = geofencingEnabled === 'true' || geofencingEnabled === true;
+                query += `, "geofencingEnabled" = $${paramIndex}`;
+                params.push(geofencingEnabledBool);
+                paramIndex++;
+            }
+
             query += ` WHERE id = $${paramIndex} RETURNING id`;
             params.push(orgId);
 
             await client.query(query, params);
 
-            // Handle geofencing settings
-            if (geofencingEnabled !== undefined || latitude !== undefined || longitude !== undefined || radius !== undefined) {
-                // Sanitize coordinates and radius to be numbers
-                const lat = latitude === 'null' || latitude === null ? 0 : parseFloat(latitude) || 0;
-                const lng = longitude === 'null' || longitude === null ? 0 : parseFloat(longitude) || 0;
-                const rad = radius === 'null' || radius === null ? 0 : parseFloat(radius) || 0;
-
-                // Get or create geofence
-                let gfId = geofenceId;
-                if (!gfId && (latitude !== undefined || longitude !== undefined || radius !== undefined)) {
-                    const gfResult = await client.query(
-                        `INSERT INTO geofence (name, latitude, longitude, radius, "organizationId")
-                         VALUES ($1, $2, $3, $4, $5)
-                         ON CONFLICT ("organizationId", name) DO UPDATE SET
-                           latitude = EXCLUDED.latitude,
-                           longitude = EXCLUDED.longitude,
-                           radius = EXCLUDED.radius,
-                           "updatedAt" = NOW()
-                         RETURNING id`,
-                        ['Office', lat, lng, rad, orgId]
-                    );
-                    gfId = gfResult.rows[0].id;
-                }
-
-                if (gfId) {
-                    // Set or update organization geofence link
-                    await client.query(
-                        `INSERT INTO organizationgeofence ("organizationId", "geofenceId", "isEnabled")
-                         VALUES ($1, $2, $3)
-                         ON CONFLICT ("organizationId", "geofenceId")
-                         DO UPDATE SET "isEnabled" = $3`,
-                        [orgId, gfId, geofencingEnabled === 'true' || geofencingEnabled === true]
-                    );
-                }
-            }
-
             // Fetch updated settings
             const result = await client.query(
-                `SELECT o.id, o.name, "showBanner", "showLoginPopup", logo,
-                        "weekOffs", holidays, "wfhEnabled",
-                        og."isEnabled" as "geofencingEnabled",
-                        g.latitude, g.longitude, g.radius
-                 FROM organiation o
-                 LEFT JOIN organizationgeofence og ON o.id = og."organizationId" AND og."isEnabled" = true
-                 LEFT JOIN geofence g ON g.id = og."geofenceId"
-                 WHERE o.id = $1`,
+                `SELECT id, name, "showBanner", "showLoginPopup", logo,
+                        "weekOffs", holidays, "wfhEnabled", "geofencingEnabled"
+                 FROM organiation
+                 WHERE id = $1`,
                 [orgId]
             );
 

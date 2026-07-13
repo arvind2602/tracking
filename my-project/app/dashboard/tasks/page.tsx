@@ -84,10 +84,21 @@ export default function Tasks() {
     }
 
     try {
-      const payload: DecodedToken = jwtDecode(token);
-      setUserRole(payload.user.role);
-      setCurrentUserId(payload.user.uuid);
-    } catch {
+      const payload: any = jwtDecode(token);
+      const user = payload?.user;
+      
+      if (!user || !user.role) {
+        console.error("Token missing user information");
+        localStorage.removeItem("token");
+        router.push("/");
+        return;
+      }
+
+      setUserRole(user.role);
+      setCurrentUserId(user.uuid);
+    } catch (error) {
+      console.error("Invalid token", error);
+      localStorage.removeItem("token");
       router.push("/");
       return;
     }
@@ -217,15 +228,13 @@ export default function Tasks() {
           </h1>
           <p className="text-muted-foreground mt-1 font-medium text-sm">Manage and monitor organizational tasks.</p>
         </div>
-        {userRole === 'ADMIN' && (
-          <Button
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <Plus className="h-5 w-5" />
-            Add New Task
-          </Button>
-        )}
+        <Button
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
+          onClick={() => setIsModalOpen(true)}
+        >
+          <Plus className="h-5 w-5" />
+          Add New Task
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -287,45 +296,39 @@ export default function Tasks() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        {userRole === 'ADMIN' && (
-          <SearchableSelect
-            value={statusFilter}
-            onValueChange={(val: string) => setStatusFilter(val)}
-            options={[
-              { value: "all", label: "All Statuses" },
-              { value: "pending", label: "Pending" },
-              { value: "in-progress", label: "In Progress" },
-              { value: "pending-review", label: "Pending Review" },
-              { value: "completed", label: "Completed" },
-            ]}
-            placeholder="Status"
-            className="w-full md:w-[220px]"
-          />
-        )}
-        {userRole === 'ADMIN' && (
-          <SearchableSelect
-            value={projectFilter}
-            onValueChange={(val: string) => setProjectFilter(val)}
-            options={[
-              { value: "all", label: "All Projects" },
-              ...projects.map(p => ({ value: p.id, label: p.name }))
-            ]}
-            placeholder="Project"
-            className="w-full md:w-[220px]"
-          />
-        )}
-        {userRole === 'ADMIN' && (
-          <SearchableSelect
-            value={userFilter}
-            onValueChange={(val: string) => setUserFilter(val)}
-            options={[
-              { value: "all", label: "All Users" },
-              ...users.map(u => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }))
-            ]}
-            placeholder="Assigned To"
-            className="w-full md:w-[220px]"
-          />
-        )}
+        <SearchableSelect
+          value={statusFilter}
+          onValueChange={(val: string) => setStatusFilter(val)}
+          options={[
+            { value: "all", label: "All Statuses" },
+            { value: "pending", label: "Pending" },
+            { value: "in-progress", label: "In Progress" },
+            { value: "pending-review", label: "Pending Review" },
+            { value: "completed", label: "Completed" },
+          ]}
+          placeholder="Status"
+          className="w-full md:w-[220px]"
+        />
+        <SearchableSelect
+          value={projectFilter}
+          onValueChange={(val: string) => setProjectFilter(val)}
+          options={[
+            { value: "all", label: "All Projects" },
+            ...projects.map(p => ({ value: p.id, label: p.name }))
+          ]}
+          placeholder="Project"
+          className="w-full md:w-[220px]"
+        />
+        <SearchableSelect
+          value={userFilter}
+          onValueChange={(val: string) => setUserFilter(val)}
+          options={[
+            { value: "all", label: "All Users" },
+            ...users.map(u => ({ value: u.id, label: `${u.firstName} ${u.lastName}` }))
+          ]}
+          placeholder="Assigned To"
+          className="w-full md:w-[220px]"
+        />
         <SearchableSelect
           value={dateFilter}
           onValueChange={(val: string) => setDateFilter(val)}

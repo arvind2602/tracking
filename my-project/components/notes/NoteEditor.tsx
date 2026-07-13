@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Paperclip, Loader2, X, Tag, ChevronDown, Check, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
+import { Paperclip, Loader2, X, Tag, ChevronDown, Check, Plus, Trash2, Link as LinkIcon, Briefcase } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import axiosInstance from '@/lib/axios';
 import axios from 'axios';
@@ -278,421 +278,203 @@ export function NoteEditor({ noteToEdit, onClose, defaultType = 'PERSONAL', defa
     const isPending = createNote.isPending || updateNote.isPending || isUploading || pinNote.isPending;
 
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-4 border border-border/60 rounded-2xl bg-card/80 backdrop-blur-md shadow-lg max-h-[calc(100vh-200px)] overflow-y-auto">
-            <div className="flex items-center justify-between shrink-0">
-                <h3 className="font-semibold text-lg text-foreground tracking-tight">
-                    {noteToEdit ? 'Edit Note' : 'Create New Note'}
-                </h3>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={onClose}
-                    className="h-8 w-8 rounded-full hover:bg-muted shrink-0"
-                >
-                    <X className="h-4 w-4" />
-                </Button>
-            </div>
-
-            <div className="space-y-4">
-                {/* Title */}
-                <Input
-                    placeholder="Note title..."
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    autoFocus
-                    required
-                    className="bg-background/50 border-border/50 focus-visible:ring-2 focus-visible:ring-purple-500/30 text-base font-medium h-11"
-                />
-
-                {/* Type & Project Selection */}
-                <div className="flex gap-2">
-                    <div className="flex-1">
-                        <Select value={type} onValueChange={(val: NoteType) => setType(val)}>
-                            <SelectTrigger className="bg-background/50 border-border/50 h-10">
-                                <SelectValue placeholder="Note Type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="PERSONAL">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                        Personal
-                                    </div>
-                                </SelectItem>
-                                {(isAdmin || type === 'ORGANIZATIONAL') && (
-                                    <SelectItem value="ORGANIZATIONAL">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-amber-500" />
-                                            Organizational
-                                        </div>
-                                    </SelectItem>
-                                )}
-                                <SelectItem value="PROJECT">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                                        Project
-                                    </div>
-                                </SelectItem>
-                                <SelectItem value="TODO">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full bg-rose-500" />
-                                        Todo
-                                    </div>
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {(type === 'PROJECT' || type === 'TODO') && (
-                        <div className="flex-1 animate-in fade-in zoom-in-95 duration-200">
-                            <Select value={projectId} onValueChange={setProjectId} required>
-                                <SelectTrigger className="bg-background/50 border-border/50 h-10">
-                                    <SelectValue placeholder="Select Project" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {projects.map(p => (
-                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
+        <div className="flex flex-col bg-card rounded-xl border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 space-y-4">
+                {/* Title and Close */}
+                <div className="flex items-start justify-between gap-4">
+                    <Input
+                        placeholder="Title"
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        autoFocus
+                        className="border-none shadow-none focus-visible:ring-0 text-lg font-semibold bg-transparent p-0 h-auto"
+                    />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={onClose}
+                        className="h-8 w-8 rounded-full shrink-0"
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
                 </div>
 
-                {/* Pin Option (Creation only) */}
-                {!noteToEdit && (
-                    <div className="flex flex-col gap-2 p-3 bg-background/30 rounded-lg border border-border/40">
-                        <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={isPinned}
-                                onChange={(e) => setIsPinned(e.target.checked)}
-                                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4"
+                {/* Content Points */}
+                <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                    {points.map((point, index) => (
+                        <div key={index} className="flex items-start gap-2 group">
+                            <div className="mt-2.5 w-1.5 h-1.5 rounded-full bg-muted-foreground/30 shrink-0" />
+                            <Textarea
+                                value={point}
+                                onChange={(e) => updatePoint(index, e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && e.shiftKey) {
+                                        e.preventDefault();
+                                        addPoint();
+                                    }
+                                }}
+                                placeholder="Note content..."
+                                className="border-none shadow-none focus-visible:ring-0 text-sm bg-transparent p-0 min-h-[24px] resize-none leading-relaxed"
+                                rows={1}
+                                autoFocus={index === points.length - 1 && index > 0}
+                                onInput={(e) => {
+                                    const target = e.target as HTMLTextAreaElement;
+                                    target.style.height = 'auto';
+                                    target.style.height = `${target.scrollHeight}px`;
+                                }}
                             />
-                            <span className="text-purple-600 dark:text-purple-400">Pin this note</span>
-                        </label>
-                        {isPinned && (
-                            <div className="flex gap-2 animate-in slide-in-from-top-2">
-                                <Select value={pinDurationUnit} onValueChange={setPinDurationUnit}>
-                                    <SelectTrigger className="w-[140px] h-9 text-xs bg-background">
-                                        <SelectValue placeholder="Duration" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="hours">Hours</SelectItem>
-                                        <SelectItem value="weeks">Weeks</SelectItem>
-                                        <SelectItem value="months">Months</SelectItem>
-                                        <SelectItem value="forever">Forever</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {pinDurationUnit !== 'forever' && (
-                                    <Input
-                                        type="number"
-                                        min="1"
-                                        value={pinDurationValue}
-                                        onChange={(e) => setPinDurationValue(e.target.value)}
-                                        className="h-9 max-w-[80px] text-xs"
-                                    />
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removePoint(index)}
+                                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    ))}
 
-                {/* Tag People */}
-                <div className="flex flex-wrap gap-2 items-center">
+                    <button
+                        type="button"
+                        onClick={addPoint}
+                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors pl-3.5 py-1"
+                    >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add point
+                    </button>
+                </div>
+
+                {/* Metadata & Actions Bar */}
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                    {/* Note Type */}
+                    <Select value={type} onValueChange={(val: NoteType) => setType(val)}>
+                        <SelectTrigger className="h-8 w-auto gap-2 border-none bg-muted/50 hover:bg-muted text-xs rounded-full px-3">
+                            <div className={cn("w-2 h-2 rounded-full",
+                                type === 'PERSONAL' ? 'bg-emerald-500' :
+                                    type === 'ORGANIZATIONAL' ? 'bg-amber-500' :
+                                        type === 'PROJECT' ? 'bg-indigo-500' : 'bg-rose-500'
+                            )} />
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="PERSONAL">Personal</SelectItem>
+                            {(isAdmin || type === 'ORGANIZATIONAL') && <SelectItem value="ORGANIZATIONAL">Org</SelectItem>}
+                            <SelectItem value="PROJECT">Project</SelectItem>
+                            <SelectItem value="TODO">Todo</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {/* Project Selector */}
+                    {(type === 'PROJECT' || type === 'TODO') && (
+                        <Select value={projectId} onValueChange={setProjectId}>
+                            <SelectTrigger className="h-8 w-auto gap-2 border-none bg-muted/50 hover:bg-muted text-xs rounded-full px-3">
+                                <Briefcase className="h-3.5 w-3.5 opacity-60" />
+                                <SelectValue placeholder="Select Project" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    )}
+
+                    {/* Tag People Popover */}
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" type="button" className="h-9 gap-2 border-dashed bg-background/30 hover:bg-background/60 transition-colors">
-                                <Tag className="h-4 w-4 text-purple-500" />
-                                <span>Tag People</span>
-                                {tags.length > 0 && (
-                                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 bg-purple-500/10 text-purple-600">
-                                        {tags.length}
-                                    </Badge>
-                                )}
-                                <ChevronDown className="h-3 w-3 opacity-50" />
+                            <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full p-0">
+                                <Tag className="h-3.5 w-3.5 opacity-60" />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-72 p-2 z-[10001]" align="start">
-                            <div className="flex flex-col gap-2 mb-2 px-1">
-                                <div className="text-sm font-medium text-muted-foreground">Tag team members</div>
-                                <Input
-                                    placeholder="Search employees..."
-                                    value={employeeSearch}
-                                    onChange={(e) => setEmployeeSearch(e.target.value)}
-                                    className="h-9 text-sm bg-background/50"
-                                />
-                            </div>
-                            <div className="flex flex-col gap-1 max-h-56 overflow-y-auto custom-scrollbar">
-                                {filteredEmployees.length === 0 ? (
-                                    <div className="p-3 text-sm text-center text-muted-foreground">No employees found</div>
-                                ) : (
-                                    filteredEmployees.map(emp => {
-                                        const isChecked = tags.includes(emp.id);
-                                        return (
-                                            <div
-                                                key={emp.id}
-                                                onClick={() => toggleTag(emp.id)}
-                                                className={cn(
-                                                    "flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-all border",
-                                                    isChecked
-                                                        ? "bg-purple-500/10 border-purple-500/30"
-                                                        : "hover:bg-muted/50 border-transparent"
-                                                )}
-                                            >
-                                                <div className={cn(
-                                                    "flex items-center justify-center w-5 h-5 rounded border transition-colors shrink-0",
-                                                    isChecked
-                                                        ? "bg-purple-500 border-purple-500 text-white"
-                                                        : "border-muted-foreground/40"
-                                                )}>
-                                                    {isChecked && <Check className="h-3 w-3" />}
-                                                </div>
-                                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-medium shrink-0">
-                                                    {emp.firstName?.charAt(0)}{emp.lastName?.charAt(0)}
-                                                </div>
-                                                <div className="flex flex-col min-w-0">
-                                                    <span className="text-sm font-medium truncate">{emp.firstName} {emp.lastName}</span>
-                                                    <span className="text-xs text-muted-foreground truncate">{emp.email}</span>
-                                                </div>
-                                            </div>
-                                        )
-                                    })
-                                )}
+                        <PopoverContent className="w-64 p-2 z-[120]" align="start">
+                            <Input
+                                placeholder="Search people..."
+                                value={employeeSearch}
+                                onChange={(e) => setEmployeeSearch(e.target.value)}
+                                className="h-8 text-xs mb-2"
+                            />
+                            <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                {filteredEmployees.map(emp => (
+                                    <div
+                                        key={emp.id}
+                                        onClick={() => toggleTag(emp.id)}
+                                        className={cn("flex items-center gap-2 p-1.5 rounded-md cursor-pointer text-xs",
+                                            tags.includes(emp.id) ? "bg-primary/10 text-primary" : "hover:bg-muted")}
+                                    >
+                                        <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                                            {emp.firstName?.charAt(0)}
+                                        </div>
+                                        <span className="truncate">{emp.firstName} {emp.lastName}</span>
+                                        {tags.includes(emp.id) && <Check className="h-3 w-3 ml-auto" />}
+                                    </div>
+                                ))}
                             </div>
                         </PopoverContent>
                     </Popover>
 
-                    {tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                            {tags.map(id => {
-                                const emp = employees.find((e: User) => e.id === id);
-                                if (!emp) return null;
-                                return (
-                                    <Badge key={id} variant="secondary" className="text-xs h-7 px-2.5 bg-purple-500/10 text-purple-600 border border-purple-500/20 pr-1.5 flex items-center gap-1.5">
-                                        @{emp.firstName}
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleTag(id)}
-                                            className="hover:bg-purple-500/20 rounded-full p-0.5 transition-colors"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </Badge>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-
-                {/* Points Content */}
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                        <label className="text-sm font-medium text-muted-foreground">Points</label>
-                        <span className="text-xs text-muted-foreground">{points.length} {points.length === 1 ? 'point' : 'points'}</span>
-                    </div>
-
-                    <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">
-                        {points.map((point, index) => (
-                            <div key={index} className="flex items-center gap-2 group">
-                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/10 text-purple-600 text-xs font-medium shrink-0">
-                                    {index + 1}
-                                </div>
-                                <Textarea
-                                    value={point}
-                                    onChange={(e) => updatePoint(index, e.target.value)}
-                                    placeholder={`Point ${index + 1}...`}
-                                    className="min-h-[60px] resize-none bg-background/50 border-border/50 text-sm"
-                                    rows={2}
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removePoint(index)}
-                                    className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
-
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addPoint}
-                        className="gap-2 self-start mt-1"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Add Point
-                    </Button>
-                </div>
-
-                {/* Attachments */}
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                        {/* File Upload Button */}
-                        <input
-                            type="file"
-                            multiple
-                            ref={fileInputRef}
-                            className="hidden"
-                            onChange={handleFileUpload}
-                        />
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploading}
-                            className="h-9 gap-2 bg-background/30 hover:bg-background/50 transition-colors border-dashed"
-                        >
-                            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4 text-indigo-500" />}
-                            <span>Attach Files</span>
+                    {/* Attachments & Links */}
+                    <div className="flex items-center gap-1">
+                        <input type="file" multiple ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                        <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} className="h-8 w-8 rounded-full p-0">
+                            <Paperclip className="h-3.5 w-3.5 opacity-60" />
                         </Button>
-
-                        {/* Add Link Button */}
                         <Popover open={isLinkPopoverOpen} onOpenChange={setIsLinkPopoverOpen}>
                             <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    type="button"
-                                    className="h-9 gap-2 bg-background/30 hover:bg-background/50 transition-colors border-dashed"
-                                >
-                                    <LinkIcon className="h-4 w-4 text-blue-500" />
-                                    <span>Add Link</span>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full p-0">
+                                    <LinkIcon className="h-3.5 w-3.5 opacity-60" />
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-80 p-4 z-[10001]" align="start">
-                                <div className="space-y-4">
-                                    <h4 className="font-medium text-sm">Add a Link</h4>
-                                    <div className="space-y-2">
-                                        <Input
-                                            placeholder="URL (e.g. https://example.com)"
-                                            value={newLinkUrl}
-                                            onChange={(e) => setNewLinkUrl(e.target.value)}
-                                            className="h-9 text-sm"
-                                        />
-                                        <Input
-                                            placeholder="Display Name"
-                                            value={newLinkName}
-                                            onChange={(e) => setNewLinkName(e.target.value)}
-                                            className="h-9 text-sm"
-                                        />
-                                        <Input
-                                            placeholder="Heading (Optional group name)"
-                                            value={newLinkHeading}
-                                            onChange={(e) => setNewLinkHeading(e.target.value)}
-                                            className="h-9 text-sm"
-                                        />
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            onClick={handleAddLink}
-                                            className="w-full mt-2"
-                                            disabled={!newLinkUrl.trim() || !newLinkName.trim()}
-                                        >
-                                            Add Link
-                                        </Button>
-                                    </div>
+                            <PopoverContent className="w-72 p-3 z-[120]" align="start">
+                                <div className="space-y-3">
+                                    <Input placeholder="URL" value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="h-8 text-xs" />
+                                    <Input placeholder="Name" value={newLinkName} onChange={(e) => setNewLinkName(e.target.value)} className="h-8 text-xs" />
+                                    <Button size="sm" onClick={handleAddLink} className="w-full h-8 text-xs">Add Link</Button>
                                 </div>
                             </PopoverContent>
                         </Popover>
                     </div>
 
-                    {(attachments.length > 0 || links.length > 0) && (
-                        <div className="flex flex-col gap-2 mt-2">
-                            {/* Render Attachments */}
-                            {attachments.map((att, index) => (
-                                <div key={`att-${index}`} className="flex flex-col gap-2 p-3 rounded-lg bg-muted/30 border border-border/40 group">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <div className="flex items-center gap-3 overflow-hidden">
-                                            <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
-                                                <Paperclip className="h-4 w-4 text-indigo-500" />
-                                            </div>
-                                            <span className="truncate font-medium max-w-[150px]">{att.name}</span>
-                                            <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline-block">
-                                                {((att.size ?? 0) / 1024).toFixed(1)} KB
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                placeholder="Heading (Optional)"
-                                                value={att.heading || ''}
-                                                onChange={(e) => updateAttachmentHeading(index, e.target.value)}
-                                                className="h-8 w-32 sm:w-40 text-xs bg-background/50 transition-all border-transparent hover:border-border focus:border-purple-500"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeAttachment(index)}
-                                                className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-500/10"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                    <div className="flex-1" />
 
-                            {/* Render Links */}
-                            {links.map((link, index) => (
-                                <div key={`link-${index}`} className="flex flex-col gap-2 p-3 rounded-lg bg-muted/30 border border-border/40 group">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <div className="flex items-center gap-3 overflow-hidden">
-                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                                                <LinkIcon className="h-4 w-4 text-blue-500" />
-                                            </div>
-                                            <div className="flex flex-col overflow-hidden max-w-[150px]">
-                                                <span className="truncate font-medium">{link.name}</span>
-                                                <span className="truncate text-xs text-muted-foreground">{link.url}</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                placeholder="Heading (Optional)"
-                                                value={link.heading || ''}
-                                                onChange={(e) => updateLinkHeading(index, e.target.value)}
-                                                className="h-8 w-32 sm:w-40 text-xs bg-background/50 transition-all border-transparent hover:border-border focus:border-blue-500"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeLink(index)}
-                                                className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-500/10"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-between items-center pt-3 border-t border-border/40 shrink-0">
-                <span className="text-xs text-muted-foreground">
-                    {noteToEdit ? 'Last updated' : 'Creating new note'}
-                </span>
-                <div className="flex gap-2">
-                    <Button variant="ghost" type="button" onClick={onClose} disabled={isPending}>
-                        Cancel
-                    </Button>
                     <Button
-                        type="submit"
-                        disabled={isPending || !title.trim() || ((type === 'PROJECT' || type === 'TODO') && !projectId)}
-                        className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] px-5"
+                        onClick={handleSubmit}
+                        disabled={isPending || !title.trim()}
+                        className="h-9 px-6 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-all"
                     >
-                        {isPending ? (
-                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
-                        ) : noteToEdit ? 'Update Note' : 'Save Note'}
+                        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Done'}
                     </Button>
                 </div>
+
+                {/* Tags, Attachments, Links List */}
+                {(tags.length > 0 || attachments.length > 0 || links.length > 0) && (
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-border/20">
+                        {tags.map(id => {
+                            const emp = employees.find(e => e.id === id);
+                            return emp && (
+                                <Badge key={id} variant="secondary" className="bg-primary/5 text-primary border-none gap-1 py-1">
+                                    @{emp.firstName}
+                                    <X className="h-3 w-3 cursor-pointer" onClick={() => toggleTag(id)} />
+                                </Badge>
+                            );
+                        })}
+                        {attachments.map((att, i) => (
+                            <Badge key={i} variant="outline" className="gap-1 py-1">
+                                <Paperclip className="h-3 w-3 opacity-60" />
+                                {att.name}
+                                <X className="h-3 w-3 cursor-pointer" onClick={() => removeAttachment(i)} />
+                            </Badge>
+                        ))}
+                        {links.map((link, i) => (
+                            <Badge key={i} variant="outline" className="gap-1 py-1">
+                                <LinkIcon className="h-3 w-3 opacity-60" />
+                                {link.name}
+                                <X className="h-3 w-3 cursor-pointer" onClick={() => removeLink(i)} />
+                            </Badge>
+                        ))}
+                    </div>
+                )}
             </div>
-        </form>
+        </div>
+
     );
 }

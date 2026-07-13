@@ -5,6 +5,7 @@ const { BadRequestError, UnprocessableEntityError, NotFoundError } = require('..
 const { generateJwtToken } = require('../../utils/jwtGenerator');
 const { jwtConfig } = require('../../config/jwtConfig');
 const bcrypt = require('bcryptjs');
+const { loginToAdmissionServer } = require('../../services/admissionService');
 
 
 const login = async (req, res, next) => {
@@ -24,40 +25,117 @@ const login = async (req, res, next) => {
     const { email, password, deviceId, deviceName, deviceType, browser, os } = req.body;
 
     try {
-        const result = await pool.query(
-            'SELECT id, email, password, role, "organiationId", "lastDeviceId" FROM employee WHERE email = $1 AND is_archived = false',
-            [email]
-        );
-
-        if (result.rowCount === 0) {
-            return next(new UnprocessableEntityError('Invalid email or password'));
+        // 1. Attempt to authenticate with external Admission Server
+        let admissionUser;
+        try {
+            const admissionResponse = await loginToAdmissionServer(email, password);
+            const admissionToken = admissionResponse.token; // In Admission Server, it's at the top level
+            
+            if (admissionToken) {
+                const decoded = jwt.verify(admissionToken, process.env.ADMISSION_JWT_SECRET || 'This is Secret');
+                admissionUser = decoded.user;
+            } else if (admissionResponse.data?.user) {
+                // Fallback for different response shapes
+                admissionUser = admissionResponse.data.user;
+            }
+        } catch (admissionError) {
+            console.error('Admission Server Auth Failed:', admissionError.message);
+            // If Admission Server is unreachable or returns 401, we can either fail or try local login
+            // The requirement says "Organization and employee details will be retrieved directly from the admission server"
+            // implying it should be the primary source.
+            // However, we might want a fallback for local-only accounts (if any exist).
+            // For now, let's proceed to local login if admission fails, but LOG it.
         }
 
-        const user = result.rows[0];
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return next(new UnprocessableEntityError('Invalid email or password'));
+        let user;
+        let organizationId;
+
+        if (admissionUser) {
+            // 2. Sync Organization from Admission Server
+            const admissionOrgId = admissionUser.organizationUuid || admissionUser.organizationId;
+            if (admissionOrgId) {
+                const orgResult = await pool.query(
+                    'SELECT id FROM organiation WHERE external_id = $1',
+                    [admissionOrgId]
+                );
+
+                if (orgResult.rowCount > 0) {
+                    organizationId = orgResult.rows[0].id;
+                } else {
+                    // Create organization locally if it doesn't exist
+                    const orgName = admissionUser.organization_name || admissionUser.institutes?.[0]?.name || `Organization ${admissionOrgId}`;
+                    const newOrg = await pool.query(
+                        'INSERT INTO organiation (name, external_id) VALUES ($1, $2) RETURNING id',
+                        [orgName, admissionOrgId]
+                    );
+                    organizationId = newOrg.rows[0].id;
+                }
+            }
+
+            // 3. Sync Employee from Admission Server
+            const employeeResult = await pool.query(
+                'SELECT id, email, role, "organiationId", "lastDeviceId" FROM employee WHERE email = $1 AND is_archived = false',
+                [admissionUser.email]
+            );
+
+            if (employeeResult.rowCount > 0) {
+                user = employeeResult.rows[0];
+                // Update local role/org based on admission server
+                const newRole = admissionUser.role?.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'USER';
+                await pool.query(
+                    'UPDATE employee SET role = $1, "organiationId" = $2 WHERE id = $3',
+                    [newRole, organizationId, user.id]
+                );
+                user.role = newRole;
+                user.organiationId = organizationId;
+            } else {
+                // Create new employee locally
+                const nameParts = admissionUser.name?.split(' ') || ['User'];
+                const firstName = nameParts[0];
+                const lastName = nameParts.slice(1).join(' ') || '';
+                const newRole = admissionUser.role?.toUpperCase() === 'ADMIN' ? 'ADMIN' : 'USER';
+
+                const newEmployee = await pool.query(
+                    'INSERT INTO employee ("firstName", "lastName", email, role, "organiationId", password, position) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, role, "organiationId", "lastDeviceId"',
+                    [firstName, lastName, admissionUser.email, newRole, organizationId, 'external_auth_placeholder', 'Employee']
+                );
+                user = newEmployee.rows[0];
+            }
+        } else {
+            // 4. Fallback to local authentication if Admission Server didn't provide a user
+            const result = await pool.query(
+                'SELECT id, email, password, role, "organiationId", "lastDeviceId" FROM employee WHERE email = $1 AND is_archived = false',
+                [email]
+            );
+
+            if (result.rowCount === 0) {
+                return next(new UnprocessableEntityError('Invalid email or password'));
+            }
+
+            user = result.rows[0];
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if (!isPasswordValid) {
+                return next(new UnprocessableEntityError('Invalid email or password'));
+            }
         }
 
         const token = generateJwtToken(user.email, user.role, user.id, user.organiationId);
 
         res.cookie('token', token, { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 24 });
 
-        // Track device on login
-        const deviceInfo = {
-            deviceId,
-            deviceName,
-            deviceType,
-            browser,
-            os
-        };
+        // Update lastDeviceId on login if provided
+        if (deviceId) {
+            await pool.query(
+                'UPDATE employee SET "lastDeviceId" = $1 WHERE id = $2',
+                [deviceId, user.id]
+            );
+        }
 
-        // Return device tracking info for frontend
+        // Return login info
         res.status(200).json({
             user: {},
             token,
-            deviceInfo,
-            lastDeviceId: user.lastDeviceId
+            lastDeviceId: deviceId || user.lastDeviceId
         });
     } catch (error) {
         next(error);
@@ -397,211 +475,7 @@ const deleteEmployee = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
-// Export Employees
-const exportUsers = async (req, res, next) => {
-    const organizationId = req.user.organization_uuid;
-    try {
-        const result = await pool.query(
-            `WITH WeeklyStats AS (
-                SELECT
-                    e.id,
-                    COALESCE(SUM(
-                        CASE
-                            WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN
-                                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
-                            ELSE
-                                t.points
-                        END
-                    ), 0) as "weeklyPoints"
-                FROM employee e
-                LEFT JOIN task t ON (
-                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR
-                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
-                )
-                    AND LOWER(t.status) IN ('done', 'completed')
-                    AND t."completedAt" >= NOW() - INTERVAL '7 days'
-                WHERE e."organiationId" = $1
-                GROUP BY e.id
-             ),
-             YesterdayStats AS (
-                SELECT
-                    e.id,
-                    COALESCE(SUM(
-                        CASE
-                            WHEN t.type::text IN ('SHARED', 'SEQUENTIAL') THEN
-                                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
-                            ELSE
-                                t.points
-                        END
-                    ), 0) as "yesterdayPoints"
-                FROM employee e
-                LEFT JOIN task t ON (
-                    (t.type::text = 'SINGLE' AND t."assignedTo"::uuid = e.id) OR
-                    (t.type::text IN ('SHARED', 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = e.id))
-                )
-                    AND LOWER(t.status) IN ('done', 'completed')
-                    AND t."completedAt" >= CURRENT_DATE - INTERVAL '1 day'
-                    AND t."completedAt" < CURRENT_DATE
-                WHERE e."organiationId" = $1
-                GROUP BY e.id
-             )
-             SELECT
-                e.id,
-                e."firstName",
-                e."lastName",
-                e.email,
-                e.position,
-                e.role,
-                e."updatedAt",
-                e.dob,
-                e."bloodGroup",
-                e."phoneNumber",
-                e."emergencyContact",
-                e.address,
-                e.image,
-                e."createdAt",
-                e."joiningDate",
-                e.skills,
-                e.responsibilities,
-                ws."weeklyPoints",
-                COALESCE(ys."yesterdayPoints", 0) as "yesterdayPoints",
-                RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
-             FROM employee e
-             JOIN WeeklyStats ws ON e.id = ws.id
-             LEFT JOIN YesterdayStats ys ON e.id = ys.id
-             WHERE e."organiationId" = $1 AND e.is_archived = false
-             ORDER BY ws."weeklyPoints" DESC, e."firstName" ASC`,
-            [organizationId]
-        );
 
-        const users = result.rows;
-
-        // Convert to CSV
-        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Skills', 'Responsibilities', 'Weekly Points', 'Joined At', 'Date of Birth', 'Blood Group', 'Phone Number', 'Emergency Contact', 'Address', 'Image URL', 'Last Updated'];
-        const csvRows = [header.join(',')];
-
-        users.forEach(user => {
-            const skills = (user.skills || []).join('; ');
-            const responsibilities = (user.responsibilities || []).join('; ');
-
-            const row = [
-                user.id,
-                user.rank,
-                `"${(user.firstName || '').replace(/"/g, '""')}"`,
-                `"${(user.lastName || '').replace(/"/g, '""')}"`,
-                `"${(user.email || '').replace(/"/g, '""')}"`,
-                `"${(user.position || '').replace(/"/g, '""')}"`,
-                user.role,
-                `"${skills.replace(/"/g, '""')}"`,
-                `"${responsibilities.replace(/"/g, '""')}"`,
-                user.weeklyPoints,
-                user.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : (user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : ''),
-                user.dob ? new Date(user.dob).toISOString().split('T')[0] : '',
-                `"${(user.bloodGroup || '').replace(/"/g, '""')}"`,
-                `"${(user.phoneNumber || '').replace(/"/g, '""')}"`,
-                `"${(user.emergencyContact || '').replace(/"/g, '""')}"`,
-                `"${(user.address || '').replace(/"/g, '""')}"`,
-                `"${(user.image || '').replace(/"/g, '""')}"`,
-                user.updatedAt ? new Date(user.updatedAt).toISOString() : ''
-            ];
-            csvRows.push(row.join(','));
-        });
-
-        const csvContent = csvRows.join('\n');
-
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename="users_export.csv"');
-        res.send(csvContent);
-    } catch (error) { next(error); }
-};
-
-// ==================== DEVICE TRACKING ====================
-
-// Set primary device on first login
-const setPrimaryDevice = async (req, res, next) => {
-    const { user_uuid } = req.user;
-    const { deviceId, deviceName, deviceType, browser, os } = req.body;
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        const existingResult = await client.query(
-            `SELECT id, "isPrimary" FROM device WHERE "deviceId" = $1 AND "employeeId" = $2`,
-            [deviceId, user_uuid]
-        );
-
-        if (existingResult.rowCount > 0) {
-            // Update existing device
-            await client.query(
-                `UPDATE device SET "deviceName" = $1, "deviceType" = $2, browser = $3, os = $4, "lastUsedAt" = NOW() WHERE id = $5`,
-                [deviceName, deviceType, browser, os, existingResult.rows[0].id]
-            );
-        } else {
-            // Insert new device
-            await client.query(
-                `INSERT INTO device ("deviceId", "deviceName", "deviceType", browser, os, "employeeId", "isPrimary")
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [deviceId, deviceName || null, deviceType || null, browser || null, os || null, user_uuid, true]
-            );
-        }
-
-        // Update employee's lastDeviceId
-        await client.query(
-            `UPDATE employee SET "lastDeviceId" = $1 WHERE id = $2`,
-            [deviceId, user_uuid]
-        );
-
-        await client.query('COMMIT');
-        res.json({ success: true, message: 'Device registered' });
-    } catch (error) {
-        await client.query('ROLLBACK');
-        next(error);
-    } finally {
-        client.release();
-    }
-};
-
-// Check for device change on login
-const checkDeviceChange = async (req, res, next) => {
-    const { user_uuid } = req.user;
-    const { deviceId } = req.body;
-
-    try {
-        const result = await pool.query(
-            `SELECT id FROM device WHERE "deviceId" = $1 AND "employeeId" = $2`,
-            [deviceId, user_uuid]
-        );
-
-        if (result.rowCount === 0) {
-            return res.json({ isNewDevice: true, message: 'New device detected' });
-        }
-
-        // Check if device differs from last attendance
-        const attendanceResult = await pool.query(
-            `SELECT "deviceId", "checkIn" FROM attendance
-             WHERE "employeeId" = $1
-             ORDER BY "checkIn" DESC
-             LIMIT 1`,
-            [user_uuid]
-        );
-
-        if (attendanceResult.rowCount > 0) {
-            const lastAttendance = attendanceResult.rows[0];
-            if (lastAttendance.deviceId !== deviceId) {
-                return res.json({
-                    deviceChanged: true,
-                    lastUsedDevice: lastAttendance.deviceId,
-                    lastAttendanceAt: lastAttendance.checkIn
-                });
-            }
-        }
-
-        res.json({ isNewDevice: false, message: 'Device recognized' });
-    } catch (error) {
-        next(error);
-    }
-};
 
 module.exports = {
     login,
@@ -613,8 +487,5 @@ module.exports = {
     updateEmployee,
     changePassword,
     deleteEmployee,
-    exportUsers,
-    getSkills,
-    setPrimaryDevice,
-    checkDeviceChange
+    getSkills
 };

@@ -48,7 +48,7 @@ const ProjectsPage = () => {
     topPerformers: { name: string; initial: string; points: number }[];
     headId?: string;
     headName?: string;
-    status: 'ACTIVE' | 'ON_HOLD' | 'COMPLETED';
+    status?: 'ACTIVE' | 'ON_HOLD' | 'COMPLETED';
   }
 
   interface Employee {
@@ -116,8 +116,13 @@ const ProjectsPage = () => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const payload = jwtDecode(token) as { user: { role: string } };
-        setUserRole(payload.user.role);
+        const payload: any = jwtDecode(token);
+        const role = payload?.user?.role;
+        if (role) {
+          setUserRole(role);
+        } else {
+          console.error('Token missing user role information');
+        }
       } catch (error) {
         console.error('Invalid token', error);
       }
@@ -389,15 +394,13 @@ const ProjectsPage = () => {
             <Download className="h-4 w-4" />
             Export
           </Button>
-          {userRole === 'ADMIN' && (
-            <Button
-              onClick={openAddModal}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
-            >
-              <Plus className="h-4 w-4" />
-              New Project
-            </Button>
-          )}
+          <Button
+            onClick={openAddModal}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-semibold"
+          >
+            <Plus className="h-4 w-4" />
+            New Project
+          </Button>
         </div>
       </div>
 
@@ -528,7 +531,7 @@ const ProjectsPage = () => {
                         )}
                       >
                         {project.status === 'ON_HOLD' && <Pause className="h-2.5 w-2.5 mr-1" />}
-                        {project.status.replace('_', ' ')}
+                        {project.status?.replace('_', ' ') || 'ACTIVE'}
                       </Badge>
                     </td>
                     <td className="px-2 py-2 md:px-4 md:py-4 align-top">
@@ -568,26 +571,22 @@ const ProjectsPage = () => {
                             <ArrowRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           </Button>
                         </Link>
-                        {userRole === 'ADMIN' && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
-                              onClick={() => openEditModal(project)}
-                            >
-                              <Pencil className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                              onClick={() => initiateDeleteProject(project.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                            </Button>
-                          </>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+                          onClick={() => openEditModal(project)}
+                        >
+                          <Pencil className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                          onClick={() => initiateDeleteProject(project.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -603,15 +602,13 @@ const ProjectsPage = () => {
               <h2 className="text-2xl font-bold text-foreground">Project Priority</h2>
               <p className="text-muted-foreground mt-1">Drag and drop to reorder projects by priority</p>
             </div>
-            {userRole === 'ADMIN' && (
-              <Button
-                onClick={handleSavePriority}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-purple-500/20 transition-all duration-300 gap-2 font-semibold"
-              >
-                <Plus className="h-4 w-4" />
-                Save Priority
-              </Button>
-            )}
+            <Button
+              onClick={handleSavePriority}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-purple-500/20 transition-all duration-300 gap-2 font-semibold"
+            >
+              <Plus className="h-4 w-4" />
+              Save Priority
+            </Button>
           </div>
 
           <DndContext

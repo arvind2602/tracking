@@ -23,8 +23,15 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     }
 
     try {
-      const payload = jwtDecode<{ user: { role: string } }>(token);
-      const userRole = payload.user.role;
+      const payload = jwtDecode<any>(token);
+      const userRole = payload?.user?.role;
+
+      if (!userRole) {
+        console.error('Token missing user role information');
+        localStorage.removeItem('token');
+        router.push('/');
+        return;
+      }
 
       if (userRole === 'USER') {
         // Allow access to essential dashboard routes
@@ -33,7 +40,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
           pathname.startsWith('/dashboard/tasks') ||
           pathname.startsWith('/dashboard/profile') ||
           pathname.startsWith('/dashboard/attendance') ||
-          pathname.startsWith('/dashboard/qr');
+          pathname.startsWith('/dashboard/projects');
 
         if (!isAllowedPath) {
           router.push('/dashboard/tasks');
@@ -42,6 +49,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     } catch (error) {
       // If token is invalid, redirect to login
       console.error('Invalid token', error);
+      localStorage.removeItem('token');
       router.push('/');
     }
   }, [pathname, router]);

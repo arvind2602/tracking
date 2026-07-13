@@ -35,6 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api', routes);
+app.use('/api/v1', routes);
 
 // Health check
 app.get('/', (req, res) => {
