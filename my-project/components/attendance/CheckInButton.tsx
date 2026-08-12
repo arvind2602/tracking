@@ -43,10 +43,17 @@ const EARLY_CLOCKOUT_MESSAGES = [
     "Clocking out early? Manager subah se kalesh kar dega yaar 🤡",
     "You're leaving early? Big red flag 🚩 Complete your hours pookie 🎀",
     "Leaving early is giving peak jobless behavior 💀 stay back and finish the shift!",
-    "Not the early check-out... bro is trying to get fired speedrun any% 🏃‍♂️💨",
-    "Ghar jaake kya hi karega bhai? Shift toh poori kar le 😭",
-    "Bro's dedication is ded 💀 Just finish the hours man!",
-    "Suspicious activity detected: trying to escape early 👁️👄👁️"
+    "Bro thought he could escape early without getting caught 💀 Delulu is the solulu I guess"
+];
+
+const CHECKIN_MESSAGES = [
+    "Sunday shift? The grind never stops 🔥 Let's get this bread!",
+    "Monday motivation: Let's secure the bag bestie 💼",
+    "Tuesday vibes! Time to lock in and cook 🍳",
+    "Mid-week check! W rizz on that work ethic 💯",
+    "Thursday grind! Almost to the weekend, let's slay today 💅",
+    "Friday energy! One last push before the weekend 🙌",
+    "Weekend warrior! You're the GOAT for this shift 🐐"
 ];
 
 export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
@@ -149,7 +156,15 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
             return;
         }
 
-        await executeAction(type);
+        if (type === 'in') {
+            setIsEarlyClockOut(false);
+            setPopupMessage(CHECKIN_MESSAGES[new Date().getDay()]);
+            setPendingAction(type);
+            setIsConfirmModalOpen(true);
+            return;
+        }
+
+        executeAction(type);
     };
 
     const executeAction = async (type: 'in' | 'out') => {
@@ -160,8 +175,8 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
         try {
             const url = type === 'in' ? '/attendance/check-in' : '/attendance/check-out';
             const res = await axios.post(url, {
-                latitude: location.lat,
-                longitude: location.lng,
+                latitude: location!.lat,
+                longitude: location!.lng,
                 deviceId,
                 deviceTime: new Date().toISOString(),
                 ...deviceInfo
@@ -182,6 +197,7 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
             toast.error(error.response?.data?.message || `Failed to ${type === 'in' ? 'check-in' : 'check-out'}`);
         } finally {
             setLoading(false);
+            setIsConfirmModalOpen(false);
         }
     };
 
@@ -310,31 +326,24 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
 
             <ConfirmationModal
                 isOpen={isConfirmModalOpen}
-                onClose={() => {
-                    setIsConfirmModalOpen(false);
-                    setPendingAction(null);
-                }}
-                onConfirm={() => {
-                    if (pendingAction) {
-                        executeAction(pendingAction);
-                    }
-                }}
-                title={isEarlyClockOut ? "Early Clock Out" : "Great Work Today!"}
+                onClose={() => setIsConfirmModalOpen(false)}
+                onConfirm={() => executeAction(pendingAction!)}
+                title={pendingAction === 'out' ? (isEarlyClockOut ? "Leaving Early? 👀" : "Shift Complete! 🎉") : "Ready to Hustle? 🚀"}
                 description={
-                    isEarlyClockOut ? (
-                        <span>
-                            You have only completed <span className="font-bold text-amber-500 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-md">{completedTimeStr}</span> of work today.<br /><br />
-                            <span className="font-medium text-foreground">{popupMessage}</span>
-                        </span>
-                    ) : (
-                        <span>
+                    <div className="space-y-4">
+                        {pendingAction === 'out' && isEarlyClockOut && (
+                            <p className="text-sm font-medium text-destructive bg-destructive/10 p-3 rounded-lg border border-destructive/20">
+                                You have only completed <span className="font-bold text-base">{completedTimeStr}</span> of your 9-hour shift.
+                            </p>
+                        )}
+                        <p className="text-base text-foreground font-medium">
                             {popupMessage}
-                        </span>
-                    )
+                        </p>
+                    </div>
                 }
-                confirmText={isEarlyClockOut ? "Yes, Clock Out" : "Clock Out"}
+                confirmText={pendingAction === 'out' ? "Yes, Clock Out" : "Let's Go!"}
                 cancelText="Cancel"
-                variant={isEarlyClockOut ? "destructive" : "default"}
+                variant={pendingAction === 'out' && isEarlyClockOut ? "destructive" : "default"}
             />
         </div>
     );
