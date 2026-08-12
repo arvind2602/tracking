@@ -235,7 +235,7 @@ export default function DashboardLayout({
                 key={item.label}
                 href={item.href}
                 onClick={() => setIsSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold transition-all duration-300 
                   ${isActive
                     ? 'bg-sidebar-accent text-sidebar-accent-foreground border border-sidebar-border shadow-lg'
                     : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'
@@ -258,7 +258,7 @@ export default function DashboardLayout({
           </div>
           <button
             onClick={handleLogout}
-            className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-red-400 dark:text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-300 border border-transparent hover:border-red-500/20
+            className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-red-400 dark:text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-300 border border-transparent hover:border-red-500/20
                ${isCollapsed ? 'justify-center' : ''}
             `}
             title={isCollapsed ? 'Logout' : ''}
