@@ -39,6 +39,7 @@ interface AllTasksProps {
   users: User[];
   projects: Project[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
+  headedProjectIds?: Set<string>;
   currentPage?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
@@ -48,7 +49,7 @@ interface AllTasksProps {
   onSort?: (column: string) => void;
 }
 
-export default function AllTasks({ tasks, users, projects, setTasks, currentPage, totalPages, onPageChange, itemsPerPage, sortBy, sortOrder, onSort }: AllTasksProps) {
+export default function AllTasks({ tasks, users, projects, setTasks, headedProjectIds, currentPage, totalPages, onPageChange, itemsPerPage, sortBy, sortOrder, onSort }: AllTasksProps) {
   const router = useRouter();
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -262,6 +263,9 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
     }
     return null;
   };
+
+  const canManage = (task: Task) =>
+    userRole === 'ADMIN' || (headedProjectIds ? headedProjectIds.has(task.projectId) : false);
 
   const initiateDeleteTask = (taskId: string) => {
     setTaskToDelete(taskId);
@@ -1366,7 +1370,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                               ) : (
                                 task.status === 'pending-review' ? (
                                   // PENDING REVIEW STATE
-                                  (userRole === 'ADMIN' || currentUserId === task.createdBy) ? (
+                                  (canManage(task) || currentUserId === task.createdBy) ? (
                                     <>
                                       <Button
                                         onClick={() => handleMarkAsCompleted(task)}
@@ -1417,7 +1421,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                 )
                               )
                             )}
-                            {userRole === "ADMIN" && (
+                            {canManage(task) && (
                               <Button
                                 onClick={() => handleAssignClick(task)}
                                 variant="ghost"
@@ -1429,7 +1433,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                 {loadingTaskId === task.id ? <Loader className="animate-spin h-3.5 w-3.5 md:h-4 md:w-4" /> : <UserIcon className="h-3.5 w-3.5 md:h-4 md:w-4" />}
                               </Button>
                             )}
-                            {userRole === "ADMIN" && (
+                            {canManage(task) && (
                               <Button
                                 onClick={() => initiateDeleteTask(task.id)}
                                 variant="ghost"
@@ -1588,7 +1592,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                     subtask.status !== "completed" && (
                                       subtask.status === 'pending-review' ? (
                                         // PENDING REVIEW STATE - Check Parent task creator
-                                        (userRole === 'ADMIN' || currentUserId === task.createdBy) ? (
+                                        (canManage(task) || currentUserId === task.createdBy) ? (
                                           <>
                                             <Button
                                               onClick={() => handleMarkAsCompleted(subtask)}
@@ -1638,7 +1642,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                         )
                                       )
                                     )}
-                                  {userRole === "ADMIN" && (
+                                  {canManage(task) && (
                                     <Button
                                       onClick={() => handleAssignClick(subtask)}
                                       variant="ghost"
@@ -1649,7 +1653,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, currentPage
                                       <UserIcon className="h-3 w-3" />
                                     </Button>
                                   )}
-                                  {userRole === "ADMIN" && (
+                                  {canManage(task) && (
                                     <Button
                                       onClick={() => initiateDeleteTask(subtask.id)}
                                       variant="ghost"

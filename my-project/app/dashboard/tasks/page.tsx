@@ -114,6 +114,12 @@ export default function Tasks() {
 
 
 
+  const headedProjectIds = useMemo(
+    () => new Set(projects.filter(p => p.headIds?.includes(currentUserId ?? '')).map(p => p.id)),
+    [projects, currentUserId]
+  );
+  const isHead = headedProjectIds.size > 0;
+
   // Dashboard Stats State
   const [dashboardStats, setDashboardStats] = useState({
     totalTasks: 0,
@@ -217,7 +223,7 @@ export default function Tasks() {
           </h1>
           <p className="text-muted-foreground mt-1 font-medium text-sm">Manage and monitor organizational tasks.</p>
         </div>
-        {userRole === 'ADMIN' && (
+        {userRole === 'ADMIN' || isHead ? (
           <Button
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
             onClick={() => setIsModalOpen(true)}
@@ -225,7 +231,7 @@ export default function Tasks() {
             <Plus className="h-5 w-5" />
             Add New Task
           </Button>
-        )}
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -287,7 +293,7 @@ export default function Tasks() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        {userRole === 'ADMIN' && (
+        {(userRole === 'ADMIN' || isHead) && (
           <SearchableSelect
             value={statusFilter}
             onValueChange={(val: string) => setStatusFilter(val)}
@@ -302,7 +308,7 @@ export default function Tasks() {
             className="w-full md:w-[220px]"
           />
         )}
-        {userRole === 'ADMIN' && (
+        {(userRole === 'ADMIN' || isHead) && (
           <SearchableSelect
             value={projectFilter}
             onValueChange={(val: string) => setProjectFilter(val)}
@@ -314,7 +320,7 @@ export default function Tasks() {
             className="w-full md:w-[220px]"
           />
         )}
-        {userRole === 'ADMIN' && (
+        {(userRole === 'ADMIN' || isHead) && (
           <SearchableSelect
             value={userFilter}
             onValueChange={(val: string) => setUserFilter(val)}
@@ -368,6 +374,7 @@ export default function Tasks() {
               users={users}
               projects={projects}
               setTasks={setTasks}
+              headedProjectIds={headedProjectIds}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -408,7 +415,7 @@ export default function Tasks() {
 
             <AddTaskForm
               users={users}
-              projects={projects}
+              projects={userRole === 'ADMIN' ? projects : projects.filter(p => headedProjectIds.has(p.id))}
               onTaskAdded={fetchAllTasks}
               onClose={() => setIsModalOpen(false)}
               currentUserId={currentUserId}

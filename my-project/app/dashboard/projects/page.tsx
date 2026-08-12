@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import Link from 'next/link';
 import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
-import { Trash2, ArrowRight, Plus, Download, GripVertical, List, BarChart3, Pencil, Pause } from 'lucide-react';
+import { Trash2, ArrowRight, Plus, Download, GripVertical, List, BarChart3, Pencil, Pause, Check, X } from 'lucide-react';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { jwtDecode } from 'jwt-decode';
 import { cn } from '@/lib/utils';
@@ -32,8 +32,81 @@ import {
 
 import { CSS } from '@dnd-kit/utilities';
 
-import { SearchableSelect } from "@/components/ui/searchable-select"
+import { Command, CommandGroup, CommandItem, CommandList, CommandInput, CommandEmpty } from "@/components/ui/command";
 
+
+interface HeadSelectProps {
+  options: { id: string; firstName: string; lastName: string }[];
+  values: string[];
+  onChange: (values: string[]) => void;
+}
+
+function HeadSelect({ options, values, onChange }: HeadSelectProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = (id: string) => {
+    onChange(values.includes(id) ? values.filter(v => v !== id) : [...values, id]);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <div
+        className="flex min-h-[40px] w-full flex-wrap items-center gap-1 rounded-xl border border-input bg-transparent px-3 py-2 text-sm cursor-pointer"
+        onClick={() => setOpen(!open)}
+      >
+        {values.length === 0 ? (
+          <span className="text-muted-foreground">Select heads (optional)</span>
+        ) : (
+          values.map(id => {
+            const emp = options.find(e => e.id === id);
+            return (
+              <Badge key={id} variant="secondary" className="mr-1">
+                {emp ? `${emp.firstName} ${emp.lastName}` : id}
+                <span
+                  className="ml-1 cursor-pointer"
+                  onClick={(e) => { e.stopPropagation(); toggle(id); }}
+                >
+                  <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                </span>
+              </Badge>
+            );
+          })
+        )}
+      </div>
+      {open && (
+        <div className="absolute top-full z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
+          <Command>
+            <CommandInput placeholder="Search employees..." />
+            <CommandList>
+              <CommandEmpty>No employees found.</CommandEmpty>
+              <CommandGroup className="max-h-60 overflow-auto">
+                {options.map(emp => (
+                  <CommandItem
+                    key={emp.id}
+                    onSelect={() => toggle(emp.id)}
+                    className="cursor-pointer flex items-center justify-between"
+                  >
+                    <span>{emp.firstName} {emp.lastName}</span>
+                    {values.includes(emp.id) && <Check className="h-4 w-4" />}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const ProjectsPage = () => {
   interface Project {
@@ -47,6 +120,7 @@ const ProjectsPage = () => {
 
     topPerformers: { name: string; initial: string; points: number }[];
     headId?: string;
+    headIds?: string[];
     headName?: string;
     status: 'ACTIVE' | 'ON_HOLD' | 'COMPLETED';
   }
@@ -76,7 +150,7 @@ const ProjectsPage = () => {
 
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [newProjectHeadId, setNewProjectHeadId] = useState<string>('');
+  const [newProjectHeadIds, setNewProjectHeadIds] = useState<string[]>([]);
 
   const fetchProjects = useCallback(async () => {
     setIsLoading(true);
@@ -138,10 +212,13 @@ const ProjectsPage = () => {
     if (newProjectName.trim() !== '' && newProjectStartDate.trim() !== '') {
       const toastId = toast.loading(editingProject ? 'Updating project...' : 'Adding project...');
       try {
-        const getHeadName = (id: string | null) => {
-          if (!id) return 'Unassigned';
-          const emp = employees.find(e => e.id === id);
-          return emp ? `${emp.firstName} ${emp.lastName}` : 'Unassigned';
+        const getHeadName = (ids: string[] | null | undefined) => {
+          if (!ids || ids.length === 0) return 'Unassigned';
+          const names = ids.map(id => {
+            const emp = employees.find(e => e.id === id);
+            return emp ? `${emp.firstName} ${emp.lastName}` : null;
+          }).filter(Boolean);
+          return names.length ? names.join(', ') : 'Unassigned';
         };
 
         if (editingProject) {
@@ -149,13 +226,13 @@ const ProjectsPage = () => {
             name: newProjectName,
             description: newProjectDescription,
             startDate: newProjectStartDate,
-            headId: newProjectHeadId === "unassigned" ? null : newProjectHeadId,
+            headIds: newProjectHeadIds,
           });
 
           setProjects(projects.map(p => p.id === editingProject.id ? {
             ...p,
             ...response.data,
-            headName: getHeadName(response.data.headId)
+            headName: getHeadName(response.data.headIds)
           } : p));
 
           toast.success('Project updated successfully', { id: toastId });
@@ -164,7 +241,7 @@ const ProjectsPage = () => {
             name: newProjectName,
             description: newProjectDescription,
             startDate: newProjectStartDate,
-            headId: newProjectHeadId === "unassigned" ? null : newProjectHeadId,
+            headIds: newProjectHeadIds,
           });
 
           const newProjectData: Project = {
@@ -172,7 +249,8 @@ const ProjectsPage = () => {
             totalPoints: 0,
             yesterdayPoints: 0,
             topPerformers: [],
-            headName: getHeadName(response.data.headId)
+            status: response.data.status || 'ACTIVE',
+            headName: getHeadName(response.data.headIds)
           };
 
           setProjects([...projects, newProjectData]);
@@ -192,7 +270,7 @@ const ProjectsPage = () => {
     setNewProjectName('');
     setNewProjectDescription('');
     setNewProjectStartDate('');
-    setNewProjectHeadId('unassigned');
+    setNewProjectHeadIds([]);
     setIsModalOpen(true);
   };
 
@@ -201,7 +279,7 @@ const ProjectsPage = () => {
     setNewProjectName(project.name);
     setNewProjectDescription(project.description || '');
     setNewProjectStartDate(project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '');
-    setNewProjectHeadId(project.headId || 'unassigned');
+    setNewProjectHeadIds(project.headIds || (project.headId ? [project.headId] : []));
     setIsModalOpen(true);
   };
 
@@ -211,7 +289,7 @@ const ProjectsPage = () => {
     setNewProjectName('');
     setNewProjectDescription('');
     setNewProjectStartDate('');
-    setNewProjectHeadId('');
+    setNewProjectHeadIds([]);
   };
 
   const initiateDeleteProject = (projectId: number) => {
@@ -666,19 +744,11 @@ const ProjectsPage = () => {
 
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Project Head</label>
-                  <SearchableSelect
-                    value={newProjectHeadId}
-                    onValueChange={setNewProjectHeadId}
-                    options={[
-                      { value: "unassigned", label: "Unassigned" },
-                      ...employees.map((emp) => ({
-                        value: emp.id,
-                        label: `${emp.firstName} ${emp.lastName}`,
-                      })),
-                    ]}
-                    placeholder="Select a head (optional)"
-                    className="w-full"
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest ml-1">Project Heads</label>
+                  <HeadSelect
+                    options={employees}
+                    values={newProjectHeadIds}
+                    onChange={setNewProjectHeadIds}
                   />
                 </div>
               </div>

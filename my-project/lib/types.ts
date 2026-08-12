@@ -90,6 +90,7 @@ export interface Project {
   organizationId: string;
   priority_order?: number | null;
   headId?: string | null;
+  headIds?: string[];
   headName?: string | null;
 }
 

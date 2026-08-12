@@ -365,7 +365,7 @@ const getTaskByEmployee = async (req, res, next) => {
       // 1. Assigned directly (t."assignedTo" = $1)
       // 2. Created by me (t."createdBy" = $1) - vital for reviewing tasks assigned to others
       // 3. In assignees list for Shared/Sequential
-      contextWhere = `WHERE (t."assignedTo" = $1 OR t."createdBy" = $1 OR ((t.type = 'SHARED' OR t.type = 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid))) AND p."organiationId" = $2`;
+      contextWhere = `WHERE (t."assignedTo" = $1 OR t."createdBy" = $1 OR ((t.type = 'SHARED' OR t.type = 'SEQUENTIAL') AND EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId" = t.id AND ta."employeeId" = $1::uuid)) OR $1::uuid = ANY(p."headIds")) AND p."organiationId" = $2`;
       contextParams = [employeeId, organiationId];
     }
 

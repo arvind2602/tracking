@@ -84,6 +84,7 @@ model projects {
   endDate        DateTime?
   priority_order Int?                 @default(0)
   headId         String?              @db.Uuid
+  headIds        String[]             @default([])
   status         ProjectStatus        @default(ACTIVE)
   notes          Note[]
   holdHistory    ProjectHoldHistory[]
