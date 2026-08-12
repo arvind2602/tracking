@@ -53,24 +53,53 @@ export default function AttendancePage() {
     // Filters State
     const [statusFilter, setStatusFilter] = useState('all');
     const [userFilter, setUserFilter] = useState('all');
-    const [dateRangeFilter, setDateRangeFilter] = useState('all');
+    const [dateRangeFilter, setDateRangeFilter] = useState('this_month');
+    const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
     const [flagsFilter, setFlagsFilter] = useState('all');
 
     const today = format(new Date(), 'yyyy-MM-dd');
 
-    // Robust server-side filter params
-    const apiParams = useMemo(() => ({
-        search: searchTerm || undefined,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        employeeId: userFilter !== 'all' ? userFilter : undefined,
-        startDate: dateRangeFilter === '7days' ? format(subDays(new Date(), 7), 'yyyy-MM-dd') : 
-                  dateRangeFilter === '30days' ? format(subDays(new Date(), 30), 'yyyy-MM-dd') : undefined,
-        endDate: (dateRangeFilter === '7days' || dateRangeFilter === '30days') ? format(new Date(), 'yyyy-MM-dd') : undefined,
-        date: dateRangeFilter === 'today' ? today : 
-              dateRangeFilter === 'yesterday' ? format(subDays(new Date(), 1), 'yyyy-MM-dd') : undefined,
-        deviceMismatch: flagsFilter === 'mismatch' ? true : undefined,
-        withinGeofence: flagsFilter === 'outside' ? false : undefined,
-    }), [searchTerm, statusFilter, userFilter, dateRangeFilter, flagsFilter, today]);
+    const apiParams = useMemo(() => {
+        let startDate: string | undefined = undefined;
+        let endDate: string | undefined = undefined;
+        let date: string | undefined = undefined;
+
+        if (dateRangeFilter === '7days') {
+            startDate = format(subDays(new Date(), 7), 'yyyy-MM-dd');
+            endDate = format(new Date(), 'yyyy-MM-dd');
+        } else if (dateRangeFilter === '30days') {
+            startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+            endDate = format(new Date(), 'yyyy-MM-dd');
+        } else if (dateRangeFilter === 'today') {
+            date = today;
+        } else if (dateRangeFilter === 'yesterday') {
+            date = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+        } else if (dateRangeFilter === 'this_month') {
+            const [year, month] = selectedMonth.split('-');
+            if (year && month) {
+                const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1);
+                const lastDay = new Date(parseInt(year), parseInt(month), 0);
+                startDate = format(firstDay, 'yyyy-MM-dd');
+                endDate = format(lastDay, 'yyyy-MM-dd');
+            }
+        } else if (dateRangeFilter === 'custom') {
+            startDate = customStartDate || undefined;
+            endDate = customEndDate || undefined;
+        }
+
+        return {
+            search: searchTerm || undefined,
+            status: statusFilter !== 'all' ? statusFilter : undefined,
+            employeeId: userFilter !== 'all' ? userFilter : undefined,
+            startDate,
+            endDate,
+            date,
+            deviceMismatch: flagsFilter === 'mismatch' ? true : undefined,
+            withinGeofence: flagsFilter === 'outside' ? false : undefined,
+        };
+    }, [searchTerm, statusFilter, userFilter, dateRangeFilter, selectedMonth, customStartDate, customEndDate, flagsFilter, today]);
 
     // Fetch all employees for robust filtering
     const isAdmin = userRole === 'ADMIN';
@@ -275,7 +304,10 @@ export default function AttendancePage() {
                                         setSearchTerm('');
                                         setStatusFilter('all');
                                         setUserFilter('all');
-                                        setDateRangeFilter('all');
+                                        setDateRangeFilter('this_month');
+                                        setSelectedMonth(format(new Date(), 'yyyy-MM'));
+                                        setCustomStartDate('');
+                                        setCustomEndDate('');
                                         setFlagsFilter('all');
                                     }}
                                     className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-card border border-border rounded-2xl text-sm font-bold hover:bg-muted transition-all shadow-sm text-muted-foreground"
@@ -320,19 +352,49 @@ export default function AttendancePage() {
                                 placeholder="Employee"
                                 className="w-full md:w-[200px]"
                             />
-                            <SearchableSelect
-                                value={dateRangeFilter}
-                                onValueChange={setDateRangeFilter}
-                                options={[
-                                    { value: "all", label: "All Time" },
-                                    { value: "today", label: "Today" },
-                                    { value: "yesterday", label: "Yesterday" },
-                                    { value: "7days", label: "Last 7 Days" },
-                                    { value: "30days", label: "Last 30 Days" },
-                                ]}
-                                placeholder="Date Range"
-                                className="w-full md:w-[200px]"
-                            />
+                                <SearchableSelect
+                                    value={dateRangeFilter}
+                                    onValueChange={setDateRangeFilter}
+                                    options={[
+                                        { value: "this_month", label: "Month & Year" },
+                                        { value: "custom", label: "Custom Range" },
+                                        { value: "all", label: "All Time" },
+                                        { value: "today", label: "Today" },
+                                        { value: "yesterday", label: "Yesterday" },
+                                        { value: "7days", label: "Last 7 Days" },
+                                        { value: "30days", label: "Last 30 Days" },
+                                    ]}
+                                    placeholder="Date Range"
+                                    className="w-full md:w-[200px]"
+                                />
+                                
+                                {dateRangeFilter === 'this_month' && (
+                                    <input
+                                        type="month"
+                                        value={selectedMonth}
+                                        onChange={(e) => setSelectedMonth(e.target.value)}
+                                        className="px-3 py-2 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm"
+                                    />
+                                )}
+
+                                {dateRangeFilter === 'custom' && (
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="date"
+                                            value={customStartDate}
+                                            onChange={(e) => setCustomStartDate(e.target.value)}
+                                            className="px-3 py-2 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm"
+                                        />
+                                        <span className="text-muted-foreground text-sm">to</span>
+                                        <input
+                                            type="date"
+                                            value={customEndDate}
+                                            onChange={(e) => setCustomEndDate(e.target.value)}
+                                            className="px-3 py-2 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm"
+                                        />
+                                    </div>
+                                )}
+
                             <SearchableSelect
                                 value={flagsFilter}
                                 onValueChange={setFlagsFilter}

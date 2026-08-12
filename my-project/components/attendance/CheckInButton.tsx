@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
 import { Button } from '@/components/ui/button';
+import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { MapPin, LogIn, LogOut, Loader2, Smartphone, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { getDeviceId, getDeviceInfo } from '@/lib/device';
@@ -15,12 +16,50 @@ interface AttendanceStatus {
     deviceMismatch?: boolean;
 }
 
+const MOTIVATIONAL_MESSAGES = [
+    "Main character energy! 💅 Shift completed successfully bestie.",
+    "You slayed that shift fr fr 🔥 Time to touch some grass!",
+    "Another day, another W. Get that rest bestie 👑",
+    "Shift done! System pad diya bhai aaj toh 🔥",
+    "Bro cooked and left no crumbs today 🍳 Enjoy your evening!",
+    "10/10 shift execution! No cap, you're the GOAT 🐐",
+    "Shift successfully completed! Aukaat anusar aaram karein 🛌",
+    "W rizz on completing your hours. See ya tomorrow! 👋",
+    "Shift over! Time to go delulu in your dreams ☁️✨",
+    "Big brain energy today 🧠 Now go clock out and chill!",
+    "Valid shift bestie! Time to log off and secure the peace ✌️",
+    "Bro understood the assignment 💯 Shift completed!",
+    "Vibe check: Passed ✅ Great job today, time to bounce!"
+];
+
+const EARLY_CLOCKOUT_MESSAGES = [
+    "Bro is really leaving early? 💀 Secure the bag, complete your shift yaar!",
+    "Not you clocking out early... the math ain't mathing bestie 😭 Moye moye fr",
+    "It's giving 'I want to go home' but your hours said no 💅 stay on the grind!",
+    "Ayo, leaving early is a major L. Finish your shift and take the W 🧢",
+    "Early clock out? In this economy? 📉 Complete your hours and get that bread bro!",
+    "Bhai kya kar raha hai tu? Finish the shift first 😭",
+    "Bro thought he could escape early without getting caught 💀 Delulu is the solulu I guess",
+    "Clocking out early? Manager subah se kalesh kar dega yaar 🤡",
+    "You're leaving early? Big red flag 🚩 Complete your hours pookie 🎀",
+    "Leaving early is giving peak jobless behavior 💀 stay back and finish the shift!",
+    "Not the early check-out... bro is trying to get fired speedrun any% 🏃‍♂️💨",
+    "Ghar jaake kya hi karega bhai? Shift toh poori kar le 😭",
+    "Bro's dedication is ded 💀 Just finish the hours man!",
+    "Suspicious activity detected: trying to escape early 👁️👄👁️"
+];
+
 export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<AttendanceStatus | null>(null);
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [locationError, setLocationError] = useState<string | null>(null);
     const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState<'in' | 'out' | null>(null);
+    const [completedTimeStr, setCompletedTimeStr] = useState<string>('');
+    const [isEarlyClockOut, setIsEarlyClockOut] = useState(false);
+    const [popupMessage, setPopupMessage] = useState<string>('');
 
     const fetchStatus = async () => {
         try {
@@ -88,6 +127,32 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
             return;
         }
 
+        if (type === 'out' && status?.checkInTime) {
+            const checkInDate = new Date(status.checkInTime);
+            const now = new Date();
+            const diffMs = now.getTime() - checkInDate.getTime();
+            const diffHours = diffMs / (1000 * 60 * 60);
+
+            if (diffHours < 9) {
+                const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                setCompletedTimeStr(`${hours} hour${hours !== 1 ? 's' : ''} and ${minutes} minute${minutes !== 1 ? 's' : ''}`);
+                setIsEarlyClockOut(true);
+                setPopupMessage(EARLY_CLOCKOUT_MESSAGES[new Date().getDay()]);
+            } else {
+                setIsEarlyClockOut(false);
+                setPopupMessage(MOTIVATIONAL_MESSAGES[new Date().getDay()]);
+            }
+
+            setPendingAction(type);
+            setIsConfirmModalOpen(true);
+            return;
+        }
+
+        await executeAction(type);
+    };
+
+    const executeAction = async (type: 'in' | 'out') => {
         setLoading(true);
         const deviceId = getDeviceId();
         const deviceInfo = getDeviceInfo();
@@ -164,8 +229,8 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
                         onClick={() => handleAction(isCheckedIn ? 'out' : 'in')}
                         disabled={loading || !location}
                         className={`w-full py-8 text-lg font-bold rounded-2xl transition-all duration-300 shadow-lg ${isCheckedIn
-                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
-                                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/20'
+                            ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
+                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-500/20'
                             }`}
                     >
                         {loading ? (
@@ -196,9 +261,9 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
                                 <p className="text-[10px] text-center text-red-500 font-medium">
                                     {locationError}
                                 </p>
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
+                                <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={requestLocation}
                                     className="h-7 text-[10px] uppercase font-bold tracking-tight border-red-500/30 hover:bg-red-500/10"
                                 >
@@ -211,9 +276,9 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
                                     {isRequestingLocation ? 'Requesting GPS Access...' : 'Waiting for GPS signal...'}
                                 </p>
                                 {!isRequestingLocation && (
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
                                         onClick={requestLocation}
                                         className="h-7 text-[10px] uppercase font-bold tracking-tight"
                                     >
@@ -242,6 +307,35 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
                     )}
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={isConfirmModalOpen}
+                onClose={() => {
+                    setIsConfirmModalOpen(false);
+                    setPendingAction(null);
+                }}
+                onConfirm={() => {
+                    if (pendingAction) {
+                        executeAction(pendingAction);
+                    }
+                }}
+                title={isEarlyClockOut ? "Early Clock Out" : "Great Work Today!"}
+                description={
+                    isEarlyClockOut ? (
+                        <span>
+                            You have only completed <span className="font-bold text-amber-500 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-md">{completedTimeStr}</span> of work today.<br /><br />
+                            <span className="font-medium text-foreground">{popupMessage}</span>
+                        </span>
+                    ) : (
+                        <span>
+                            {popupMessage}
+                        </span>
+                    )
+                }
+                confirmText={isEarlyClockOut ? "Yes, Clock Out" : "Clock Out"}
+                cancelText="Cancel"
+                variant={isEarlyClockOut ? "destructive" : "default"}
+            />
         </div>
     );
 }

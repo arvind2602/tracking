@@ -771,7 +771,7 @@ const getOrganizationAttendance = async (req, res, next) => {
     query += ` AND a.date = $${paramIndex}`;
     params.push(date);
     paramIndex++;
-  } else {
+  } else if (startDate || endDate) {
     if (startDate) {
       query += ` AND a.date >= $${paramIndex}`;
       params.push(startDate);
@@ -782,6 +782,19 @@ const getOrganizationAttendance = async (req, res, next) => {
       params.push(endDate);
       paramIndex++;
     }
+  } else {
+    // Default to current month if no date filters provided
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    query += ` AND a.date >= $${paramIndex}`;
+    params.push(firstDay.toISOString().split('T')[0]);
+    paramIndex++;
+    
+    query += ` AND a.date <= $${paramIndex}`;
+    params.push(lastDay.toISOString().split('T')[0]);
+    paramIndex++;
   }
 
   if (status && status !== 'all') {
