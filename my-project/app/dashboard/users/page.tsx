@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
-import { Loader, Trash2, Download, Plus, Search, Check, ChevronsUpDown, X, Filter } from "lucide-react";
+import { Loader, Trash2, Download, Plus, Search, Check, ChevronsUpDown, X, Filter, RotateCcw, Archive, AlertTriangle } from "lucide-react";
 import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 import { cn } from "@/lib/utils";
 import { TaskPoints } from "@/components/reports/TaskPoints";
@@ -62,6 +62,15 @@ export default function Users() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
+  // Archived users state
+  const [archivedUsers, setArchivedUsers] = useState<User[]>([]);
+  const [archivedTotal, setArchivedTotal] = useState(0);
+  const [archivedSearch, setArchivedSearch] = useState("");
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  const [userToRestore, setUserToRestore] = useState<string | null>(null);
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [userToPermanentDelete, setUserToPermanentDelete] = useState<string | null>(null);
+  const [permanentDeleteModalOpen, setPermanentDeleteModalOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [positionFilter, setPositionFilter] = useState<string>("");
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -127,7 +136,16 @@ export default function Users() {
 
       const response = await axios.get(`/auth/organization?${params.toString()}`);
       setUsersList(response.data);
-      setUserRole('ADMIN');
+      // Decode role from JWT if available, fallback to ADMIN for backwards compat
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const role = payload?.user?.role || payload?.role;
+          if (role) setUserRole(role);
+          else setUserRole('ADMIN');
+        } else setUserRole('ADMIN');
+      } catch { setUserRole('ADMIN'); }
     } catch (err) {
       console.error("Error fetching users:", err);
       toast.error("Failed to fetch users.");
@@ -135,6 +153,23 @@ export default function Users() {
       setIsLoading(false);
     }
   }, [sortBy, sortOrder]);
+
+  const getArchivedUsers = useCallback(async () => {
+    if (userRole !== 'ADMIN') return;
+    setArchivedLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (archivedSearch) params.append('search', archivedSearch);
+      params.append('limit', '50');
+      const res = await axios.get(`/auth/archived?${params.toString()}`);
+      setArchivedUsers(res.data.users || []);
+      setArchivedTotal(res.data.total || 0);
+    } catch (err: any) {
+      if (err?.response?.status !== 403) toast.error(err?.response?.data?.error?.message || 'Failed to fetch archived users');
+    } finally { setArchivedLoading(false); }
+  }, [archivedSearch, userRole]);
+
+  useEffect(() => { if (userRole === 'ADMIN') getArchivedUsers(); }, [getArchivedUsers]);
 
   const fetchAvailableSkills = async () => {
     try {
@@ -208,17 +243,31 @@ export default function Users() {
 
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
-    const toastId = toast.loading("Deleting...");
+    const toastId = toast.loading("Archiving user...");
     try {
       await axios.delete(`/auth/${userToDelete}`);
       setUsersList((prev) => prev.filter((u) => u.id !== userToDelete));
-      toast.success("User deleted", { id: toastId });
-    } catch (err) {
-      console.error("Failed to delete user", err);
-      toast.error("Failed to delete user", { id: toastId });
+      toast.success("User archived", { id: toastId });
+      getArchivedUsers();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error?.message || "Failed to archive user", { id: toastId });
     } finally {
       setUserToDelete(null);
+      setDeleteModalOpen(false);
     }
+  };
+
+  const initiateRestore = (id: string) => { setUserToRestore(id); setRestoreModalOpen(true); };
+  const confirmRestore = async () => {
+    if (!userToRestore) return;
+    const tid = toast.loading("Restoring user...");
+    try { await axios.patch(`/auth/${userToRestore}/restore`); toast.success("User restored", { id: tid }); getUsers(); getArchivedUsers(); } catch(e:any){ toast.error(e?.response?.data?.error?.message||"Restore failed",{id:tid}); } finally { setUserToRestore(null); setRestoreModalOpen(false); }
+  };
+  const initiatePermanentDelete = (id: string) => { setUserToPermanentDelete(id); setPermanentDeleteModalOpen(true); };
+  const confirmPermanentDelete = async () => {
+    if (!userToPermanentDelete) return;
+    const tid = toast.loading("Permanently deleting...");
+    try { await axios.delete(`/auth/${userToPermanentDelete}/permanent`); toast.success("User permanently deleted",{id:tid}); getArchivedUsers(); } catch(e:any){ toast.error(e?.response?.data?.error?.message||"Delete failed",{id:tid}); } finally { setUserToPermanentDelete(null); setPermanentDeleteModalOpen(false); }
   };
 
   const handleExportUsers = async () => {
@@ -374,6 +423,11 @@ export default function Users() {
           <TabsTrigger value="heatmap" className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-purple-600 data-[state=active]:text-white px-6 py-2 font-medium transition-all">
             Performance Heatmap
           </TabsTrigger>
+          {userRole === 'ADMIN' && (
+            <TabsTrigger value="archived" className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-600 data-[state=active]:to-orange-600 data-[state=active]:text-white px-6 py-2 font-medium transition-all gap-2">
+              <Archive className="h-4 w-4" /> Archived {archivedTotal > 0 && `(${archivedTotal})`}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
@@ -672,6 +726,69 @@ export default function Users() {
             <TaskPoints />
           </div>
         </TabsContent>
+
+        {userRole === 'ADMIN' && (
+          <TabsContent value="archived" className="space-y-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative w-full md:w-1/3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search archived by name or email..." value={archivedSearch} onChange={(e)=>setArchivedSearch(e.target.value)} className="pl-10 bg-card border-border rounded-xl py-6" />
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Badge variant="secondary">{archivedTotal} archived</Badge>
+                <span className="hidden md:inline">• Permanently deletes anonymises comments/notes, keeps assignment history</span>
+              </div>
+            </div>
+            {archivedLoading ? (
+              <div className="flex justify-center items-center h-48"><div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div></div>
+            ) : archivedUsers.length === 0 ? (
+              <div className="bg-card border border-border rounded-2xl p-12 text-center">
+                <Archive className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+                <p className="text-foreground font-medium">No archived users</p>
+                <p className="text-sm text-muted-foreground">Archived users will appear here. You can restore or permanently delete them.</p>
+              </div>
+            ) : (
+              <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-lg">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-secondary">
+                        <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs">Name</th>
+                        <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs">Email</th>
+                        <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs">Position</th>
+                        <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs">Role</th>
+                        <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-xs">Archived</th>
+                        <th className="px-4 py-3 font-semibold text-slate-400 uppercase tracking-wider text-right text-xs">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {archivedUsers.map((u:any)=>(
+                        <tr key={u.id} className="hover:bg-secondary/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8"><AvatarImage src={u.image} className="object-cover"/><AvatarFallback className="text-xs">{u.firstName?.[0]}{u.lastName?.[0]}</AvatarFallback></Avatar>
+                              <span className="font-semibold text-foreground text-sm">{u.firstName} {u.lastName}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 text-xs truncate max-w-[160px]">{u.email}</td>
+                          <td className="px-4 py-3 text-xs">{u.position || '-'}</td>
+                          <td className="px-4 py-3"><span className={cn("text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded border", u.role==='ADMIN'?'bg-purple-500/10 text-purple-400 border-purple-500/20':'bg-blue-500/10 text-blue-400 border-blue-500/20')}>{u.role}</span></td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">{u.archivedAt ? new Date(u.archivedAt).toLocaleDateString() : '-'}</td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10" title="Restore" onClick={()=>initiateRestore(u.id)}><RotateCcw className="h-4 w-4"/></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-400 hover:bg-red-500/10" title="Delete permanently" onClick={()=>initiatePermanentDelete(u.id)}><Trash2 className="h-4 w-4"/></Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
 
       {isModalOpen && (
@@ -762,11 +879,29 @@ export default function Users() {
 
       <ConfirmationModal
         isOpen={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
+        onClose={() => { setDeleteModalOpen(false); setUserToDelete(null); }}
         onConfirm={confirmDeleteUser}
-        title="Delete User"
-        description="Are you sure you want to delete this user? This action cannot be undone and will remove all their data."
-        confirmText="Delete User"
+        title="Archive User"
+        description="Are you sure you want to archive this user? They will be moved to the Archived tab where you can restore or permanently delete them."
+        confirmText="Archive User"
+        variant="destructive"
+      />
+      <ConfirmationModal
+        isOpen={restoreModalOpen}
+        onClose={() => { setRestoreModalOpen(false); setUserToRestore(null); }}
+        onConfirm={confirmRestore}
+        title="Restore User"
+        description="Restore this user to active? They will reappear in the Users List."
+        confirmText="Restore"
+        variant="default"
+      />
+      <ConfirmationModal
+        isOpen={permanentDeleteModalOpen}
+        onClose={() => { setPermanentDeleteModalOpen(false); setUserToPermanentDelete(null); }}
+        onConfirm={confirmPermanentDelete}
+        title="Do you really want to delete?"
+        description="This will permanently delete the user and all their data (devices, attendances, leaves, QR visits) and anonymise their comments/notes. Assignment history will be kept. This cannot be undone."
+        confirmText="Delete permanently"
         variant="destructive"
       />
 

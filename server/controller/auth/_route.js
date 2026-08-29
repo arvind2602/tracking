@@ -6,7 +6,11 @@ const activityMiddleware = require('../../middleware/activityMiddleware');
 
 employee.post('/login', employeeController.login);
 
-employee.post('/forget-password', employeeController.forgetPassword);
+// Forgot password (public)
+employee.post('/forgot-password', employeeController.forgotPassword);
+employee.post('/forget-password', employeeController.forgetPassword); // alias
+employee.post('/reset-password', employeeController.resetPassword);
+employee.post('/verify-reset-token', employeeController.verifyResetToken);
 
 // Device tracking routes (no auth required for first-time device setup)
 employee.post('/device/primary', authMiddleware, employeeController.setPrimaryDevice);
@@ -16,11 +20,14 @@ employee.post('/device/check-change', authMiddleware, employeeController.checkDe
 employee.use(authMiddleware);
 employee.get('/organization', employeeController.getEmployeesByOrg);
 employee.get('/organization/employees', employeeController.getEmployeesByOrg);
+employee.get('/archived', employeeController.getArchivedEmployees);
 employee.get('/export', employeeController.exportUsers);
 employee.get('/skills', employeeController.getSkills);
 employee.post('/register', employeeController.register);
 employee.get('/profile', employeeController.getEmployee);
 employee.get('/:id', employeeController.getEmployeeById);
+employee.patch('/:id/restore', employeeController.restoreEmployee);
+employee.delete('/:id/permanent', employeeController.permanentlyDeleteEmployee);
 
 employee.use(activityMiddleware);
 const { upload } = require('../../middleware/uploadMiddleware');

@@ -191,7 +191,7 @@ export default function Home() {
 
             {/* Additional Links */}
             <div className="text-center pt-2">
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
+              <a href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
                 Forgot your password?
               </a>
             </div>

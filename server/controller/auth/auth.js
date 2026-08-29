@@ -1,7 +1,7 @@
 const Joi = require('joi');
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/db');
-const { BadRequestError, UnprocessableEntityError, NotFoundError } = require('../../utils/errors');
+const { BadRequestError, UnprocessableEntityError, NotFoundError, AuthorizationError } = require('../../utils/errors');
 const { generateJwtToken } = require('../../utils/jwtGenerator');
 const { jwtConfig } = require('../../config/jwtConfig');
 const bcrypt = require('bcryptjs');
@@ -286,21 +286,133 @@ const getSkills = async (req, res, next) => {
 
 
 
-// Forget password (send reset token)
-const forgetPassword = async (req, res, next) => {
+// Forgot password - generates time-limited reset token and sends email
+const forgotPassword = async (req, res, next) => {
+    const schema = Joi.object({
+        email: Joi.string().email().required(),
+    });
+    const { error } = schema.validate(req.body);
+    if (error) return next(new BadRequestError(error.details[0].message));
+
     const { email } = req.body;
+    const genericMessage = 'If an account with that email exists, a password reset link has been sent.';
+
     try {
         const result = await pool.query(
             'SELECT id, email FROM employee WHERE email = $1 AND is_archived = false',
             [email]
         );
-        if (result.rowCount === 0) return res.json({ message: 'If email exists, reset link sent' });
+
+        if (result.rowCount === 0) {
+            return res.json({ message: genericMessage });
+        }
 
         const user = result.rows[0];
-        jwt.sign({ id: user.id }, jwtConfig.secret);
-        // TODO: Send email with resetToken
-        res.json({ message: 'Reset link sent' });
-    } catch (error) { next(error); }
+
+        // Generate short-lived JWT with purpose claim
+        const resetToken = jwt.sign(
+            { id: user.id, email: user.email, purpose: 'password-reset' },
+            jwtConfig.secret,
+            { algorithm: jwtConfig.algorithm, expiresIn: '15m' }
+        );
+
+        const frontendUrl = (process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000').split(',')[0].trim();
+        const resetUrl = `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
+
+        // Attempt to send email; if SMTP not configured, it will be mocked/logged
+        try {
+            const { sendResetEmail } = require('../../utils/email');
+            await sendResetEmail(user.email, resetUrl, resetToken);
+        } catch (emailError) {
+            // Don't leak email failure to user; log it and continue
+            const logger = require('../../utils/logger');
+            logger.error(`Forgot password email error: ${emailError.message}`);
+        }
+
+        const response = { message: genericMessage };
+
+        // In non-production, include token/resetUrl for testing without email setup
+        if (process.env.NODE_ENV !== 'production') {
+            response.debug = { resetToken, resetUrl };
+        }
+
+        res.json(response);
+    } catch (err) { next(err); }
+};
+
+// Alias for backward compatibility (old spelling)
+const forgetPassword = forgotPassword;
+
+const resetPassword = async (req, res, next) => {
+    const schema = Joi.object({
+        token: Joi.string().required(),
+        password: Joi.string().min(6).required(),
+        confirmPassword: Joi.string().optional(),
+    });
+    const { error } = schema.validate(req.body);
+    if (error) return next(new BadRequestError(error.details[0].message));
+
+    const { token, password, confirmPassword } = req.body;
+
+    if (confirmPassword && password !== confirmPassword) {
+        return next(new BadRequestError('Passwords do not match'));
+    }
+
+    try {
+        let decoded;
+        try {
+            decoded = jwt.verify(token, jwtConfig.secret);
+        } catch (jwtErr) {
+            if (jwtErr.name === 'TokenExpiredError') {
+                return next(new BadRequestError('Reset link has expired. Please request a new one.'));
+            }
+            return next(new BadRequestError('Invalid or malformed reset token'));
+        }
+
+        if (decoded.purpose !== 'password-reset' || !decoded.id) {
+            return next(new BadRequestError('Invalid reset token'));
+        }
+
+        const userId = decoded.id;
+
+        // Ensure user still exists
+        const userResult = await pool.query(
+            'SELECT id, email FROM employee WHERE id = $1 AND is_archived = false',
+            [userId]
+        );
+        if (userResult.rowCount === 0) {
+            return next(new NotFoundError('User not found'));
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+        await pool.query(
+            'UPDATE employee SET password = $1, "updatedAt" = NOW() WHERE id = $2',
+            [hashedPassword, userId]
+        );
+
+        res.json({ message: 'Password has been reset successfully. You can now log in.' });
+    } catch (err) { next(err); }
+};
+
+const verifyResetToken = async (req, res, next) => {
+    const schema = Joi.object({
+        token: Joi.string().required(),
+    });
+    const { error } = schema.validate(req.body);
+    if (error) return next(new BadRequestError(error.details[0].message));
+
+    try {
+        const decoded = jwt.verify(req.body.token, jwtConfig.secret);
+        if (decoded.purpose !== 'password-reset') {
+            return next(new BadRequestError('Invalid token purpose'));
+        }
+        res.json({ valid: true, email: decoded.email });
+    } catch (err) {
+        if (err.name === 'TokenExpiredError') {
+            return next(new BadRequestError('Token expired'));
+        }
+        return next(new BadRequestError('Invalid token'));
+    }
 };
 
 const changePassword = async (req, res, next) => {
@@ -387,14 +499,140 @@ const updateEmployee = async (req, res, next) => {
 // Delete user (soft delete)
 const deleteEmployee = async (req, res, next) => {
     const { id } = req.params;
+    const organizationId = req.user.organization_uuid;
     try {
+        // Org isolation for soft delete
         const result = await pool.query(
-            'UPDATE employee SET is_archived = true WHERE id = $1 AND is_archived = false RETURNING id',
-            [id]
+            'UPDATE employee SET is_archived = true, "updatedAt" = NOW() WHERE id = $1 AND "organiationId" = $2 AND is_archived = false RETURNING id',
+            [id, organizationId]
         );
         if (result.rowCount === 0) return next(new NotFoundError('Employee not found'));
         res.json({ message: 'Employee deleted' });
     } catch (error) { next(error); }
+};
+
+// Get archived employees (ADMIN only)
+const getArchivedEmployees = async (req, res, next) => {
+    const organizationId = req.user.organization_uuid;
+    if (req.user.role !== 'ADMIN') return next(new AuthorizationError('Only admins can view archived users'));
+    const { search, limit = 50, offset = 0 } = req.query;
+    try {
+        let query = `
+            SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e.image, e."updatedAt" as "archivedAt", e."createdAt", e."joiningDate", e."phoneNumber"
+            FROM employee e
+            WHERE e."organiationId" = $1 AND e.is_archived = true
+        `;
+        const params = [organizationId];
+        let paramIdx = 2;
+        if (search) {
+            query += ` AND (e."firstName" ILIKE $${paramIdx} OR e."lastName" ILIKE $${paramIdx} OR e.email ILIKE $${paramIdx})`;
+            params.push(`%${search}%`);
+            paramIdx++;
+        }
+        query += ` ORDER BY e."updatedAt" DESC LIMIT $${paramIdx} OFFSET $${paramIdx+1}`;
+        params.push(parseInt(limit,10), parseInt(offset,10));
+        const result = await pool.query(query, params);
+        const countResult = await pool.query(
+            `SELECT COUNT(*)::int as total FROM employee WHERE "organiationId"=$1 AND is_archived=true` + (search ? ` AND ("firstName" ILIKE $2 OR "lastName" ILIKE $2 OR email ILIKE $2)` : ''),
+            search ? [organizationId, `%${search}%`] : [organizationId]
+        );
+        res.json({ users: result.rows, total: countResult.rows[0].total });
+    } catch (error) { next(error); }
+};
+
+// Restore archived employee (ADMIN only)
+const restoreEmployee = async (req, res, next) => {
+    const { id } = req.params;
+    const organizationId = req.user.organization_uuid;
+    if (req.user.role !== 'ADMIN') return next(new AuthorizationError('Only admins can restore users'));
+    try {
+        // Check if already active or not found
+        const check = await pool.query('SELECT id, email, is_archived FROM employee WHERE id=$1 AND "organiationId"=$2', [id, organizationId]);
+        if (check.rowCount===0) return next(new NotFoundError('Employee not found'));
+        if (!check.rows[0].is_archived) return next(new BadRequestError('User is not archived'));
+        // Prevent email collision with active user (should not happen but guard)
+        const emailCollision = await pool.query('SELECT id FROM employee WHERE email=$1 AND "organiationId"=$2 AND is_archived=false AND id!=$3', [check.rows[0].email, organizationId, id]);
+        if (emailCollision.rowCount>0) return next(new BadRequestError('Cannot restore: email already taken by active user'));
+        const result = await pool.query('UPDATE employee SET is_archived=false, "updatedAt"=NOW() WHERE id=$1 AND "organiationId"=$2 AND is_archived=true RETURNING id, "firstName", "lastName", email', [id, organizationId]);
+        res.json({ message: 'User restored', user: result.rows[0] });
+    } catch (error) { next(error); }
+};
+
+// Permanent delete (hard delete) - ADMIN only, anonymise comments/notes, keep assignment history
+const permanentlyDeleteEmployee = async (req, res, next) => {
+    const { id } = req.params;
+    const organizationId = req.user.organization_uuid;
+    const actorId = req.user.user_uuid;
+    if (req.user.role !== 'ADMIN') return next(new AuthorizationError('Only admins can permanently delete users'));
+    if (actorId === id) return next(new BadRequestError('You cannot permanently delete yourself'));
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        // Lock and verify
+        const empRes = await client.query('SELECT id, "organiationId", is_archived, role FROM employee WHERE id=$1 FOR UPDATE', [id]);
+        if (empRes.rowCount===0) { await client.query('ROLLBACK'); return next(new NotFoundError('Employee not found')); }
+        const emp = empRes.rows[0];
+        if (emp.organiationId !== organizationId) { await client.query('ROLLBACK'); return next(new AuthorizationError('Cannot delete user from another organization')); }
+        if (!emp.is_archived) { await client.query('ROLLBACK'); return next(new BadRequestError('User must be archived before permanent deletion')); }
+        // Last admin guard
+        if (emp.role === 'ADMIN') {
+            const adminCount = await client.query('SELECT COUNT(*)::int as cnt FROM employee WHERE "organiationId"=$1 AND role=\'ADMIN\' AND is_archived=false', [organizationId]);
+            if (adminCount.rows[0].cnt === 0) {
+                // No active admins left; still allow if there's another archived admin being deleted? But check total admins
+                const totalAdmins = await client.query('SELECT COUNT(*)::int as cnt FROM employee WHERE "organiationId"=$1 AND role=\'ADMIN\'', [organizationId]);
+                if (totalAdmins.rows[0].cnt <= 1) { await client.query('ROLLBACK'); return next(new BadRequestError('Cannot delete the last admin of organization')); }
+            }
+        }
+        // Purge / anonymise in FK-safe order
+        // 1. Devices, attendances, shifts, leaves, qr_visits, note_tags (tagged)
+        await client.query('DELETE FROM "device" WHERE "employeeId"=$1', [id]);
+        await client.query('DELETE FROM "attendance" WHERE "employeeId"=$1', [id]);
+        await client.query('DELETE FROM "employeeshift" WHERE "employeeId"=$1', [id]);
+        await client.query('DELETE FROM "leave" WHERE "employeeId"=$1', [id]);
+        // qr_visit: try both table names
+        try { await client.query('DELETE FROM "qr_visit" WHERE "employeeId"=$1', [id]); } catch (e1) { try{ await client.query('DELETE FROM "QRVisit" WHERE "employeeId"=$1', [id]); }catch(e2){ void e1; void e2; } }
+        await client.query('DELETE FROM "note_tag" WHERE "employeeId"=$1', [id]);
+        // 2. Anonymise comments/notes (keep rows, nullify author, prefix content)
+        // Note: columns must be nullable (migration archive_permanent_delete.sql). If not nullable, fallback to reassign or delete.
+        try {
+            await client.query(`UPDATE "comment" SET "authorId"=NULL, content = '[Deleted user] ' || content, "updatedAt"=NOW() WHERE "authorId"=$1`, [id]);
+        } catch (e) {
+            // Fallback: if NOT NULL constraint, delete comments
+            if (e.message && e.message.includes('null')) {
+                await client.query('DELETE FROM "comment" WHERE "authorId"=$1', [id]);
+            } else throw e;
+        }
+        try {
+            await client.query(`UPDATE "note" SET "authorId"=NULL, "updatedAt"=NOW() WHERE "authorId"=$1`, [id]);
+        } catch (e) {
+            if (e.message && e.message.includes('null')) {
+                await client.query('DELETE FROM "note" WHERE "authorId"=$1', [id]);
+            } else throw e;
+        }
+        // 3. Keep assignment history: do NOT delete task_assignee; instead nullify employeeId to retain task history
+        try {
+            await client.query('UPDATE "task_assignee" SET "employeeId"=NULL WHERE "employeeId"=$1', [id]);
+        } catch (errTaskAssignee) {
+            void errTaskAssignee;
+            await client.query('DELETE FROM "task_assignee" WHERE "employeeId"=$1', [id]);
+        }
+        // 4. Nullify project heads
+        await client.query('UPDATE "projects" SET "headId"=NULL WHERE "headId"=$1', [id]);
+        await client.query(`UPDATE "projects" SET "headIds" = array_remove("headIds", $1::text) WHERE $1::text = ANY("headIds")`, [id]);
+        // Also handle headIds as uuid array if cast fails, try uuid
+        try { await client.query(`UPDATE "projects" SET "headIds" = array_remove("headIds", $1::uuid) WHERE $1::uuid = ANY("headIds")`, [id]); } catch (errHeadIds) { void errHeadIds; }
+        // 5. Finally delete employee
+        await client.query('DELETE FROM "employee" WHERE id=$1', [id]);
+        await client.query('COMMIT');
+        const logger = require('../../utils/logger');
+        logger.info(`Permanent delete: actor=${actorId} deleted=${id} org=${organizationId}`);
+        res.json({ message: 'User permanently deleted' });
+    } catch (error) {
+        try { await client.query('ROLLBACK'); } catch (errRollback) { void errRollback; }
+        next(error);
+    } finally {
+        client.release();
+    }
 };
 
 // Export Employees
@@ -609,7 +847,13 @@ module.exports = {
     getEmployee,
     getEmployeeById,
     getEmployeesByOrg,
+    getArchivedEmployees,
+    restoreEmployee,
+    permanentlyDeleteEmployee,
     forgetPassword,
+    forgotPassword,
+    resetPassword,
+    verifyResetToken,
     updateEmployee,
     changePassword,
     deleteEmployee,

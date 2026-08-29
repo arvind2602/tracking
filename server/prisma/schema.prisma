@@ -143,12 +143,12 @@ model task {
 model TaskAssignee {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   taskId      String    @db.Uuid
-  employeeId  String    @db.Uuid
+  employeeId  String?   @db.Uuid
   order       Int?
   isCompleted Boolean   @default(false)
   assignedAt  DateTime? @default(now())
   completedAt DateTime?
-  employee    employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee    employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   task        task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, employeeId])
@@ -163,10 +163,10 @@ model comment {
   createdAt   DateTime            @default(now())
   updatedAt   DateTime?           @updatedAt
   taskId      String              @db.Uuid
-  authorId    String              @db.Uuid
+  authorId    String?             @db.Uuid
   attachments CommentAttachment[]
   links       CommentLink[]
-  author      employee            @relation(fields: [authorId], references: [id])
+  author      employee?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
   task        task                @relation(fields: [taskId], references: [id])
 
   @@index([authorId], map: "idx_comment_author")
@@ -204,14 +204,14 @@ model Note {
   title          String
   type           NoteType
   organizationId String           @db.Uuid
-  authorId       String           @db.Uuid
+  authorId       String?          @db.Uuid
   projectId      String?          @db.Uuid
   isPinned       Boolean          @default(false)
   pinUntil       DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime?        @updatedAt
   content        String[]         @default([])
-  author         employee         @relation("NoteAuthor", fields: [authorId], references: [id])
+  author         employee?        @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   organization   organiation      @relation(fields: [organizationId], references: [id])
   project        projects?        @relation(fields: [projectId], references: [id])
   attachments    NoteAttachment[]

@@ -66,5 +66,7 @@ const shutdownPool = async () => {
 module.exports = {
     pool: dbPool,
     query: customQuery,
-    shutdownPool
+    shutdownPool,
+    // backward compat: allow `pool.connect()` where pool is this exported object
+    connect: (...args) => dbPool.connect(...args),
 };
