@@ -13,12 +13,11 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   const pathname = usePathname();
 
   useEffect(() => {
+    const isPublic = pathname === '/' || pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password') || pathname === '/forget-password';
+    if (isPublic) return;
     const token = localStorage.getItem('token');
     if (!token) {
-      // If no token, redirect to login unless already on login page
-      if (pathname !== '/') {
-        router.push('/');
-      }
+      router.push('/');
       return;
     }
 

@@ -28,8 +28,10 @@ instance.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
-        // Avoid redirecting if already on the login page to prevent loops
-        if (window.location.pathname !== '/') {
+        // Don't redirect from public auth pages
+        const p = window.location.pathname;
+        const isPublic = p === '/' || p.startsWith('/forgot-password') || p.startsWith('/reset-password') || p === '/forget-password';
+        if (!isPublic && p !== '/') {
           window.location.href = '/';
         }
       }

@@ -616,11 +616,15 @@ const permanentlyDeleteEmployee = async (req, res, next) => {
             void errTaskAssignee;
             await client.query('DELETE FROM "task_assignee" WHERE "employeeId"=$1', [id]);
         }
-        // 4. Nullify project heads
-        await client.query('UPDATE "projects" SET "headId"=NULL WHERE "headId"=$1', [id]);
-        await client.query(`UPDATE "projects" SET "headIds" = array_remove("headIds", $1::text) WHERE $1::text = ANY("headIds")`, [id]);
-        // Also handle headIds as uuid array if cast fails, try uuid
-        try { await client.query(`UPDATE "projects" SET "headIds" = array_remove("headIds", $1::uuid) WHERE $1::uuid = ANY("headIds")`, [id]); } catch (errHeadIds) { void errHeadIds; }
+        // 4. Nullify project heads (headIds is uuid[] - use uuid cast)
+        await client.query('UPDATE "projects" SET "headId"=NULL WHERE "headId"=$1::uuid', [id]);
+        try {
+            await client.query(`UPDATE "projects" SET "headIds" = array_remove("headIds", $1::uuid) WHERE $1::uuid = ANY("headIds")`, [id]);
+        } catch (errHeadIds) {
+            void errHeadIds;
+            // Fallback: try text[] variant if column is text (legacy)
+            try { await client.query(`UPDATE "projects" SET "headIds" = array_remove("headIds", $1::text) WHERE $1::text = ANY("headIds")`, [id]); } catch (e2) { void e2; }
+        }
         // 5. Finally delete employee
         await client.query('DELETE FROM "employee" WHERE id=$1', [id]);
         await client.query('COMMIT');
