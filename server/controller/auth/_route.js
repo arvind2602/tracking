@@ -6,11 +6,12 @@ const activityMiddleware = require('../../middleware/activityMiddleware');
 
 employee.post('/login', employeeController.login);
 
-// Forgot password (public)
+// Forgot password OTP flow (public) - send OTP if email exists and not archived
 employee.post('/forgot-password', employeeController.forgotPassword);
 employee.post('/forget-password', employeeController.forgetPassword); // alias
+employee.post('/verify-otp', employeeController.verifyOtp);
 employee.post('/reset-password', employeeController.resetPassword);
-employee.post('/verify-reset-token', employeeController.verifyResetToken);
+employee.post('/verify-reset-token', employeeController.verifyResetToken); // legacy link flow
 
 // Device tracking routes (no auth required for first-time device setup)
 employee.post('/device/primary', authMiddleware, employeeController.setPrimaryDevice);

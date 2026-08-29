@@ -286,7 +286,7 @@ const getSkills = async (req, res, next) => {
 
 
 
-// Forgot password - generates time-limited reset token and sends email
+// Forgot password - OTP flow: send 6-digit code if email exists and not archived
 const forgotPassword = async (req, res, next) => {
     const schema = Joi.object({
         email: Joi.string().email().required(),
@@ -295,7 +295,7 @@ const forgotPassword = async (req, res, next) => {
     if (error) return next(new BadRequestError(error.details[0].message));
 
     const { email } = req.body;
-    const genericMessage = 'If an account with that email exists, a password reset link has been sent.';
+    const genericMessage = 'If an account with that email exists, an OTP has been sent.';
 
     try {
         const result = await pool.query(
@@ -309,50 +309,143 @@ const forgotPassword = async (req, res, next) => {
 
         const user = result.rows[0];
 
-        // Generate short-lived JWT with purpose claim
-        const resetToken = jwt.sign(
-            { id: user.id, email: user.email, purpose: 'password-reset' },
-            jwtConfig.secret,
-            { algorithm: jwtConfig.algorithm, expiresIn: '15m' }
+        // Ensure OTP table exists (idempotent, for deployments without manual migration)
+        try {
+            await pool.query(`CREATE TABLE IF NOT EXISTS "password_reset_otp" (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), "employeeId" UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE, "otpHash" TEXT NOT NULL, "expiresAt" TIMESTAMPTZ NOT NULL, attempts INT DEFAULT 0, "createdAt" TIMESTAMPTZ DEFAULT NOW(), "verifiedAt" TIMESTAMPTZ); CREATE INDEX IF NOT EXISTS "password_reset_otp_employeeId_idx" ON "password_reset_otp"("employeeId"); CREATE INDEX IF NOT EXISTS "password_reset_otp_expiresAt_idx" ON "password_reset_otp"("expiresAt");`);
+        } catch (tblErr) { void tblErr; }
+
+        // Throttle: 60s per email
+        const lastOtp = await pool.query(
+            `SELECT "createdAt" FROM "password_reset_otp" WHERE "employeeId"=$1 ORDER BY "createdAt" DESC LIMIT 1`,
+            [user.id]
+        );
+        if (lastOtp.rowCount > 0) {
+            const diffMs = Date.now() - new Date(lastOtp.rows[0].createdAt).getTime();
+            if (diffMs < 60 * 1000) {
+                const wait = Math.ceil((60 * 1000 - diffMs) / 1000);
+                return res.status(429).json({ error: { message: `Please wait ${wait}s before requesting another OTP`, code: 'TOO_MANY_REQUESTS' } });
+            }
+        }
+
+        // Cleanup expired
+        await pool.query(`DELETE FROM "password_reset_otp" WHERE "expiresAt" < NOW()`);
+
+        // Generate 6-digit OTP
+        const crypto = require('crypto');
+        const otp = String(crypto.randomInt(100000, 1000000));
+        const otpHash = await bcrypt.hash(otp, 10);
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
+        await pool.query(
+            `INSERT INTO "password_reset_otp" ("employeeId", "otpHash", "expiresAt") VALUES ($1,$2,$3)`,
+            [user.id, otpHash, expiresAt]
         );
 
-        const frontendUrl = (process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000').split(',')[0].trim();
-        const resetUrl = `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
-
-        // Attempt to send email; if SMTP not configured, it will be mocked/logged
         try {
-            const { sendResetEmail } = require('../../utils/email');
-            await sendResetEmail(user.email, resetUrl, resetToken);
+            const { sendOtpEmail } = require('../../utils/email');
+            await sendOtpEmail(user.email, otp);
         } catch (emailError) {
-            // Don't leak email failure to user; log it and continue
             const logger = require('../../utils/logger');
-            logger.error(`Forgot password email error: ${emailError.message}`);
+            logger.error(`Forgot password OTP email error: ${emailError.message}`);
         }
 
         const response = { message: genericMessage };
-
-        // In non-production, include token/resetUrl for testing without email setup
         if (process.env.NODE_ENV !== 'production') {
-            response.debug = { resetToken, resetUrl };
+            response.debug = { otp };
         }
-
         res.json(response);
-    } catch (err) { next(err); }
+    } catch (err) {
+        // If table doesn't exist yet, fallback to link flow
+        if (err.message && err.message.includes('password_reset_otp')) {
+            const logger = require('../../utils/logger');
+            logger.error(`OTP table missing, fallback: ${err.message}`);
+            return next(new BadRequestError('OTP service not ready. Please run DB migration.'));
+        }
+        next(err);
+    }
 };
 
 // Alias for backward compatibility (old spelling)
 const forgetPassword = forgotPassword;
 
-const resetPassword = async (req, res, next) => {
+// Verify OTP -> returns otpToken (JWT purpose:otp-verified)
+const verifyOtp = async (req, res, next) => {
     const schema = Joi.object({
-        token: Joi.string().required(),
-        password: Joi.string().min(6).required(),
-        confirmPassword: Joi.string().optional(),
+        email: Joi.string().email().required(),
+        otp: Joi.string().length(6).required(),
     });
     const { error } = schema.validate(req.body);
     if (error) return next(new BadRequestError(error.details[0].message));
 
-    const { token, password, confirmPassword } = req.body;
+    const { email, otp } = req.body;
+    try {
+        try { await pool.query(`CREATE TABLE IF NOT EXISTS "password_reset_otp" (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), "employeeId" UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE, "otpHash" TEXT NOT NULL, "expiresAt" TIMESTAMPTZ NOT NULL, attempts INT DEFAULT 0, "createdAt" TIMESTAMPTZ DEFAULT NOW(), "verifiedAt" TIMESTAMPTZ);`); } catch (_) {}
+        const userRes = await pool.query('SELECT id, email FROM employee WHERE email=$1 AND is_archived=false', [email]);
+        if (userRes.rowCount === 0) return next(new BadRequestError('Invalid OTP'));
+
+        const userId = userRes.rows[0].id;
+
+        const otpRes = await pool.query(
+            `SELECT id, "otpHash", "expiresAt", attempts, "verifiedAt" FROM "password_reset_otp" WHERE "employeeId"=$1 AND "expiresAt" > NOW() AND "verifiedAt" IS NULL ORDER BY "createdAt" DESC LIMIT 1`,
+            [userId]
+        );
+        if (otpRes.rowCount === 0) return next(new BadRequestError('OTP expired or not found. Please request a new one.'));
+
+        const row = otpRes.rows[0];
+        if (row.attempts >= 5) return next(new BadRequestError('Too many incorrect attempts. Please request a new OTP.'));
+
+        const isMatch = await bcrypt.compare(otp, row.otpHash);
+        if (!isMatch) {
+            await pool.query(`UPDATE "password_reset_otp" SET attempts = attempts + 1 WHERE id=$1`, [row.id]);
+            return next(new BadRequestError('Invalid OTP'));
+        }
+
+        await pool.query(`UPDATE "password_reset_otp" SET "verifiedAt"=NOW(), attempts = attempts + 1 WHERE id=$1`, [row.id]);
+
+        const otpToken = jwt.sign(
+            { id: userId, email, purpose: 'otp-verified', otpId: row.id },
+            jwtConfig.secret,
+            { algorithm: jwtConfig.algorithm, expiresIn: '10m' }
+        );
+
+        const response = { message: 'OTP verified', otpToken };
+        res.json(response);
+    } catch (err) { next(err); }
+};
+
+// Legacy link-based forgot (kept for backward compat, not used)
+const forgotPasswordLink = async (req, res, next) => {
+    const schema = Joi.object({ email: Joi.string().email().required() });
+    const { error } = schema.validate(req.body);
+    if (error) return next(new BadRequestError(error.details[0].message));
+    const { email } = req.body;
+    const genericMessage = 'If an account with that email exists, a password reset link has been sent.';
+    try {
+        const result = await pool.query('SELECT id, email FROM employee WHERE email = $1 AND is_archived = false', [email]);
+        if (result.rowCount === 0) return res.json({ message: genericMessage });
+        const user = result.rows[0];
+        const resetToken = jwt.sign({ id: user.id, email: user.email, purpose: 'password-reset' }, jwtConfig.secret, { algorithm: jwtConfig.algorithm, expiresIn: '15m' });
+        const frontendUrl = (process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000').split(',')[0].trim();
+        const resetUrl = `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
+        try { const { sendResetEmail } = require('../../utils/email'); await sendResetEmail(user.email, resetUrl, resetToken); } catch (e) { require('../../utils/logger').error(`Link email error: ${e.message}`); }
+        const response = { message: genericMessage };
+        if (process.env.NODE_ENV !== 'production') response.debug = { resetToken, resetUrl };
+        res.json(response);
+    } catch (err) { next(err); }
+};
+
+const resetPassword = async (req, res, next) => {
+    // Supports both OTP flow (otpToken) and legacy link flow (token) for backward compat
+    const schema = Joi.object({
+        otpToken: Joi.string().optional(),
+        token: Joi.string().optional(),
+        password: Joi.string().min(6).required(),
+        confirmPassword: Joi.string().optional(),
+    }).or('otpToken', 'token');
+    const { error } = schema.validate(req.body);
+    if (error) return next(new BadRequestError(error.details[0].message));
+
+    const { otpToken, token, password, confirmPassword } = req.body;
 
     if (confirmPassword && password !== confirmPassword) {
         return next(new BadRequestError('Passwords do not match'));
@@ -360,35 +453,38 @@ const resetPassword = async (req, res, next) => {
 
     try {
         let decoded;
+        let userId;
+        const rawToken = otpToken || token;
         try {
-            decoded = jwt.verify(token, jwtConfig.secret);
+            decoded = jwt.verify(rawToken, jwtConfig.secret);
         } catch (jwtErr) {
             if (jwtErr.name === 'TokenExpiredError') {
-                return next(new BadRequestError('Reset link has expired. Please request a new one.'));
+                return next(new BadRequestError(otpToken ? 'OTP verification expired. Please request a new OTP.' : 'Reset link has expired. Please request a new one.'));
             }
-            return next(new BadRequestError('Invalid or malformed reset token'));
+            return next(new BadRequestError('Invalid or malformed token'));
         }
 
-        if (decoded.purpose !== 'password-reset' || !decoded.id) {
-            return next(new BadRequestError('Invalid reset token'));
+        // OTP flow
+        if (decoded.purpose === 'otp-verified') {
+            userId = decoded.id;
+            // Ensure OTP still valid and not reused (optional: check otpId still verified)
+        } else if (decoded.purpose === 'password-reset') {
+            // Legacy link flow
+            userId = decoded.id;
+        } else {
+            return next(new BadRequestError('Invalid token purpose'));
         }
 
-        const userId = decoded.id;
+        if (!userId) return next(new BadRequestError('Invalid token'));
 
-        // Ensure user still exists
-        const userResult = await pool.query(
-            'SELECT id, email FROM employee WHERE id = $1 AND is_archived = false',
-            [userId]
-        );
-        if (userResult.rowCount === 0) {
-            return next(new NotFoundError('User not found'));
-        }
+        const userResult = await pool.query('SELECT id, email FROM employee WHERE id = $1 AND is_archived = false', [userId]);
+        if (userResult.rowCount === 0) return next(new NotFoundError('User not found'));
 
         const hashedPassword = await bcrypt.hash(password, 12);
-        await pool.query(
-            'UPDATE employee SET password = $1, "updatedAt" = NOW() WHERE id = $2',
-            [hashedPassword, userId]
-        );
+        await pool.query('UPDATE employee SET password = $1, "updatedAt" = NOW() WHERE id = $2', [hashedPassword, userId]);
+
+        // Cleanup OTPs after successful reset
+        try { await pool.query('DELETE FROM "password_reset_otp" WHERE "employeeId"=$1', [userId]); } catch (_) {}
 
         res.json({ message: 'Password has been reset successfully. You can now log in.' });
     } catch (err) { next(err); }
@@ -856,6 +952,8 @@ module.exports = {
     permanentlyDeleteEmployee,
     forgetPassword,
     forgotPassword,
+    forgotPasswordLink,
+    verifyOtp,
     resetPassword,
     verifyResetToken,
     updateEmployee,

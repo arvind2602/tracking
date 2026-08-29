@@ -66,6 +66,7 @@ model employee {
   employeeShifts   EmployeeShift[]
   qrVisits         QRVisit[]
   leaves           Leave[]
+  passwordResetOtps PasswordResetOtp[]
 
   @@index([organiationId, is_archived])
   @@index([organiationId, role])
@@ -554,4 +555,19 @@ model Leave {
   @@index([organizationId])
   @@index([status])
   @@map("leave")
+}
+
+model PasswordResetOtp {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId String    @db.Uuid
+  otpHash    String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  verifiedAt DateTime?
+  employee   employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([expiresAt])
+  @@map("password_reset_otp")
 }

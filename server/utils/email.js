@@ -57,4 +57,41 @@ async function sendResetEmail(toEmail, resetUrl, token) {
     }
 }
 
-module.exports = { sendResetEmail, getResend };
+async function sendOtpEmail(toEmail, otp) {
+    const from = process.env.EMAIL_FROM || process.env.RESEND_FROM || 'Vighnotech <no-reply@vighnotech.com>';
+    const appName = process.env.APP_NAME || 'Vighnotech Tracker';
+    const subject = `${appName} – Your password reset code`;
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; background:#ffffff; padding:24px; border-radius:12px; border:1px solid #eee;">
+            <h2 style="color:#4F46E5; margin:0 0 12px;">Password Reset Code</h2>
+            <p style="color:#333; line-height:1.5;">You requested a password reset for your account.</p>
+            <p style="color:#333;">Your verification code is:</p>
+            <p style="text-align:center; margin: 24px 0;">
+                <span style="font-size:32px; letter-spacing:8px; font-weight:700; background:#f5f5ff; border:1px dashed #4F46E5; padding:12px 24px; border-radius:8px; display:inline-block; color:#4F46E5;">${otp}</span>
+            </p>
+            <p style="color:#333; text-align:center;">This code expires in <b>10 minutes</b>. Don't share it with anyone.</p>
+            <hr style="margin:24px 0; border:none; border-top:1px solid #eee;" />
+            <p style="font-size:12px; color:#888;">If you did not request this, you can safely ignore this email. Your password will remain unchanged.</p>
+        </div>
+    `;
+    const text = `Your password reset code is ${otp}. It expires in 10 minutes. Don't share it. If you didn't request this, ignore this email.`;
+    const resend = getResend();
+    if (!resend) {
+        logger.info(`[DEV] RESEND_API_KEY not set - mocking OTP email. To: ${toEmail} OTP: ${otp}`);
+        return { mocked: true };
+    }
+    try {
+        const { data, error } = await resend.emails.send({ from, to: [toEmail], subject, html, text });
+        if (error) {
+            logger.error(`Resend error sending OTP to ${toEmail}: ${JSON.stringify(error)}`);
+            throw new Error(error.message || 'Resend failed');
+        }
+        logger.info(`OTP email sent via Resend to ${toEmail} id=${data?.id}`);
+        return { mocked: false, id: data?.id };
+    } catch (err) {
+        logger.error(`Failed to send OTP email to ${toEmail}: ${err.message}`);
+        throw err;
+    }
+}
+
+module.exports = { sendResetEmail, sendOtpEmail, getResend };
