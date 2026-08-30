@@ -22,7 +22,6 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [debugOtp, setDebugOtp] = useState('');
   const [resendCountdown, setResendCountdown] = useState(0);
   const [finalSuccess, setFinalSuccess] = useState('');
 
@@ -34,13 +33,12 @@ export default function ForgotPasswordPage() {
 
   const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    setError(''); setSuccess(''); setDebugOtp('');
+    setError(''); setSuccess('');
     if (!email) { setError('Please enter your email'); return; }
     setIsLoading(true);
     try {
       const res = await axios.post('/auth/forgot-password', { email });
-      setSuccess(res.data.message || 'If an account exists, an OTP has been sent.');
-      if (res.data.debug?.otp) setDebugOtp(res.data.debug.otp);
+      setSuccess(res.data.message || 'If an account exists, an OTP has been sent. Check inbox and spam.');
       setStep('otp');
       setResendCountdown(60);
     } catch (err: any) {
@@ -50,12 +48,11 @@ export default function ForgotPasswordPage() {
   };
 
   const handleResend = async () => {
-    setError(''); setDebugOtp('');
+    setError('');
     setIsLoading(true);
     try {
       const res = await axios.post('/auth/forgot-password', { email });
       setSuccess('OTP resent. Check inbox and spam.');
-      if (res.data.debug?.otp) setDebugOtp(res.data.debug.otp);
       setResendCountdown(60);
     } catch (err: any) {
       const msg = err?.response?.data?.error?.message || 'Failed to resend';
@@ -140,7 +137,7 @@ export default function ForgotPasswordPage() {
                 <Input type="email" placeholder="Enter your email" value={email} onChange={(e)=>setEmail(e.target.value)} className="px-4 py-3 rounded-xl" disabled={isLoading} required />
               </div>
               {error && <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20"><p className="text-sm text-red-500 text-center">{error}</p></div>}
-              {success && <div className="px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/20"><p className="text-sm text-green-600 dark:text-green-400 text-center">{success}</p>{debugOtp && <p className="text-xs mt-2 text-center font-mono bg-black/10 p-2 rounded">Dev OTP: <b className="tracking-[0.3em]">{debugOtp}</b></p>}</div>}
+              {success && <div className="px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/20"><p className="text-sm text-green-600 dark:text-green-400 text-center">{success}</p></div>}
               <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl py-6 font-semibold" disabled={isLoading || !email}>
                 {isLoading ? <span className="flex items-center gap-2 justify-center"><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/><span>Sending OTP...</span></span> : 'Send OTP'}
               </Button>
@@ -153,7 +150,6 @@ export default function ForgotPasswordPage() {
                 <Input placeholder="Enter 6-digit OTP" value={otp} onChange={(e)=>setOtp(e.target.value.replace(/\D/g,'').slice(0,6))} className="px-4 py-3 rounded-xl text-center tracking-[0.4em] text-lg font-mono" maxLength={6} disabled={isLoading} required />
                 <p className="text-xs text-muted-foreground text-center">Expires in 10 minutes. Check spam folder.</p>
               </div>
-              {debugOtp && <div className="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center"><p className="text-xs font-mono">Dev OTP: <b className="tracking-[0.3em]">{debugOtp}</b></p></div>}
               {error && <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20"><p className="text-sm text-red-500 text-center">{error}</p></div>}
               {success && !error && <div className="px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/20"><p className="text-sm text-green-600 text-center">{success}</p></div>}
               <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl py-6 font-semibold" disabled={isLoading || otp.length!==6}>

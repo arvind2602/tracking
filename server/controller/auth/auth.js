@@ -349,11 +349,7 @@ const forgotPassword = async (req, res, next) => {
             logger.error(`Forgot password OTP email error: ${emailError.message}`);
         }
 
-        const response = { message: genericMessage };
-        if (process.env.NODE_ENV !== 'production') {
-            response.debug = { otp };
-        }
-        res.json(response);
+        res.json({ message: genericMessage });
     } catch (err) {
         // If table doesn't exist yet, fallback to link flow
         if (err.message && err.message.includes('password_reset_otp')) {
@@ -428,9 +424,7 @@ const forgotPasswordLink = async (req, res, next) => {
         const frontendUrl = (process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000').split(',')[0].trim();
         const resetUrl = `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
         try { const { sendResetEmail } = require('../../utils/email'); await sendResetEmail(user.email, resetUrl, resetToken); } catch (e) { require('../../utils/logger').error(`Link email error: ${e.message}`); }
-        const response = { message: genericMessage };
-        if (process.env.NODE_ENV !== 'production') response.debug = { resetToken, resetUrl };
-        res.json(response);
+        res.json({ message: genericMessage });
     } catch (err) { next(err); }
 };
 

@@ -33,7 +33,7 @@ async function sendResetEmail(toEmail, resetUrl, token) {
 
     const resend = getResend();
     if (!resend) {
-        logger.info(`[DEV] RESEND_API_KEY not set - mocking email. To: ${toEmail} ResetURL: ${resetUrl} Token: ${token}`);
+        logger.warn(`RESEND_API_KEY not set - mocking reset email to ${toEmail}`);
         return { mocked: true };
     }
 
@@ -77,7 +77,7 @@ async function sendOtpEmail(toEmail, otp) {
     const text = `Your password reset code is ${otp}. It expires in 10 minutes. Don't share it. If you didn't request this, ignore this email.`;
     const resend = getResend();
     if (!resend) {
-        logger.info(`[DEV] RESEND_API_KEY not set - mocking OTP email. To: ${toEmail} OTP: ${otp}`);
+        logger.warn(`RESEND_API_KEY not set - mocking OTP email to ${toEmail}`);
         return { mocked: true };
     }
     try {
