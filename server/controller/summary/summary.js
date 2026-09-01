@@ -77,39 +77,39 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
     pool.query(`
       WITH Weekly AS (
         SELECT p.id,
-          COUNT(t.id)::int as totalTasks,
-          COUNT(t.id) FILTER (WHERE t."createdAt" BETWEEN $2 AND $3)::int as createdThisWeek,
-          COUNT(t.id) FILTER (WHERE LOWER(t.status) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3)::int as completedThisWeek,
-          COUNT(t.id) FILTER (WHERE LOWER(t.status) IN ('pending-review','pending_review') AND t."updatedAt" BETWEEN $2 AND $3)::int as reviewThisWeek,
-          COUNT(t.id) FILTER (WHERE t."dueDate" BETWEEN $2 AND $3 AND LOWER(t.status) NOT IN ('done','completed'))::int as overdue,
-          COALESCE(SUM(t.points) FILTER (WHERE LOWER(t.status) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3),0)::int as pointsThisWeek,
-          COALESCE(SUM(t.points) FILTER (WHERE LOWER(t.status) IN ('done','completed')),0)::int as totalPoints,
-          ROUND(COUNT(*) FILTER (WHERE LOWER(t.status) IN ('done','completed'))::numeric / NULLIF(COUNT(t.id),0)*100)::int as progress
+          COUNT(t.id)::int as "totalTasks",
+          COUNT(t.id) FILTER (WHERE t."createdAt" BETWEEN $2 AND $3)::int as "createdThisWeek",
+          COUNT(t.id) FILTER (WHERE LOWER(t.status) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3)::int as "completedThisWeek",
+          COUNT(t.id) FILTER (WHERE LOWER(t.status) IN ('pending-review','pending_review') AND t."updatedAt" BETWEEN $2 AND $3)::int as "reviewThisWeek",
+          COUNT(t.id) FILTER (WHERE t."dueDate" BETWEEN $2 AND $3 AND LOWER(t.status) NOT IN ('done','completed'))::int as "overdue",
+          COALESCE(SUM(t.points) FILTER (WHERE LOWER(t.status) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3),0)::int as "pointsThisWeek",
+          COALESCE(SUM(t.points) FILTER (WHERE LOWER(t.status) IN ('done','completed')),0)::int as "totalPoints",
+          ROUND(COUNT(*) FILTER (WHERE LOWER(t.status) IN ('done','completed'))::numeric / NULLIF(COUNT(t.id),0)*100)::int as "progress"
         FROM projects p LEFT JOIN task t ON p.id=t."projectId"
         WHERE p."organiationId"=$1 AND p.is_archived=false GROUP BY p.id
       )
       SELECT p.id, p.name, p.description, p.status, p.priority_order, p."endDate", p."startDate",
-             w.totalTasks, w.createdThisWeek, w.completedThisWeek, w.reviewThisWeek, w.overdue, w.pointsThisWeek, w.totalPoints, w.progress,
-             'Unassigned' as headName,
-             (SELECT reason FROM project_hold_history WHERE "projectId"=p.id AND "endDate" IS NULL ORDER BY "startDate" DESC LIMIT 1) as holdReason
+             w."totalTasks", w."createdThisWeek", w."completedThisWeek", w."reviewThisWeek", w."overdue", w."pointsThisWeek", w."totalPoints", w."progress",
+             'Unassigned' as "headName",
+             (SELECT reason FROM project_hold_history WHERE "projectId"=p.id AND "endDate" IS NULL ORDER BY "startDate" DESC LIMIT 1) as "holdReason"
       FROM projects p
       JOIN Weekly w ON w.id=p.id
       WHERE p."organiationId"=$1 AND p.is_archived=false
-      ORDER BY p.priority_order ASC NULLS LAST, w.pointsThisWeek DESC, p."createdAt" DESC
+      ORDER BY p.priority_order ASC NULLS LAST, w."pointsThisWeek" DESC, p."createdAt" DESC
     `, [organizationId, weekStart, weekEnd]),
     // performers this week — simplified: match via assignedTo text OR task_assignee, no type gate. Divided points used as primary.
     pool.query(`
       SELECT e.id, e."firstName", e."lastName", e."firstName"||' '||e."lastName" as name,
-             COUNT(t.id) FILTER (WHERE LOWER(COALESCE(t.status,'')) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3)::int as completedThisWeek,
+             COUNT(t.id) FILTER (WHERE LOWER(COALESCE(t.status,'')) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3)::int as "completedThisWeek",
              COALESCE(SUM(
                CASE WHEN LOWER(COALESCE(t.status,'')) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3
                THEN CASE WHEN (SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId"=t.id) > 0 THEN t.points / (SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId"=t.id) ELSE t.points END
                ELSE 0 END
-             ),0)::int as weeklyPoints,
+             ),0)::int as "weeklyPoints",
              COALESCE(SUM(
                CASE WHEN LOWER(COALESCE(t.status,'')) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3
                THEN t.points ELSE 0 END
-             ),0)::int as weeklyPointsFull
+             ),0)::int as "weeklyPointsFull"
       FROM employee e
       LEFT JOIN task t ON (
         t."assignedTo"::text = e.id::text
@@ -169,11 +169,11 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
 
   // atRisk enrich
   const atRiskRows = atRisk.rows.map(p=> ({ ...p, riskFactor: p.overdueTasks>0?'High':'Medium', completionRate: p.totalTasks>0? Math.round(p.completedTasks/p.totalTasks*100):0 }));
-  // projects enrich: attach risk and topPerformers per project — filter to only projects where any task has been added (totalTasks>0).
-  let projectsEnriched = projectsWeekly.rows.filter(p => (p.totalTasks||0) > 0);
-  // fallback: if no project passed filter but productivity shows tasks, it likely means tasks belong to archived/completed projects orWeekly counts mismatched — include any project with weekly activity
+  // projects enrich: attach risk and topPerformers per project — filter to only projects where any task has been added (totalTasks>0). Handle quoted lower/upper case keys
+  let projectsEnriched = projectsWeekly.rows.filter(p => ((p.totalTasks ?? p.totaltasks ?? 0) > 0));
+  // fallback: if no project passed filter but productivity shows tasks, include any project with weekly activity
   if (projectsEnriched.length === 0 && (productivityThisWeek.rows[0]?.cnt||0) > 0) {
-    const fallback = projectsWeekly.rows.filter(p => (p.completedThisWeek||0) > 0 || (p.createdThisWeek||0) > 0 || (p.pointsThisWeek||0) > 0);
+    const fallback = projectsWeekly.rows.filter(p => ((p.completedThisWeek ?? p.completedthisweek ?? 0) > 0) || ((p.createdThisWeek ?? p.createdthisweek ?? 0) > 0) || ((p.pointsThisWeek ?? p.pointsthisweek ?? 0) > 0));
     if (fallback.length) projectsEnriched = fallback;
   }
   // fetch top performers per project (batched) — use text comparison to avoid uuid cast errors
