@@ -87,21 +87,13 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
           ROUND(COUNT(*) FILTER (WHERE LOWER(t.status) IN ('done','completed'))::numeric / NULLIF(COUNT(t.id),0)*100)::int as progress
         FROM projects p LEFT JOIN task t ON p.id=t."projectId"
         WHERE p."organiationId"=$1 AND p.is_archived=false GROUP BY p.id
-      ),
-      Heads AS (
-        SELECT p.id, COALESCE(string_agg(e."firstName"||' '||e."lastName", ', ' ORDER BY h.ord),'Unassigned') as headName
-        FROM projects p
-        LEFT JOIN LATERAL unnest(p."headIds") WITH ORDINALITY AS h(id, ord) ON true
-        LEFT JOIN employee e ON e.id::text = h.id::text
-        WHERE p."organiationId"=$1 AND p.is_archived=false GROUP BY p.id
       )
       SELECT p.id, p.name, p.description, p.status, p.priority_order, p."endDate", p."startDate",
              w.totalTasks, w.createdThisWeek, w.completedThisWeek, w.reviewThisWeek, w.overdue, w.pointsThisWeek, w.totalPoints, w.progress,
-             COALESCE(h.headName, 'Unassigned') as headName,
+             COALESCE((SELECT string_agg(e."firstName"||' '||e."lastName", ', ' ORDER BY h.ord) FROM unnest(p."headIds") WITH ORDINALITY AS h(id, ord) LEFT JOIN employee e ON e.id::text = h.id::text), 'Unassigned') as headName,
              (SELECT reason FROM project_hold_history WHERE "projectId"=p.id AND "endDate" IS NULL ORDER BY "startDate" DESC LIMIT 1) as holdReason
       FROM projects p
       JOIN Weekly w ON w.id=p.id
-      LEFT JOIN Heads h ON h.id=p.id
       WHERE p."organiationId"=$1 AND p.is_archived=false
       ORDER BY p.priority_order ASC NULLS LAST, w.pointsThisWeek DESC, p."createdAt" DESC
     `, [organizationId, weekStart, weekEnd]),
