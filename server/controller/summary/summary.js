@@ -91,7 +91,7 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
       Heads AS (
         SELECT p.id, COALESCE(string_agg(e."firstName"||' '||e."lastName", ', ' ORDER BY h.ord),'Unassigned') as headName
         FROM projects p
-        LEFT JOIN LATERAL unnest(COALESCE(p."headIds", '{}'::uuid[])) WITH ORDINALITY AS h(id, ord) ON true
+        LEFT JOIN LATERAL unnest(p."headIds") WITH ORDINALITY AS h(id, ord) ON true
         LEFT JOIN employee e ON e.id::text = h.id::text
         WHERE p."organiationId"=$1 AND p.is_archived=false GROUP BY p.id
       )
