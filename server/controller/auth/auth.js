@@ -589,19 +589,24 @@ const updateEmployee = async (req, res, next) => {
             query += `, image = NULL`;
         }
 
-        // Handle weekly report opt-in (ADMIN only, self)
+        // Handle weekly report opt-in (ADMIN only, any ADMIN target in same org)
         await ensureReportingColumn();
         if (rawIncludeWeeklyReport !== undefined) {
-            // Only ADMIN can toggle and only for self unless caller is ADMIN editing self
             const parsedVal = rawIncludeWeeklyReport === 'true' || rawIncludeWeeklyReport === true;
-            // Enforce: non-ADMIN cannot opt-in; and users cannot toggle others' flag unless ADMIN
-            const isSelf = req.user.user_uuid === id;
             const isAdmin = req.user.role === 'ADMIN';
             if (!isAdmin) {
                 return next(new BadRequestError('Only admins can enable weekly reports'));
             }
-            if (!isSelf) {
-                return next(new BadRequestError('You can only change your own reporting preference'));
+            // Verify target exists, is ADMIN, and in same org; allow self or admin managing another admin
+            const targetRes = await pool.query(`SELECT role, "organiationId" FROM employee WHERE id=$1 AND is_archived=false`, [id]);
+            if (targetRes.rowCount===0) return next(new NotFoundError('Employee not found'));
+            if (targetRes.rows[0].organiationId !== req.user.organization_uuid) return next(new BadRequestError('Cannot modify user from another organization'));
+            if (targetRes.rows[0].role !== 'ADMIN') return next(new BadRequestError('Only admins can be subscribed to weekly reports'));
+            // If this is a reporting-only request (no other profile fields sent), handle as lightweight toggle
+            const isReportingOnly = firstName===undefined && lastName===undefined && email===undefined && position===undefined && role===undefined && rawSkills===undefined && rawResponsibilities===undefined && dob===undefined && bloodGroup===undefined && phoneNumber===undefined && emergencyContact===undefined && address===undefined && joiningDate===undefined && !req.file && removeImage===undefined;
+            if (isReportingOnly) {
+                const r = await pool.query(`UPDATE employee SET "include_weekly_report"=$1, "updatedAt"=NOW() WHERE id=$2 RETURNING id, "include_weekly_report" as "includeWeeklyReport", email, role`, [parsedVal, id]);
+                return res.json(r.rows[0]);
             }
             query += `, "include_weekly_report" = $${paramIndex}`;
             params.push(parsedVal);

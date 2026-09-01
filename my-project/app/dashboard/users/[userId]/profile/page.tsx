@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import React from 'react';
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2, Download, Loader2, MapPin, FileText } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Check, Edit2, Save, X, Plus, Camera, Trash2, Download, Loader2, MapPin, FileText, MailCheck } from "lucide-react";
 import html2canvas from "html2canvas";
 import { QRCodeCanvas } from "qrcode.react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import toast from "react-hot-toast";
 import { TaskPoints } from "@/components/reports/TaskPoints";
 import { removeBackground } from "@imgly/background-removal";
@@ -46,6 +47,7 @@ interface UserProfile {
     emergencyContact?: string;
     address?: string;
     joiningDate?: string;
+    includeWeeklyReport?: boolean;
 }
 
 export default function UserProfileView({ params }: { params: Promise<{ userId: string }> }) {
@@ -78,6 +80,9 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
     const [isDownloading, setIsDownloading] = useState(false);
     const [processedImage, setProcessedImage] = useState<string | null>(null);
     const [isProcessingImage, setIsProcessingImage] = useState(false);
+    const [includeWeeklyReport, setIncludeWeeklyReport] = useState(false);
+    const [savingReportPref, setSavingReportPref] = useState(false);
+    const [isAdminViewer, setIsAdminViewer] = useState(false);
 
     // Password change states
     const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
@@ -125,6 +130,15 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
     useEffect(() => {
         if (userId) {
             fetchProfile();
+            // detect viewer role for admin toggle visibility
+            try {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    const role = payload?.user?.role || payload?.role;
+                    setIsAdminViewer(role === 'ADMIN');
+                }
+            } catch {}
         }
     }, [userId]);
 
@@ -153,6 +167,7 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
             setLastName(data.lastName || "");
             setEmail(data.email || "");
             setImagePreview(data.image || null);
+            setIncludeWeeklyReport(!!data.includeWeeklyReport);
             setRemoveImage(false);
         } catch (error) {
             console.error("Failed to fetch profile:", error);
@@ -242,6 +257,27 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
 
     const removeResponsibility = (index: number) => {
         setEditedResponsibilities(editedResponsibilities.filter((_, i) => i !== index));
+    };
+
+    const handleReportToggle = async (checked: boolean) => {
+        if (!isAdminViewer) {
+            toast.error('Only admins can change reporting preference');
+            return;
+        }
+        if (profile?.role !== 'ADMIN') {
+            toast.error('Only admins can be subscribed to weekly reports');
+            return;
+        }
+        setSavingReportPref(true);
+        try {
+            const res = await axios.put(`/auth/${userId}`, { includeWeeklyReport: checked });
+            const val = !!(res.data.includeWeeklyReport ?? checked);
+            setIncludeWeeklyReport(val);
+            setProfile(prev => prev ? { ...prev, includeWeeklyReport: val } : prev);
+            toast.success(val ? 'Weekly CEO report enabled for this admin' : 'Weekly CEO report disabled for this admin');
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || 'Failed to update preference');
+        } finally { setSavingReportPref(false); }
     };
 
     const handleChangePassword = async () => {
@@ -615,6 +651,26 @@ export default function UserProfileView({ params }: { params: Promise<{ userId: 
                                         )}
                                     </div>
                                 </div>
+                                {isAdminViewer && profile.role === 'ADMIN' && (
+                                    <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-indigo-500/10 border border-blue-500/20">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex gap-3 flex-1">
+                                                <div className="p-2 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 h-fit">
+                                                    <MailCheck className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-semibold text-foreground">Weekly CEO Report</p>
+                                                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Friday 06:00 IST email with org health and projects this week. Only opted-in admins via Resend.</p>
+                                                    <p className="text-[11px] text-muted-foreground mt-2">Status: <span className={includeWeeklyReport ? "text-green-600 font-semibold" : "text-muted-foreground"}>{includeWeeklyReport ? "Enabled — subscribed" : "Disabled"}</span></p>
+                                                </div>
+                                            </div>
+                                            <Switch checked={includeWeeklyReport} onCheckedChange={handleReportToggle} disabled={savingReportPref} />
+                                        </div>
+                                    </div>
+                                )}
+                                {isAdminViewer && profile.role !== 'ADMIN' && (
+                                    <div className="mt-4 p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground">Weekly report is only for ADMIN role.</div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
