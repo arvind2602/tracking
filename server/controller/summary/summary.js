@@ -114,7 +114,6 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
       LEFT JOIN task t ON (
         t."assignedTo"::text = e.id::text
         OR EXISTS (SELECT 1 FROM task_assignee ta WHERE ta."taskId"=t.id AND ta."employeeId"=e.id)
-        OR t."createdBy"::text = e.id::text
       )
       WHERE e."organiationId"=$1 AND e.is_archived=false
       GROUP BY e.id
