@@ -67,7 +67,7 @@ function renderWeeklySummary(data) {
         <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
           <div style="flex:1;padding:12px;background:${healthColor}0D;border:1px solid ${healthColor}33;border-radius:12px;">
             <div style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">Health Score</div>
-            <div style="font-size:28px;font-weight:800;color:${healthColor};">${health.score}/100 <span style="font-size:12px;color:#6B7280;font-weight:600;">${health.delta!=null?(health.delta>=0?'↑ +' :'↓ ')+health.delta+' vs last week':''}</span></div>
+            <div style="font-size:28px;font-weight:800;color:${healthColor};">${health.score}/100 <span style="font-size:12px;color:#6B7280;font-weight:600;">${health.delta!=null && health.delta!==0?(health.delta>0?'↑ +':'↓ ')+health.delta+' vs last week':'— vs last week'}</span></div>
             <div style="font-size:11px;color:#6B7280;">${esc(health.summary||'')}</div>
           </div>
           <div style="flex:1;padding:12px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;">
@@ -83,7 +83,7 @@ function renderWeeklySummary(data) {
           <div style="flex:1;min-width:140px;padding:12px;background:#EEF2FF;border-radius:12px;">
             <div style="font-size:11px;color:#4338CA;text-transform:uppercase;letter-spacing:0.06em;">Velocity This Week</div>
             <div style="font-size:13px;color:#111827;margin-top:6px;">Created <b>${velocity.created ?? 0}</b> • Completed <b>${velocity.completed ?? 0}</b> • Points <b>${velocity.points ?? 0}</b></div>
-            <div style="font-size:11px;color:#6B7280;">Avg resolution ${velocity.avgResolutionHours ?? 0}h • Δ points ${velocity.pointsDelta!=null?(velocity.pointsDelta>=0?'+':'')+velocity.pointsDelta:''}</div>
+            <div style="font-size:11px;color:#6B7280;">Avg resolution ${velocity.avgResolutionHours ?? 0}h • Δ points ${velocity.pointsDelta!=null && velocity.pointsDelta!==0?(velocity.pointsDelta>0?'+':'')+velocity.pointsDelta:'—'}</div>
           </div>
           <div style="flex:1;min-width:140px;padding:12px;background:#ECFDF5;border-radius:12px;">
             <div style="font-size:11px;color:#065F46;text-transform:uppercase;letter-spacing:0.06em;">Presence</div>
@@ -95,7 +95,7 @@ function renderWeeklySummary(data) {
         ${leave.pending? `<div style="padding:10px 12px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;font-size:12px;color:#92400E;">Leaves pending approval: <b>${leave.pending}</b> (oldest ${fmtDate(leave.oldest)})</div>`:''}
 
         <h2 style="font-size:14px;font-weight:800;color:#111827;margin:20px 0 8px;">📦 Projects Going On This Week (${(projects||[]).length})</h2>
-        <div style="font-size:11px;color:#6B7280;margin-bottom:8px;">All active projects + on-hold. Dimmed = no movement this week.</div>
+        <div style="font-size:11px;color:#6B7280;margin-bottom:8px;">Only projects with tasks added. Dimmed = no movement this week.</div>
         <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
           <thead>
             <tr style="background:#F9FAFB;text-align:left;">

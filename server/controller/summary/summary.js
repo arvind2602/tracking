@@ -73,15 +73,15 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
       const stuck = await pool.query(`SELECT t.id, t.description, t.status, t."updatedAt", e."firstName", e."lastName" FROM task t JOIN projects p ON t."projectId"=p.id LEFT JOIN employee e ON t."assignedTo"=e.id::text WHERE p."organiationId"=$1 AND LOWER(t.status) NOT IN ('done','completed') AND t."updatedAt" < $2::timestamptz - INTERVAL '5 days' ORDER BY t."updatedAt" ASC LIMIT 20`, [organizationId, weekEnd]);
       return { avg: avg.rows[0].avgResolutionHours, stuck: stuck.rows };
     })(),
-    // Projects going on this week — all active + on_hold (is_archived=false) with weekly stats
+    // Projects going on this week — all active + on_hold (is_archived=false) with weekly stats — overdue = due this week and still open
     pool.query(`
       WITH Weekly AS (
         SELECT p.id,
           COUNT(t.id)::int as totalTasks,
           COUNT(t.id) FILTER (WHERE t."createdAt" BETWEEN $2 AND $3)::int as createdThisWeek,
           COUNT(t.id) FILTER (WHERE LOWER(t.status) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3)::int as completedThisWeek,
-          COUNT(t.id) FILTER (WHERE t.status='pending-review' AND t."updatedAt" BETWEEN $2 AND $3)::int as reviewThisWeek,
-          COUNT(t.id) FILTER (WHERE t."dueDate" < $3 AND LOWER(t.status) NOT IN ('done','completed'))::int as overdue,
+          COUNT(t.id) FILTER (WHERE LOWER(t.status) IN ('pending-review','pending_review') AND t."updatedAt" BETWEEN $2 AND $3)::int as reviewThisWeek,
+          COUNT(t.id) FILTER (WHERE t."dueDate" BETWEEN $2 AND $3 AND LOWER(t.status) NOT IN ('done','completed'))::int as overdue,
           COALESCE(SUM(t.points) FILTER (WHERE LOWER(t.status) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3),0)::int as pointsThisWeek,
           COALESCE(SUM(t.points) FILTER (WHERE LOWER(t.status) IN ('done','completed')),0)::int as totalPoints,
           ROUND(COUNT(*) FILTER (WHERE LOWER(t.status) IN ('done','completed'))::numeric / NULLIF(COUNT(t.id),0)*100)::int as progress
@@ -141,16 +141,24 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
     `, [organizationId])
   ]);
 
-  // compute deltas and derived
-  const pending = tasksByStatusTotal.rows.find(r=> r.status==='pending')?.c || 0;
-  const inProgress = tasksByStatusTotal.rows.find(r=> r.status==='in-progress' || r.status==='in_progress')?.c || tasksByStatusTotal.rows.filter(r=> r.status.toLowerCase().includes('progress')).reduce((a,b)=>a+b.c,0);
-  const review = tasksByStatusTotal.rows.find(r=> r.status==='pending-review')?.c || 0;
-  const pointsDelta = productivityThisWeek.rows[0].pts - productivityPrior.rows[0].pts;
+  // compute deltas and derived — normalize status keys
+  const norm = s => String(s||'').toLowerCase().trim();
+  const totalByNorm = {};
+  for (const r of tasksByStatusTotal.rows) {
+    const k = norm(r.status);
+    totalByNorm[k] = (totalByNorm[k]||0) + (r.c||0);
+  }
+  const pending = (totalByNorm['pending']||0) + (totalByNorm['todo']||0);
+  const inProgress = (totalByNorm['in-progress']||0) + (totalByNorm['in_progress']||0) + (totalByNorm['inprogress']||0);
+  const review = (totalByNorm['pending-review']||0) + (totalByNorm['pending_review']||0) + (totalByNorm['review']||0);
+  const weeklyPts = productivityThisWeek.rows[0]?.pts ?? 0;
+  const priorPts = productivityPrior.rows[0]?.pts ?? 0;
+  const pointsDelta = weeklyPts - priorPts;
 
   // atRisk enrich
   const atRiskRows = atRisk.rows.map(p=> ({ ...p, riskFactor: p.overdueTasks>0?'High':'Medium', completionRate: p.totalTasks>0? Math.round(p.completedTasks/p.totalTasks*100):0 }));
-  // projects enrich: attach risk and topPerformers per project
-  let projectsEnriched = projectsWeekly.rows;
+  // projects enrich: attach risk and topPerformers per project — filter to only projects where any task has been added
+  let projectsEnriched = projectsWeekly.rows.filter(p => (p.totalTasks||0) > 0);
   // fetch top performers per project (batched)
   if (projectsEnriched.length) {
     try {
@@ -171,21 +179,38 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
   }
 
   const healthScore = (() => {
-    const avgPts = Math.max(productivityPrior.rows[0].pts, 1);
-    const velocityScore = Math.min(100, Math.round((productivityThisWeek.rows[0].pts / (avgPts||1))*50 + 50)); // simplistic
-    const completionRate = counts.rows[0].totalPoints ? 70 : 50; // placeholder if no better metric
-    const riskPenalty = atRiskRows.length * 5;
-    return Math.max(0, Math.min(100, Math.round(velocityScore*0.6 + completionRate*0.4 - riskPenalty)));
+    const weeklyCnt = productivityThisWeek.rows[0]?.cnt ?? 0;
+    const totalCnt = tasksByStatusTotal.rows.reduce((a,b)=>a+(b.c||0),0) || 1;
+    const completedTotal = totalByNorm['completed']||0 + totalByNorm['done']||0;
+    // include both 'completed' and 'done'
+    const completedAll = (totalByNorm['completed']||0) + (totalByNorm['done']||0);
+    const completionRate = Math.round((completedAll / Math.max(totalCnt,1))*100);
+    // velocity vs prior: if prior is 0, treat delta as neutral (no penalty)
+    let velocityDelta = 0;
+    if (priorPts > 0) velocityDelta = Math.round(((weeklyPts - priorPts)/priorPts)*100);
+    // health 0-100: base 50 + 0.4*completionRate + 0.3*velocityDelta clamped + risk penalty; if no activity this week, health reflects overall completion
+    let score = 50 + (completionRate * 0.35) + Math.max(-20, Math.min(20, velocityDelta * 0.3)) - (atRiskRows.length * 6) - ( (taskInsights.stuck?.length||0) > 5 ? 5 : 0);
+    // if weekly had activity, nudge up
+    if (weeklyCnt > 0 && weeklyPts > 0) score += 5;
+    return Math.max(0, Math.min(100, Math.round(score)));
   })();
+  const healthDelta = priorPts > 0 ? pointsDelta : 0;
+
+  const totalsRow = counts.rows[0] || {};
+  // Postgres may return lowercase keys without quotes; handle both casings
+  const totalEmployees = totalsRow.totalEmployees ?? totalsRow.totalemployees ?? 0;
+  const totalProjects = totalsRow.totalProjects ?? totalsRow.totalprojects ?? 0;
+  const totalPoints = totalsRow.totalPoints ?? totalsRow.totalpoints ?? 0;
+  const weeklyCompleted = productivityThisWeek.rows[0]?.cnt ?? 0;
 
   return {
     orgName,
     weekStart,
     weekEnd,
     weekLabel,
-    health: { score: healthScore, delta: pointsDelta, summary: `${productivityThisWeek.rows[0].cnt} tasks completed, ${productivityThisWeek.rows[0].pts} pts` },
-    totals: { totalEmployees: counts.rows[0].totalEmployees, totalProjects: counts.rows[0].totalProjects, totalPoints: counts.rows[0].totalPoints, pending, inProgress, review },
-    velocity: { created: tasksByStatusThisWeek.rows.reduce((a,b)=>a+b.c,0), completed: productivityThisWeek.rows[0].cnt, points: productivityThisWeek.rows[0].pts, pointsDelta, avgResolutionHours: Math.round(taskInsights.avg||0) },
+    health: { score: healthScore, delta: healthDelta, summary: `${weeklyCompleted} tasks completed, ${weeklyPts} pts` },
+    totals: { totalEmployees, totalProjects, totalPoints, pending, inProgress, review },
+    velocity: { created: tasksByStatusThisWeek.rows.reduce((a,b)=>a+b.c,0), completed: weeklyCompleted, points: weeklyPts, pointsDelta, avgResolutionHours: Math.round(taskInsights.avg||0) },
     attendance: attendanceWeekly.rows[0],
     leave: { pending: leavePending.rows[0].pending, oldest: leavePending.rows[0].oldest },
     projects: projectsEnriched,
