@@ -90,7 +90,7 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
       )
       SELECT p.id, p.name, p.description, p.status, p.priority_order, p."endDate", p."startDate",
              w.totalTasks, w.createdThisWeek, w.completedThisWeek, w.reviewThisWeek, w.overdue, w.pointsThisWeek, w.totalPoints, w.progress,
-             COALESCE((SELECT string_agg(e."firstName"||' '||e."lastName", ', ' ORDER BY h.ord) FROM unnest(p."headIds") WITH ORDINALITY AS h(id, ord) LEFT JOIN employee e ON e.id::text = h.id::text), 'Unassigned') as headName,
+             'Unassigned' as headName,
              (SELECT reason FROM project_hold_history WHERE "projectId"=p.id AND "endDate" IS NULL ORDER BY "startDate" DESC LIMIT 1) as holdReason
       FROM projects p
       JOIN Weekly w ON w.id=p.id
