@@ -118,7 +118,7 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
       )
       WHERE e."organiationId"=$1 AND e.is_archived=false
       GROUP BY e.id
-      ORDER BY weeklyPoints DESC, completedThisWeek DESC LIMIT 10
+      ORDER BY "weeklyPoints" DESC, "completedThisWeek" DESC LIMIT 10
     `, [organizationId, weekStart, weekEnd]),
     // attendance this week
     pool.query(`
