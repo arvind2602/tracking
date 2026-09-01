@@ -94,4 +94,26 @@ async function sendOtpEmail(toEmail, otp) {
     }
 }
 
-module.exports = { sendResetEmail, sendOtpEmail, getResend };
+async function sendWeeklySummaryEmail({ to, subject, html, text }) {
+    const from = process.env.EMAIL_FROM || process.env.RESEND_FROM || 'Vighnotech <no-reply@vighnotech.com>';
+    const resend = getResend();
+    if (!resend) {
+        // Keep mock behaviour for local dev without key — log subject size and recipients
+        logger.warn(`RESEND_API_KEY not set - mocking weekly summary email to ${Array.isArray(to) ? to.join(',') : to} subject="${subject}"`);
+        return { mocked: true };
+    }
+    try {
+        const { data, error } = await resend.emails.send({ from, to: Array.isArray(to) ? to : [to], subject, html, text });
+        if (error) {
+            logger.error(`Resend error sending weekly summary to ${to}: ${JSON.stringify(error)}`);
+            throw new Error(error.message || 'Resend failed');
+        }
+        logger.info(`Weekly summary sent via Resend to ${Array.isArray(to) ? to.join(',') : to} id=${data?.id}`);
+        return { mocked: false, id: data?.id };
+    } catch (err) {
+        logger.error(`Failed to send weekly summary to ${to}: ${err.message}`);
+        throw err;
+    }
+}
+
+module.exports = { sendResetEmail, sendOtpEmail, getResend, sendWeeklySummaryEmail };

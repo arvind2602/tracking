@@ -110,15 +110,25 @@ const register = async (req, res, next) => {
 
 };
 
+// Ensure weekly report column exists (idempotent, for deployments without manual migration)
+async function ensureReportingColumn() {
+    try {
+        await pool.query(`ALTER TABLE "employee" ADD COLUMN IF NOT EXISTS "include_weekly_report" BOOLEAN NOT NULL DEFAULT false`);
+    } catch (_) {}
+}
+
 // View single employee
 const getEmployee = async (req, res, next) => {
     const { user_uuid } = req.user;
     try {
+        await ensureReportingColumn();
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate", o.name as "organizationName"
-             FROM employee e
-             LEFT JOIN organiation o ON e."organiationId" = o.id
-             WHERE e.id = $1 AND e.is_archived = false`,
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate",
+                    COALESCE(e."include_weekly_report", false) as "includeWeeklyReport",
+                    o.name as "organizationName"
+              FROM employee e
+              LEFT JOIN organiation o ON e."organiationId" = o.id
+              WHERE e.id = $1 AND e.is_archived = false`,
             [user_uuid]
         );
         if (result.rowCount === 0) return next(new NotFoundError('Employee not found'));
@@ -132,11 +142,14 @@ const getEmployeeById = async (req, res, next) => {
     const organizationId = req.user.organization_uuid; // Ensure they belong to same org
 
     try {
+        await ensureReportingColumn();
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate", o.name as "organizationName"
-             FROM employee e
-             LEFT JOIN organiation o ON e."organiationId" = o.id
-             WHERE e.id = $1 AND e."organiationId" = $2 AND e.is_archived = false`,
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate",
+                    COALESCE(e."include_weekly_report", false) as "includeWeeklyReport",
+                    o.name as "organizationName"
+              FROM employee e
+              LEFT JOIN organiation o ON e."organiationId" = o.id
+              WHERE e.id = $1 AND e."organiationId" = $2 AND e.is_archived = false`,
             [id, organizationId]
         );
         if (result.rowCount === 0) return next(new NotFoundError('Employee not found'));
@@ -533,7 +546,7 @@ const updateEmployee = async (req, res, next) => {
     // appending arrays to FormData can be tricky).
     // For now assuming direct fields or simple parsing if needed.
 
-    const { firstName, lastName, email, position, role, skills: rawSkills, responsibilities: rawResponsibilities, dob, bloodGroup, phoneNumber, emergencyContact, address, joiningDate, removeImage } = req.body;
+    const { firstName, lastName, email, position, role, skills: rawSkills, responsibilities: rawResponsibilities, dob, bloodGroup, phoneNumber, emergencyContact, address, joiningDate, removeImage, includeWeeklyReport: rawIncludeWeeklyReport } = req.body;
     let skills = rawSkills;
     let responsibilities = rawResponsibilities;
 
@@ -576,7 +589,26 @@ const updateEmployee = async (req, res, next) => {
             query += `, image = NULL`;
         }
 
-        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", "emergencyContact", address, "joiningDate", image`;
+        // Handle weekly report opt-in (ADMIN only, self)
+        await ensureReportingColumn();
+        if (rawIncludeWeeklyReport !== undefined) {
+            // Only ADMIN can toggle and only for self unless caller is ADMIN editing self
+            const parsedVal = rawIncludeWeeklyReport === 'true' || rawIncludeWeeklyReport === true;
+            // Enforce: non-ADMIN cannot opt-in; and users cannot toggle others' flag unless ADMIN
+            const isSelf = req.user.user_uuid === id;
+            const isAdmin = req.user.role === 'ADMIN';
+            if (!isAdmin) {
+                return next(new BadRequestError('Only admins can enable weekly reports'));
+            }
+            if (!isSelf) {
+                return next(new BadRequestError('You can only change your own reporting preference'));
+            }
+            query += `, "include_weekly_report" = $${paramIndex}`;
+            params.push(parsedVal);
+            paramIndex++;
+        }
+
+        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", "emergencyContact", address, "joiningDate", image, "include_weekly_report" as "includeWeeklyReport"`;
         params.push(id);
 
         const result = await pool.query(query, params);
@@ -935,6 +967,35 @@ const checkDeviceChange = async (req, res, next) => {
     }
 };
 
+// Reporting preference (ADMIN opt-in for weekly summary)
+const getReportingPreference = async (req, res, next) => {
+    try {
+        await ensureReportingColumn();
+        const result = await pool.query(
+            `SELECT COALESCE("include_weekly_report", false) as "includeWeeklyReport" FROM employee WHERE id=$1`,
+            [req.user.user_uuid]
+        );
+        if (result.rowCount === 0) return next(new NotFoundError('Employee not found'));
+        res.json(result.rows[0]);
+    } catch (error) { next(error); }
+};
+
+const updateReportingPreference = async (req, res, next) => {
+    const schema = Joi.object({ includeWeeklyReport: Joi.boolean().required() });
+    const { error } = schema.validate(req.body);
+    if (error) return next(new BadRequestError(error.details[0].message));
+    if (req.user.role !== 'ADMIN') return next(new BadRequestError('Only admins can enable weekly reports'));
+    try {
+        await ensureReportingColumn();
+        const { includeWeeklyReport } = req.body;
+        const result = await pool.query(
+            `UPDATE employee SET "include_weekly_report"=$1, "updatedAt"=NOW() WHERE id=$2 RETURNING COALESCE("include_weekly_report", false) as "includeWeeklyReport"`,
+            [includeWeeklyReport, req.user.user_uuid]
+        );
+        res.json(result.rows[0]);
+    } catch (err) { next(err); }
+};
+
 module.exports = {
     login,
     register,
@@ -956,5 +1017,7 @@ module.exports = {
     exportUsers,
     getSkills,
     setPrimaryDevice,
-    checkDeviceChange
+    checkDeviceChange,
+    getReportingPreference,
+    updateReportingPreference
 };

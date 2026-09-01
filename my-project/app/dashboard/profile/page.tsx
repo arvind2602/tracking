@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Plus, X, Save, Edit2, Check, Camera, Trash2, Phone, MapPin } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Plus, X, Save, Edit2, Check, Camera, Trash2, Phone, MapPin, MailCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import toast from "react-hot-toast";
 import { TaskPoints } from "@/components/reports/TaskPoints";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -37,6 +38,7 @@ interface UserProfile {
     emergencyContact?: string;
     address?: string;
     joiningDate?: string;
+    includeWeeklyReport?: boolean;
 }
 
 export default function ProfilePage() {
@@ -74,6 +76,8 @@ export default function ProfilePage() {
     // Autocomplete states
     const [availableSkills, setAvailableSkills] = useState<string[]>([]);
     const [openSkillSearch, setOpenSkillSearch] = useState(false);
+    const [includeWeeklyReport, setIncludeWeeklyReport] = useState(false);
+    const [savingReportPref, setSavingReportPref] = useState(false);
 
     useEffect(() => {
         fetchProfile();
@@ -102,6 +106,7 @@ export default function ProfilePage() {
             setLastName(data.lastName || "");
             setEmail(data.email || "");
             setImagePreview(data.image || null);
+            setIncludeWeeklyReport(!!data.includeWeeklyReport);
             setRemoveImage(false);
         } catch (error) {
             console.error("Failed to fetch profile:", error);
@@ -210,6 +215,22 @@ export default function ProfilePage() {
     const removeResponsibility = (index: number) => {
         setEditedResponsibilities(editedResponsibilities.filter((_, i) => i !== index));
         toast.success("Responsibility removed");
+    };
+
+    const handleReportToggle = async (checked: boolean) => {
+        if (profile?.role !== 'ADMIN') {
+            toast.error('Only admins can enable weekly reports');
+            return;
+        }
+        setSavingReportPref(true);
+        try {
+            const res = await axios.put('/auth/reporting-preference', { includeWeeklyReport: checked });
+            setIncludeWeeklyReport(!!res.data.includeWeeklyReport);
+            setProfile(prev => prev ? { ...prev, includeWeeklyReport: !!res.data.includeWeeklyReport } : prev);
+            toast.success(checked ? 'Weekly CEO report enabled — you will receive it Mondays 07:30 IST' : 'Weekly CEO report disabled');
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message || 'Failed to update preference');
+        } finally { setSavingReportPref(false); }
     };
 
     const handleChangePassword = async () => {
@@ -569,6 +590,23 @@ export default function ProfilePage() {
                                         )}
                                     </div>
                                 </div>
+                                {profile.role === 'ADMIN' && (
+                                    <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-indigo-500/10 border border-blue-500/20">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex gap-3 flex-1">
+                                                <div className="p-2 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 h-fit">
+                                                    <MailCheck className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-semibold text-foreground">Weekly CEO Report</p>
+                                                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Receive a Monday 07:30 IST email with org health, attendance, velocity and <b>all projects this week</b>. Only opted-in admins get it via Resend. Trigger externally via cron-job.com hitting <code className="px-1 py-0.5 rounded bg-black/10 text-[11px]">/api/cron/weekly-summary</code>.</p>
+                                                    <p className="text-[11px] text-muted-foreground mt-2">Status: <span className={includeWeeklyReport ? "text-green-600 font-semibold" : "text-muted-foreground"}>{includeWeeklyReport ? "Enabled — subscribed" : "Disabled"}</span></p>
+                                                </div>
+                                            </div>
+                                            <Switch checked={includeWeeklyReport} onCheckedChange={handleReportToggle} disabled={savingReportPref} />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

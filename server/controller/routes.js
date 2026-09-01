@@ -10,8 +10,12 @@ const analyticsRoutes = require('./analytics/_route');
 const reportRoutes = require('./reports/_route');
 const attendanceRoutes = require('./attendance/_route');
 const qrRoutes = require('./qr-verification/_route');
+const summaryRoutes = require('./summary/_route');
+const cronRoutes = require('./cron/_route');
 
 // Mount sub-routers
+organization.use('/cron', cronRoutes);
+organization.use('/summary', summaryRoutes);
 organization.use('/projects', projectsRoutes);
 organization.use('/tasks', taskRoutes);
 organization.use('/notes', notesRoutes);

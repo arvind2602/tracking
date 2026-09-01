@@ -67,10 +67,12 @@ model employee {
   qrVisits         QRVisit[]
   leaves           Leave[]
   passwordResetOtps PasswordResetOtp[]
+  includeWeeklyReport Boolean @default(false) @map("include_weekly_report")
 
   @@index([organiationId, is_archived])
   @@index([organiationId, role])
   @@index([email])
+  @@index([organiationId, role, includeWeeklyReport])
 }
 
 model projects {
