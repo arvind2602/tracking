@@ -32,14 +32,31 @@ const triggerWeeklyCron = async (req, res, next) => {
       if (orgQ.rowCount===0) return res.status(404).json({ message: `Org ${targetOrgName} not found`, orgs: (await pool.query(`SELECT name FROM organiation`)).rows.map(r=>r.name) });
       const org = orgQ.rows[0];
       const data = await buildWeeklySummary(org.id, weekStart, weekEnd, priorStart, priorEnd);
-      // Debug: also fetch raw projectsWeekly count for cross-check + weekly CTE raw
+      // Debug: also fetch raw projectsWeekly count for cross-check + full Weekly with headName
       let debug = {};
       try {
         const rawProj = await pool.query(`SELECT COUNT(*)::int as cnt FROM projects WHERE "organiationId"=$1 AND is_archived=false`, [org.id]);
         const rawTask = await pool.query(`SELECT COUNT(*)::int as cnt FROM task t JOIN projects p ON p.id=t."projectId" WHERE p."organiationId"=$1`, [org.id]);
         const rawWeekly = await pool.query(`SELECT p.id, p.name, COUNT(t.id)::int as totalTasks FROM projects p LEFT JOIN task t ON p.id=t."projectId" WHERE p."organiationId"=$1 AND p.is_archived=false GROUP BY p.id ORDER BY totalTasks DESC LIMIT 5`, [org.id]);
-        debug = { projectsTotal: rawProj.rows[0].cnt, tasksTotal: rawTask.rows[0].cnt, sampleProjects: rawWeekly.rows, projectsEnrichedCount: data.projects.length, performersCount: data.performers.length, weekStart, weekEnd };
-      } catch(e){ debug = { error: e.message, stack: e.stack?.slice(0,500) }; }
+        // Run the exact full query from buildWeeklySummary to see why it returns 0
+        const fullWeekly = await pool.query(`
+          WITH Weekly AS (
+            SELECT p.id,
+              COUNT(t.id)::int as totalTasks,
+              COUNT(t.id) FILTER (WHERE t."createdAt" BETWEEN $2 AND $3)::int as createdThisWeek,
+              COUNT(t.id) FILTER (WHERE LOWER(t.status) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3)::int as completedThisWeek,
+              COUNT(t.id) FILTER (WHERE LOWER(t.status) IN ('pending-review','pending_review') AND t."updatedAt" BETWEEN $2 AND $3)::int as reviewThisWeek,
+              COUNT(t.id) FILTER (WHERE t."dueDate" BETWEEN $2 AND $3 AND LOWER(t.status) NOT IN ('done','completed'))::int as overdue,
+              COALESCE(SUM(t.points) FILTER (WHERE LOWER(t.status) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3),0)::int as pointsThisWeek,
+              COALESCE(SUM(t.points) FILTER (WHERE LOWER(t.status) IN ('done','completed')),0)::int as totalPoints,
+              ROUND(COUNT(*) FILTER (WHERE LOWER(t.status) IN ('done','completed'))::numeric / NULLIF(COUNT(t.id),0)*100)::int as progress
+            FROM projects p LEFT JOIN task t ON p.id=t."projectId"
+            WHERE p."organiationId"=$1 AND p.is_archived=false GROUP BY p.id
+          )
+          SELECT p.id, p.name, w.totalTasks, w.createdThisWeek, w.completedThisWeek, w.pointsThisWeek FROM projects p JOIN Weekly w ON w.id=p.id WHERE p."organiationId"=$1 AND p.is_archived=false ORDER BY p.priority_order ASC NULLS LAST, w.pointsThisWeek DESC LIMIT 5
+        `, [org.id, weekStart, weekEnd]);
+        debug = { projectsTotal: rawProj.rows[0].cnt, tasksTotal: rawTask.rows[0].cnt, sampleProjects: rawWeekly.rows, projectsEnrichedCount: data.projects.length, performersCount: data.performers.length, fullWeeklyRows: fullWeekly.rows, fullWeeklyCount: fullWeekly.rowCount, weekStart, weekEnd, buildProjectsLen: data.projects.length };
+      } catch(e){ debug = { error: e.message, stack: e.stack?.slice(0,1200) }; }
       // If ?preview=html return rendered HTML, else JSON
       if (req.query.preview==='html') {
         const { renderWeeklySummary } = require('../../utils/templates/weeklySummaryTemplate');
