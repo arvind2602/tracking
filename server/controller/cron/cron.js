@@ -25,6 +25,22 @@ const triggerWeeklyCron = async (req, res, next) => {
     // Ensure column
     try { await pool.query(`ALTER TABLE "employee" ADD COLUMN IF NOT EXISTS "include_weekly_report" BOOLEAN NOT NULL DEFAULT false`); } catch (_) {}
 
+    // Cross-check preview for Vighnotech (and others) without sending email: ?preview=1&org=Vighnotech
+    if (req.query.preview) {
+      const targetOrgName = req.query.org || 'Vighnotech';
+      const orgQ = await pool.query(`SELECT id, name FROM organiation WHERE name ILIKE $1`, [targetOrgName]);
+      if (orgQ.rowCount===0) return res.status(404).json({ message: `Org ${targetOrgName} not found`, orgs: (await pool.query(`SELECT name FROM organiation`)).rows.map(r=>r.name) });
+      const org = orgQ.rows[0];
+      const data = await buildWeeklySummary(org.id, weekStart, weekEnd, priorStart, priorEnd);
+      // If ?preview=html return rendered HTML, else JSON
+      if (req.query.preview==='html') {
+        const { renderWeeklySummary } = require('../../utils/templates/weeklySummaryTemplate');
+        const { html } = renderWeeklySummary(data);
+        res.set('Content-Type','text/html'); return res.send(html);
+      }
+      return res.json({ preview:true, org, data });
+    }
+
     // Iterate organizations
     const orgs = await pool.query(`SELECT id, name FROM organiation`);
     const { renderWeeklySummary } = require('../../utils/templates/weeklySummaryTemplate');
