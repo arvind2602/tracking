@@ -32,13 +32,21 @@ const triggerWeeklyCron = async (req, res, next) => {
       if (orgQ.rowCount===0) return res.status(404).json({ message: `Org ${targetOrgName} not found`, orgs: (await pool.query(`SELECT name FROM organiation`)).rows.map(r=>r.name) });
       const org = orgQ.rows[0];
       const data = await buildWeeklySummary(org.id, weekStart, weekEnd, priorStart, priorEnd);
+      // Debug: also fetch raw projectsWeekly count for cross-check
+      let debug = {};
+      try {
+        const rawProj = await pool.query(`SELECT COUNT(*)::int as cnt FROM projects WHERE "organiationId"=$1 AND is_archived=false`, [org.id]);
+        const rawTask = await pool.query(`SELECT COUNT(*)::int as cnt FROM task t JOIN projects p ON p.id=t."projectId" WHERE p."organiationId"=$1`, [org.id]);
+        const rawWeekly = await pool.query(`SELECT p.id, p.name, COUNT(t.id)::int as totalTasks FROM projects p LEFT JOIN task t ON p.id=t."projectId" WHERE p."organiationId"=$1 AND p.is_archived=false GROUP BY p.id ORDER BY totalTasks DESC LIMIT 5`, [org.id]);
+        debug = { projectsTotal: rawProj.rows[0].cnt, tasksTotal: rawTask.rows[0].cnt, sampleProjects: rawWeekly.rows, projectsEnrichedCount: data.projects.length, performersCount: data.performers.length };
+      } catch(e){ debug = { error: e.message }; }
       // If ?preview=html return rendered HTML, else JSON
       if (req.query.preview==='html') {
         const { renderWeeklySummary } = require('../../utils/templates/weeklySummaryTemplate');
         const { html } = renderWeeklySummary(data);
         res.set('Content-Type','text/html'); return res.send(html);
       }
-      return res.json({ preview:true, org, data });
+      return res.json({ preview:true, org, data, debug });
     }
 
     // Iterate organizations
