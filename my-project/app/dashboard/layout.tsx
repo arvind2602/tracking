@@ -324,7 +324,7 @@ export default function DashboardLayout({
 
           <div className="flex items-center gap-3">
             {userOrgs.length > 1 && (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-secondary border border-border rounded-xl">
+              <div className="flex items-center gap-2 px-3 py-2 bg-secondary border border-border rounded-xl">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 <select
                   value={currentOrgId}
