@@ -5,6 +5,7 @@ const authMiddleware = require('../../middleware/authMiddleware');
 const activityMiddleware = require('../../middleware/activityMiddleware');
 
 employee.post('/login', employeeController.login);
+employee.post('/login-select-org', employeeController.loginSelectOrg);
 
 // Forgot password OTP flow (public) - send OTP if email exists and not archived
 employee.post('/forgot-password', employeeController.forgotPassword);

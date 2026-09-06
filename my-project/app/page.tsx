@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
-import { Eye, EyeOff, Lock, Mail, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Sparkles, Building2, ArrowLeft } from "lucide-react";
 import { jwtDecode } from 'jwt-decode';
 
 export default function Home() {
@@ -16,6 +16,9 @@ export default function Home() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [requiresOrgSelection, setRequiresOrgSelection] = useState(false);
+  const [preAuthToken, setPreAuthToken] = useState('');
+  const [organizations, setOrganizations] = useState<any[]>([]);
 
   // Check if user is already authenticated on component mount
   useEffect(() => {
@@ -60,10 +63,34 @@ export default function Home() {
         email,
         password,
       });
+      
+      if (response.data.requiresOrgSelection) {
+        setRequiresOrgSelection(true);
+        setPreAuthToken(response.data.preAuthToken);
+        setOrganizations(response.data.organizations);
+      } else {
+        localStorage.setItem('token', response.data.token);
+        router.push('/dashboard/tasks');
+      }
+    } catch (error: any) {
+      setError(error.response?.data?.error?.message || 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOrgSelect = async (organizationId: string) => {
+    setError('');
+    setIsLoading(true);
+    try {
+      const response = await axios.post('/auth/login-select-org', {
+        preAuthToken,
+        organizationId,
+      });
       localStorage.setItem('token', response.data.token);
       router.push('/dashboard/tasks');
-    } catch (error) {
-      setError('Invalid email or password');
+    } catch (error: any) {
+      setError(error.response?.data?.error?.message || 'Failed to log in to selected organization.');
     } finally {
       setIsLoading(false);
     }
@@ -114,87 +141,149 @@ export default function Home() {
         {/* Login Card */}
         <div className="bg-card border border-border rounded-3xl shadow-2xl p-8 transition-all duration-300 hover:shadow-lg">
           <div className="space-y-6">
-            {/* Email Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                Email Address
-              </label>
-              <div className="relative group">
-                <Input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full px-4 py-3 rounded-xl bg-input border-input text-foreground placeholder:text-muted-foreground focus:border-ring transition-all duration-300"
-                  disabled={isLoading}
-                />
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
-              </div>
-            </div>
-
-            {/* Password Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Lock className="w-4 h-4" />
-                Password
-              </label>
-              <div className="relative group">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-input border-input text-foreground placeholder:text-muted-foreground focus:border-ring transition-all duration-300"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  disabled={isLoading}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
-                <p className="text-sm text-red-400 text-center">{error}</p>
-              </div>
-            )}
-
-            {/* Login Button */}
-            <Button
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl px-6 py-6 text-base font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleLogin}
-              disabled={isLoading || !email || !password}
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Signing in...</span>
+            {!requiresOrgSelection ? (
+              <>
+                {/* Email Input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email Address
+                  </label>
+                  <div className="relative group">
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      className="w-full px-4 py-3 rounded-xl bg-input border-input text-foreground placeholder:text-muted-foreground focus:border-ring transition-all duration-300"
+                      disabled={isLoading}
+                    />
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
+                  </div>
                 </div>
-              ) : (
-                'Sign In'
-              )}
-            </Button>
 
-            {/* Additional Links */}
-            <div className="text-center pt-2">
-              <a href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
-                Forgot your password?
-              </a>
-            </div>
+                {/* Password Input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Password
+                  </label>
+                  <div className="relative group">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      className="w-full px-4 py-3 pr-12 rounded-xl bg-input border-input text-foreground placeholder:text-muted-foreground focus:border-ring transition-all duration-300"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors duration-200"
+                      disabled={isLoading}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
+                    </button>
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
+                  </div>
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                  <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <p className="text-sm text-red-400 text-center">{error}</p>
+                  </div>
+                )}
+
+                {/* Login Button */}
+                <Button
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl px-6 py-6 text-base font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleLogin}
+                  disabled={isLoading || !email || !password}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>Signing in...</span>
+                    </div>
+                  ) : (
+                    'Sign In'
+                  )}
+                </Button>
+
+                {/* Additional Links */}
+                <div className="text-center pt-2">
+                  <a href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
+                    Forgot your password?
+                  </a>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-blue-500" />
+                      Select Organization
+                    </h3>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        setRequiresOrgSelection(false);
+                        setPreAuthToken('');
+                        setOrganizations([]);
+                        setError('');
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-1" /> Back
+                    </Button>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Your account is associated with multiple organizations. Please select the one you want to log into.
+                  </p>
+
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    {organizations.map((org) => (
+                      <button
+                        key={org.id}
+                        onClick={() => handleOrgSelect(org.id)}
+                        disabled={isLoading}
+                        className="w-full text-left p-4 rounded-xl border border-border bg-card/50 hover:bg-accent hover:border-accent-foreground/20 transition-all duration-200 group relative overflow-hidden"
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="relative flex items-center justify-between">
+                          <span className="font-medium text-foreground">{org.name}</span>
+                          <Building2 className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Error Message */}
+                {error && (
+                  <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                    <p className="text-sm text-red-400 text-center">{error}</p>
+                  </div>
+                )}
+                
+                {isLoading && (
+                  <div className="flex justify-center mt-4">
+                     <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 

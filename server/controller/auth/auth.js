@@ -25,20 +25,48 @@ const login = async (req, res, next) => {
 
     try {
         const result = await pool.query(
-            'SELECT id, email, password, role, "organiationId", "lastDeviceId" FROM employee WHERE email = $1 AND is_archived = false',
+            `SELECT e.id, e.email, e.password, e.role, e."organiationId", e."lastDeviceId", o.name as "organizationName"
+             FROM employee e
+             LEFT JOIN organiation o ON e."organiationId" = o.id
+             WHERE e.email = $1 AND e.is_archived = false`,
             [email]
         );
 
-        if (result.rowCount === 0) {
+        const validEmployees = [];
+        for (const user of result.rows) {
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if (isPasswordValid) {
+                validEmployees.push(user);
+            }
+        }
+
+        if (validEmployees.length === 0) {
             return next(new UnprocessableEntityError('Invalid email or password'));
         }
 
-        const user = result.rows[0];
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            return next(new UnprocessableEntityError('Invalid email or password'));
+        if (validEmployees.length > 1) {
+            // Need org selection
+            const preAuthToken = jwt.sign(
+                { email, purpose: 'pre-auth-org-selection' },
+                jwtConfig.secret,
+                { algorithm: jwtConfig.algorithm, expiresIn: '15m' }
+            );
+
+            const organizations = validEmployees.map(emp => ({
+                id: emp.organiationId,
+                name: emp.organizationName,
+                employeeId: emp.id
+            }));
+
+            return res.status(200).json({
+                requiresOrgSelection: true,
+                preAuthToken,
+                organizations
+            });
         }
 
+        // Only 1 valid employee
+        const user = validEmployees[0];
         const token = generateJwtToken(user.email, user.role, user.id, user.organiationId);
 
         res.cookie('token', token, { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 24 });
@@ -53,6 +81,73 @@ const login = async (req, res, next) => {
         };
 
         // Return device tracking info for frontend
+        res.status(200).json({
+            user: {},
+            token,
+            deviceInfo,
+            lastDeviceId: user.lastDeviceId
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const loginSelectOrg = async (req, res, next) => {
+    const schema = Joi.object({
+        preAuthToken: Joi.string().required(),
+        organizationId: Joi.string().required(),
+        deviceId: Joi.string().optional(),
+        deviceName: Joi.string().optional(),
+        deviceType: Joi.string().optional(),
+        browser: Joi.string().optional(),
+        os: Joi.string().optional()
+    });
+
+    const { error } = schema.validate(req.body);
+    if (error) return next(new BadRequestError(error.details[0].message));
+
+    const { preAuthToken, organizationId, deviceId, deviceName, deviceType, browser, os } = req.body;
+
+    try {
+        let decoded;
+        try {
+            decoded = jwt.verify(preAuthToken, jwtConfig.secret);
+        } catch (jwtErr) {
+            if (jwtErr.name === 'TokenExpiredError') {
+                return next(new BadRequestError('Session expired. Please log in again.'));
+            }
+            return next(new BadRequestError('Invalid token'));
+        }
+
+        if (decoded.purpose !== 'pre-auth-org-selection') {
+            return next(new BadRequestError('Invalid token purpose'));
+        }
+
+        const email = decoded.email;
+
+        const result = await pool.query(
+            'SELECT id, email, role, "organiationId", "lastDeviceId" FROM employee WHERE email = $1 AND "organiationId" = $2 AND is_archived = false',
+            [email, organizationId]
+        );
+
+        if (result.rowCount === 0) {
+            return next(new UnprocessableEntityError('Invalid organization or user not found'));
+        }
+
+        const user = result.rows[0];
+
+        const token = generateJwtToken(user.email, user.role, user.id, user.organiationId);
+
+        res.cookie('token', token, { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 24 });
+
+        const deviceInfo = {
+            deviceId,
+            deviceName,
+            deviceType,
+            browser,
+            os
+        };
+
         res.status(200).json({
             user: {},
             token,
@@ -1003,6 +1098,7 @@ const updateReportingPreference = async (req, res, next) => {
 
 module.exports = {
     login,
+    loginSelectOrg,
     register,
     getEmployee,
     getEmployeeById,
