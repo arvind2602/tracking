@@ -332,11 +332,11 @@ export default function DashboardLayout({
             {userOrgs.length > 1 && (
               <div className="flex items-center">
                 <Select value={currentOrgId} onValueChange={handleSwitchOrg}>
-                  <SelectTrigger className="flex items-center gap-2 bg-secondary border-border rounded-xl w-[180px] h-10 border-none shadow-none focus:ring-0">
+                  <SelectTrigger className="flex items-center gap-2 bg-secondary border-border rounded-xl w-[180px] h-10 border-none shadow-none focus:ring-0 font-mono">
                     <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
                     <SelectValue placeholder="Select Organization" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="font-mono">
                     {userOrgs.map((org) => (
                       <SelectItem key={org.id} value={org.id}>
                         {org.name}
