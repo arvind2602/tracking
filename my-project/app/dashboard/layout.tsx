@@ -12,6 +12,13 @@ import { PinnedNotesBanner } from "@/components/notes/PinnedNotesBanner";
 import { NotesPanel } from "@/components/notes/NotesPanel";
 import { getProxiedImageUrl } from "@/lib/imageProxy";
 import { LoginPerformancePopup } from "@/components/LoginPerformancePopup";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface DecodedToken {
   user: {
@@ -164,8 +171,7 @@ export default function DashboardLayout({
     setShowLoginPopup(false);
   }, []);
 
-  const handleSwitchOrg = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const targetOrgId = e.target.value;
+  const handleSwitchOrg = async (targetOrgId: string) => {
     if (targetOrgId === currentOrgId) return;
 
     try {
@@ -324,19 +330,20 @@ export default function DashboardLayout({
 
           <div className="flex items-center gap-3">
             {userOrgs.length > 1 && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-secondary border border-border rounded-xl">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <select
-                  value={currentOrgId}
-                  onChange={handleSwitchOrg}
-                  className="bg-transparent text-sm font-semibold text-foreground outline-none border-none cursor-pointer max-w-[150px] truncate"
-                >
-                  {userOrgs.map((org) => (
-                    <option key={org.id} value={org.id}>
-                      {org.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex items-center">
+                <Select value={currentOrgId} onValueChange={handleSwitchOrg}>
+                  <SelectTrigger className="flex items-center gap-2 bg-secondary border-border rounded-xl w-[180px] h-10 border-none shadow-none focus:ring-0">
+                    <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <SelectValue placeholder="Select Organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userOrgs.map((org) => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             <Link
