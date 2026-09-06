@@ -1096,7 +1096,61 @@ const updateReportingPreference = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+const getUserOrganizations = async (req, res, next) => {
+    try {
+        const email = req.user.email;
+        if (!email) return next(new BadRequestError('Email not found in token'));
+
+        const result = await pool.query(
+            `SELECT o.id, o.name 
+             FROM employee e
+             JOIN organiation o ON e."organiationId" = o.id
+             WHERE e.email = $1 AND e.is_archived = false`,
+            [email]
+        );
+
+        res.status(200).json(result.rows);
+    } catch (error) {
+        next(error);
+    }
+};
+
+const switchOrganization = async (req, res, next) => {
+    const schema = Joi.object({
+        organizationId: Joi.string().required()
+    });
+
+    const { error } = schema.validate(req.body);
+    if (error) return next(new BadRequestError(error.details[0].message));
+
+    const { organizationId } = req.body;
+    const email = req.user.email;
+    
+    if (!email) return next(new BadRequestError('Email not found in token'));
+
+    try {
+        const result = await pool.query(
+            'SELECT id, email, role, "organiationId", "lastDeviceId" FROM employee WHERE email = $1 AND "organiationId" = $2 AND is_archived = false',
+            [email, organizationId]
+        );
+
+        if (result.rowCount === 0) {
+            return next(new UnprocessableEntityError('Invalid organization or user not found'));
+        }
+
+        const user = result.rows[0];
+        const token = generateJwtToken(user.email, user.role, user.id, user.organiationId);
+
+        res.cookie('token', token, { httpOnly: true, maxAge: 1000 * 60 * 60 * 24 * 24 });
+        res.status(200).json({ token, lastDeviceId: user.lastDeviceId });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
+    getUserOrganizations,
+    switchOrganization,
     login,
     loginSelectOrg,
     register,

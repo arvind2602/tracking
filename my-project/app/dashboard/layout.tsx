@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Code, GraduationCap, LogOut, Menu, X, Activity, ChevronLeft, ChevronRight, User, Settings, NotebookPen, QrCode } from 'lucide-react';
+import { Home, Code, GraduationCap, LogOut, Menu, X, Activity, ChevronLeft, ChevronRight, User, Settings, NotebookPen, QrCode, Building2 } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import axios from '@/lib/axios';
@@ -46,6 +46,8 @@ export default function DashboardLayout({
   } | null>(null);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const [userOrgs, setUserOrgs] = useState<{ id: string, name: string }[]>([]);
+  const [currentOrgId, setCurrentOrgId] = useState<string>('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -73,7 +75,21 @@ export default function DashboardLayout({
         console.error('Failed to fetch org settings', err);
       }
     };
+    const fetchUserOrgs = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const payload = jwtDecode<any>(token);
+          setCurrentOrgId(payload.user.organization_uuid);
+        }
+        const response = await axios.get('/auth/user-organizations');
+        setUserOrgs(response.data);
+      } catch (err) {
+        console.error('Failed to fetch user orgs', err);
+      }
+    };
     fetchOrgSettings();
+    fetchUserOrgs();
   }, []);
 
   // Performance Popup Logic
@@ -147,6 +163,19 @@ export default function DashboardLayout({
     }
     setShowLoginPopup(false);
   }, []);
+
+  const handleSwitchOrg = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const targetOrgId = e.target.value;
+    if (targetOrgId === currentOrgId) return;
+
+    try {
+      const res = await axios.post('/auth/switch-org', { organizationId: targetOrgId });
+      localStorage.setItem('token', res.data.token);
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to switch org', err);
+    }
+  };
 
   const allNavItems = [
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -294,6 +323,22 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-3">
+            {userOrgs.length > 1 && (
+              <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-secondary border border-border rounded-xl">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <select
+                  value={currentOrgId}
+                  onChange={handleSwitchOrg}
+                  className="bg-transparent text-sm font-semibold text-foreground outline-none border-none cursor-pointer max-w-[150px] truncate"
+                >
+                  {userOrgs.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <Link
               href="/dashboard/qr/scan"
               className="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl transition-all border border-primary/20 shadow-lg group flex items-center gap-2"

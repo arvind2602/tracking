@@ -20,6 +20,8 @@ employee.post('/device/check-change', authMiddleware, employeeController.checkDe
 
 // Protected Routes
 employee.use(authMiddleware);
+employee.get('/user-organizations', employeeController.getUserOrganizations);
+employee.post('/switch-org', employeeController.switchOrganization);
 // Weekly report opt-in (must be before /:id)
 employee.get('/reporting-preference', employeeController.getReportingPreference);
 employee.put('/reporting-preference', employeeController.updateReportingPreference);
