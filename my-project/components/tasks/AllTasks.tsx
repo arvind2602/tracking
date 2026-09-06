@@ -1666,7 +1666,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, headedProje
                                 </div>
                               </td>
                               <td className="px-2 py-1 border border-border bg-secondary"></td> {/* Spacer for S.No */}
-                              <td className="px-2 py-1 border border-border bg-secondary relative">
+                              <td className="px-2 py-1 border border-border bg-secondary relative max-w-[200px] md:max-w-[300px]">
                                 <div className="flex items-center gap-2 pl-4">
                                   <CornerDownRight className="h-3 w-3 text-slate-500" />
                                   <span
