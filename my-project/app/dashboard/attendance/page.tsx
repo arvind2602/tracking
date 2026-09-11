@@ -7,6 +7,8 @@ import { CheckInButton } from '@/components/attendance/CheckInButton';
 import { ShiftManager } from '@/components/attendance/ShiftManager';
 import { HolidayManager } from '@/components/attendance/HolidayManager';
 import { LeaveHistory } from '@/components/attendance/LeaveHistory';
+import { PersonalBacklog } from '@/components/attendance/PersonalBacklog';
+import { TeamBacklog } from '@/components/attendance/TeamBacklog';
 import {
     Calendar,
     MapPin,
@@ -47,7 +49,7 @@ async function fetchOrganizationAttendance(params?: any) {
 
 export default function AttendancePage() {
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState<'personal' | 'organization' | 'leaves' | 'config'>('personal');
+    const [activeTab, setActiveTab] = useState<'personal' | 'organization' | 'backlog' | 'leaves' | 'config'>('personal');
     const [userRole, setUserRole] = useState<string>('USER');
 
     // Filters State
@@ -223,6 +225,16 @@ export default function AttendancePage() {
                             >
                                 <Users className="w-4 h-4" />
                                 Org Feed
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('backlog')}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                                    activeTab === 'backlog' ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <Timer className="w-4 h-4" />
+                                Backlog
                             </button>
                             <button
                                 onClick={() => setActiveTab('config')}
@@ -416,6 +428,10 @@ export default function AttendancePage() {
                         isLoading={isOrgLoading}
                     />
                 </div>
+            ) : activeTab === 'backlog' ? (
+                <div className="animate-in slide-in-from-bottom-4 duration-700">
+                    <TeamBacklog />
+                </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Section: Contextual */}
@@ -471,6 +487,7 @@ export default function AttendancePage() {
                             <LeaveHistory isAdmin={isAdmin} />
                         ) : (
                             <>
+                                <PersonalBacklog />
                                 <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                                     <div className="relative w-full md:w-72">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

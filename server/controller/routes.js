@@ -12,6 +12,7 @@ const attendanceRoutes = require('./attendance/_route');
 const qrRoutes = require('./qr-verification/_route');
 const summaryRoutes = require('./summary/_route');
 const cronRoutes = require('./cron/_route');
+const backlogRoutes = require('./backlog/_route');
 
 // Mount sub-routers
 organization.use('/cron', cronRoutes);
@@ -26,5 +27,6 @@ organization.use('/analytics', analyticsRoutes);
 organization.use('/reports', reportRoutes);
 organization.use('/attendance', attendanceRoutes);
 organization.use('/qr', qrRoutes);
+organization.use('/backlog', backlogRoutes);
 
 module.exports = organization;

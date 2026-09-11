@@ -116,4 +116,34 @@ async function sendWeeklySummaryEmail({ to, subject, html, text }) {
     }
 }
 
-module.exports = { sendResetEmail, sendOtpEmail, getResend, sendWeeklySummaryEmail };
+async function sendBacklogEmail({ to, subject, html, text, kind }) {
+    const from = process.env.EMAIL_FROM || process.env.RESEND_FROM || 'Vighnotech <no-reply@vighnotech.com>';
+    const resend = getResend();
+    const label = kind || 'backlog';
+    if (!resend) {
+        logger.warn(`RESEND_API_KEY not set - mocking ${label} email to ${Array.isArray(to) ? to.join(',') : to} subject="${subject}"`);
+        return { mocked: true };
+    }
+    try {
+        const { data, error } = await resend.emails.send({ from, to: Array.isArray(to) ? to : [to], subject, html, text });
+        if (error) {
+            logger.error(`Resend error sending ${label} to ${to}: ${JSON.stringify(error)}`);
+            throw new Error(error.message || 'Resend failed');
+        }
+        logger.info(`${label} email sent via Resend to ${Array.isArray(to) ? to.join(',') : to} id=${data?.id}`);
+        return { mocked: false, id: data?.id };
+    } catch (err) {
+        logger.error(`Failed to send ${label} to ${to}: ${err.message}`);
+        throw err;
+    }
+}
+
+async function sendBacklogReminderEmail({ to, subject, html, text }) {
+    return sendBacklogEmail({ to, subject, html, text, kind: 'backlog-reminder' });
+}
+
+async function sendBacklogHrEmail({ to, subject, html, text }) {
+    return sendBacklogEmail({ to, subject, html, text, kind: 'backlog-hr-report' });
+}
+
+module.exports = { sendResetEmail, sendOtpEmail, getResend, sendWeeklySummaryEmail, sendBacklogEmail, sendBacklogReminderEmail, sendBacklogHrEmail };

@@ -78,9 +78,10 @@ const getOrganizationSettings = async (req, res, next) => {
     const orgId = req.user.organization_uuid;
 
     try {
+        try { await pool.query(`ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "dailyRequiredHours" DOUBLE PRECISION NOT NULL DEFAULT 9`); } catch (_) {}
         const result = await pool.query(
             `SELECT o.id, o.name, "showBanner", "showLoginPopup", logo,
-                    "weekOffs", holidays, "wfhEnabled",
+                    "weekOffs", holidays, "wfhEnabled", "dailyRequiredHours",
                     og."isEnabled" as "geofencingEnabled",
                     g.latitude, g.longitude, g.radius
              FROM organiation o
@@ -173,6 +174,18 @@ const updateOrganizationSettings = async (req, res, next) => {
                 paramIndex++;
             }
 
+            const { dailyRequiredHours } = req.body;
+            if (dailyRequiredHours !== undefined) {
+                const hrs = parseFloat(dailyRequiredHours);
+                if (Number.isNaN(hrs) || hrs < 1 || hrs > 24) {
+                    throw new BadRequestError('dailyRequiredHours must be between 1 and 24');
+                }
+                try { await client.query(`ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "dailyRequiredHours" DOUBLE PRECISION NOT NULL DEFAULT 9`); } catch (_) {}
+                query += `, "dailyRequiredHours" = $${paramIndex}`;
+                params.push(hrs);
+                paramIndex++;
+            }
+
             query += ` WHERE id = $${paramIndex} RETURNING id`;
             params.push(orgId);
 
@@ -217,7 +230,7 @@ const updateOrganizationSettings = async (req, res, next) => {
             // Fetch updated settings
             const result = await client.query(
                 `SELECT o.id, o.name, "showBanner", "showLoginPopup", logo,
-                        "weekOffs", holidays, "wfhEnabled",
+                        "weekOffs", holidays, "wfhEnabled", "dailyRequiredHours",
                         og."isEnabled" as "geofencingEnabled",
                         g.latitude, g.longitude, g.radius
                  FROM organiation o

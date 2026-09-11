@@ -18,7 +18,8 @@ model organiation {
   showLoginPopup        Boolean?               @default(false)
   geofencingEnabled     Boolean?               @default(false) // Toggle for geofencing
   weekOffs              String[]               @default(["Sunday"])
-  holidays              Json[]                 @default([]) // [{date: '2024-01-01', name: 'New Year'}]
+  holidays              Json[]                 @default([]) // [{id, date: '2024-01-01', name: 'New Year', reason}]
+  dailyRequiredHours    Float?                 @default(9) // required work hours per working day
   wfhEnabled            Boolean?               @default(false)
   notes                 Note[]
   employees             employee[]
