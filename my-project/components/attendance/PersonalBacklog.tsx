@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Timer, Target, TrendingDown, Briefcase, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatHoursDual } from '@/lib/utils';
 import { format } from 'date-fns';
 
 type BacklogDay = {
@@ -34,7 +35,7 @@ type MyBacklog = {
     };
 };
 
-const fmt = (n: number) => `${(Math.round((Number(n) || 0) * 100) / 100).toFixed(2)}h`;
+const fmt = (n: number) => formatHoursDual(n);
 
 function prettyDayLabel(dateStr: string, label: string) {
     try {

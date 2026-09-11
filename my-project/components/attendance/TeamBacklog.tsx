@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Search, RefreshCw, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatHoursDual, decimalHoursToClock } from '@/lib/utils';
 import { format } from 'date-fns';
 
 type EmpBacklog = {
@@ -29,7 +30,7 @@ type Preview = {
     totalEmployees: number;
 };
 
-const fmt = (n: number) => `${(Math.round((Number(n) || 0) * 100) / 100).toFixed(2)}h`;
+const fmt = (n: number) => formatHoursDual(n);
 
 export function TeamBacklog() {
     const [search, setSearch] = useState('');
@@ -154,7 +155,7 @@ export function TeamBacklog() {
                                                 <div className="flex flex-wrap gap-2">
                                                     {e.days.filter((d) => d.date < (data?.today ?? '')).map((d) => (
                                                         <span key={d.date} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-[11px] font-medium">
-                                                            {format(new Date(d.date + 'T12:00:00'), 'EEE dd')}: {fmt(d.required)} req / {fmt(d.worked)}
+                                                            {format(new Date(d.date + 'T12:00:00'), 'EEE dd')}: {decimalHoursToClock(d.required)} req / {decimalHoursToClock(d.worked)}
                                                             {d.isLeave ? ' · leave' : d.isHoliday ? ' · holiday' : d.missingCheckout ? ' · no checkout' : ''}
                                                         </span>
                                                     ))}

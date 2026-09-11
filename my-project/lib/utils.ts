@@ -57,8 +57,25 @@ export function formatTimeIST(date: string | Date | undefined | null) {
 export function formatDateLongIST(date: string | Date | undefined | null) {
   return formatDateBase(date, 'EEEE, dd MMMM yyyy');
 }
-
 /** Full long date + time: "Sunday, 16 February 2026, 04:31 PM" */
 export function formatFullDateTimeIST(date: string | Date | undefined | null) {
   return formatDateBase(date, 'EEEE, dd MMMM yyyy, hh:mm a');
+}
+
+/**
+ * Decimal work hours (e.g. 8.69 from checkOut-checkIn) → clock "8:41".
+ * 0.69h = 41min, NOT 69min.
+ */
+export function decimalHoursToClock(hours: number | null | undefined): string {
+  const h = Number(hours) || 0;
+  const totalMinutes = Math.round(h * 60);
+  const hh = Math.floor(totalMinutes / 60);
+  const mm = totalMinutes % 60;
+  return `${hh}:${String(mm).padStart(2, '0')}`;
+}
+
+/** Dual display: "8.69h (8:41)" — decimal plus clock time. */
+export function formatHoursDual(hours: number | null | undefined): string {
+  const h = Math.round((Number(hours) || 0) * 100) / 100;
+  return `${h.toFixed(2)}h (${decimalHoursToClock(h)})`;
 }
