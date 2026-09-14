@@ -990,6 +990,55 @@ const deleteShift = async (req, res, next) => {
   }
 };
 
+// ==================== ADMIN: MANUAL HOURS ADJUSTMENT ====================
+
+// Admin credits/sets work hours for an employee on a given day
+// (e.g. missed checkout, system issue). Upserts the attendance row and
+// appends an audit note with the old value + acting admin.
+const adjustWorkHours = async (req, res, next) => {
+  if (req.user.role !== 'ADMIN') return next(new BadRequestError('Only admins can adjust work hours'));
+  const schema = Joi.object({
+    employeeId: Joi.string().guid().required(),
+    date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
+    workHours: Joi.number().min(0).max(24).required(),
+    note: Joi.string().allow('', null).optional(),
+  });
+  const { error, value } = schema.validate(req.body);
+  if (error) return next(new BadRequestError(error.details[0].message));
+  const { employeeId, date, workHours, note } = value;
+  const orgId = req.user.organization_uuid;
+
+  try {
+    const empCheck = await pool.query(
+      `SELECT id, "firstName", "lastName" FROM employee WHERE id=$1 AND "organiationId"=$2 AND is_archived=false`,
+      [employeeId, orgId]
+    );
+    if (empCheck.rowCount === 0) return next(new NotFoundError('Employee not found in organization'));
+
+    const existing = await pool.query(
+      `SELECT id, "workHours", notes FROM attendance WHERE "employeeId"=$1 AND date=$2::date`,
+      [employeeId, date]
+    );
+    const oldHours = existing.rowCount ? existing.rows[0].workHours : null;
+    const rounded = Math.round(Number(workHours) * 100) / 100;
+    const audit = `[Hours adjusted by ${req.user.email} at ${new Date().toISOString()}: ${oldHours == null ? 'none' : Number(oldHours)} → ${rounded}${note ? ` (${note})` : ''}]`;
+    const prevNotes = existing.rowCount && existing.rows[0].notes ? existing.rows[0].notes + ' ' : '';
+    const newNotes = `${prevNotes}${audit}`.slice(0, 2000);
+
+    const result = await pool.query(
+      `INSERT INTO attendance ("employeeId", date, "workHours", status, notes)
+       VALUES ($1, $2::date, $3, 'PRESENT', $4)
+       ON CONFLICT ("employeeId", date)
+       DO UPDATE SET "workHours"=EXCLUDED."workHours", notes=EXCLUDED.notes, "updatedAt"=NOW()
+       RETURNING id, date, "workHours", status, notes`,
+      [employeeId, date, rounded, newNotes]
+    );
+    res.json({ success: true, data: result.rows[0], previousWorkHours: oldHours });
+  } catch (e) {
+    next(e);
+  }
+};
+
 module.exports = {
   getOrganizationGeofence,
   setOrganizationGeofence,
@@ -1006,5 +1055,6 @@ module.exports = {
   createShift,
   updateShift,
   deleteShift,
-  assignShiftToEmployee
+  assignShiftToEmployee,
+  adjustWorkHours
 };

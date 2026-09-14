@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '@/lib/axios';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Search, RefreshCw, ChevronDown } from 'lucide-react';
+import { Search, RefreshCw, ChevronDown, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { formatHoursDual, decimalHoursToClock } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -36,6 +37,7 @@ export function TeamBacklog() {
     const [search, setSearch] = useState('');
     const [defaultersOnly, setDefaultersOnly] = useState(true);
     const [expanded, setExpanded] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
     const { data, isLoading, isError, refetch, isFetching } = useQuery<Preview>({
         queryKey: ['backlog', 'preview'],
@@ -52,6 +54,23 @@ export function TeamBacklog() {
         if (q) list = list.filter((e) => e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q));
         return [...list].sort((a, b) => b.remaining - a.remaining);
     }, [data, defaultersOnly, search]);
+
+    // Admin: credit 9h for a specific day (sets workHours, keeps audit note)
+    const creditMutation = useMutation({
+        mutationFn: ({ employeeId, date }: { employeeId: string; date: string }) =>
+            axios.patch('/attendance/admin/adjust', { employeeId, date, workHours: 9 }),
+        onSuccess: (_res, vars) => {
+            queryClient.invalidateQueries({ queryKey: ['backlog', 'preview'] });
+            queryClient.invalidateQueries({ queryKey: ['backlog', 'my'] });
+            toast.success(`Credited 9h for ${vars.date}`);
+        },
+        onError: (e: any) => toast.error(e?.response?.data?.message || 'Failed to credit hours'),
+    });
+
+    const handleCredit = (e: EmpBacklog, date: string, worked: number) => {
+        if (!window.confirm(`Credit 9h for ${e.name} on ${date}? (currently ${decimalHoursToClock(worked)} — this overwrites the day's hours)`)) return;
+        creditMutation.mutate({ employeeId: e.id, date });
+    };
 
     if (isLoading) {
         return (
@@ -157,6 +176,16 @@ export function TeamBacklog() {
                                                         <span key={d.date} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-card border border-border text-[11px] font-medium">
                                                             {format(new Date(d.date + 'T12:00:00'), 'EEE dd')}: {decimalHoursToClock(d.required)} req / {decimalHoursToClock(d.worked)}
                                                             {d.isLeave ? ' · leave' : d.isHoliday ? ' · holiday' : d.missingCheckout ? ' · no checkout' : ''}
+                                                            {d.required > 0 && !d.isLeave && !d.isHoliday && (
+                                                                <button
+                                                                    onClick={(ev) => { ev.stopPropagation(); handleCredit(e, d.date, d.worked); }}
+                                                                    disabled={creditMutation.isPending}
+                                                                    title={`Credit 9h for ${d.date}`}
+                                                                    className="ml-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                                                                >
+                                                                    {creditMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : '+9h'}
+                                                                </button>
+                                                            )}
                                                         </span>
                                                     ))}
                                                 </div>

@@ -41,9 +41,9 @@ const addHoliday = async (req, res, next) => {
       createdAt: new Date().toISOString(),
     };
     const updated = [...current, entry].sort((a, b) => (a.date < b.date ? -1 : 1));
-    await pool.query(`UPDATE organiation SET holidays=$2::jsonb, "updatedAt"=NOW() WHERE id=$1`, [
+    await pool.query(`UPDATE organiation SET holidays=$2::jsonb[], "updatedAt"=NOW() WHERE id=$1`, [
       req.user.organization_uuid,
-      JSON.stringify(updated),
+      updated.map((u) => JSON.stringify(u)),
     ]);
     res.status(201).json(entry);
   } catch (e) {
@@ -61,9 +61,9 @@ const deleteHoliday = async (req, res, next) => {
     const current = normalizeHolidays(r.rows[0].holidays);
     const filtered = current.filter((h) => h.id !== key && h.date !== key);
     if (filtered.length === current.length) return next(new NotFoundError('Holiday not found'));
-    await pool.query(`UPDATE organiation SET holidays=$2::jsonb, "updatedAt"=NOW() WHERE id=$1`, [
+    await pool.query(`UPDATE organiation SET holidays=$2::jsonb[], "updatedAt"=NOW() WHERE id=$1`, [
       req.user.organization_uuid,
-      JSON.stringify(filtered),
+      filtered.map((h) => JSON.stringify(h)),
     ]);
     res.json({ success: true });
   } catch (e) {
