@@ -62,4 +62,7 @@ attendance.delete('/shifts/:id', authMiddleware, attendanceController.deleteShif
 // Assign shift to employee
 attendance.post('/shifts/assign', authMiddleware, attendanceController.assignShiftToEmployee);
 
+// Admin: manually credit/set work hours for a day (upsert + audit note)
+attendance.patch('/admin/adjust', authMiddleware, attendanceController.adjustWorkHours);
+
 module.exports = attendance;
