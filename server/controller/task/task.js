@@ -969,22 +969,34 @@ const changeTaskStatus = async (req, res, next) => {
 
     // Trigger AI Analysis if status is 'pending-review'
     if (status === 'pending-review') {
-      const AGENT_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8000';
-      const AGENT_KEY = process.env.AGENT_API_KEY || '';
-      fetch(`${AGENT_URL}/tasks/analyze/${id}`, { 
-        method: 'POST',
-        headers: {
-          'X-API-Key': AGENT_KEY
+      try {
+        const orgCheck = await pool.query(
+          `SELECT "aiTaskCheckerEnabled" FROM organiation WHERE id = $1`,
+          [req.user.organization_uuid]
+        );
+        const aiEnabled = orgCheck.rows[0]?.aiTaskCheckerEnabled;
+
+        if (aiEnabled) {
+          const AGENT_URL = process.env.AGENT_SERVICE_URL || 'http://localhost:8000';
+          const AGENT_KEY = process.env.AGENT_API_KEY || '';
+          fetch(`${AGENT_URL}/tasks/analyze/${id}`, { 
+            method: 'POST',
+            headers: {
+              'X-API-Key': AGENT_KEY
+            }
+          })
+            .then(response => {
+              if (!response.ok) {
+                console.error(`AI Agent trigger failed for task ${id}:`, response.statusText);
+              }
+            })
+            .catch(err => {
+              console.error(`AI Agent connection error for task ${id}:`, err.message);
+            });
         }
-      })
-        .then(response => {
-          if (!response.ok) {
-            console.error(`AI Agent trigger failed for task ${id}:`, response.statusText);
-          }
-        })
-        .catch(err => {
-          console.error(`AI Agent connection error for task ${id}:`, err.message);
-        });
+      } catch (err) {
+        console.error('Error checking aiTaskCheckerEnabled:', err.message);
+      }
     }
   } catch (error) {
     next(error);

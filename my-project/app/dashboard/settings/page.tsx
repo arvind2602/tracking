@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import axios from '@/lib/axios';
-import { Settings, Layout, Save, Loader2, Building, Upload, X, Link, MapPin } from 'lucide-react';
+import { Settings, Layout, Save, Loader2, Building, Upload, X, Link, MapPin, Bot } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ export default function OrganizationSettings() {
         showLoginPopup: false,
         logo: '',
         geofencingEnabled: false,
+        aiTaskCheckerEnabled: false,
         latitude: 0,
         longitude: 0,
         radius: 100,
@@ -94,6 +95,7 @@ export default function OrganizationSettings() {
             formData.append('showBanner', String(settings.showBanner));
             formData.append('showLoginPopup', String(settings.showLoginPopup));
             formData.append('geofencingEnabled', String(settings.geofencingEnabled));
+            formData.append('aiTaskCheckerEnabled', String(settings.aiTaskCheckerEnabled));
             formData.append('latitude', String(settings.latitude));
             formData.append('longitude', String(settings.longitude));
             formData.append('radius', String(settings.radius));
@@ -373,6 +375,36 @@ export default function OrganizationSettings() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* AI & Tasks Block */}
+            <Card className="border-sidebar-border bg-sidebar/50 backdrop-blur-xl shadow-xl overflow-hidden relative group">
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                <CardHeader>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/10 rounded-lg">
+                            <Bot className="h-5 w-5 text-blue-500" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-xl">AI & Tasks</CardTitle>
+                            <CardDescription>Configure AI capabilities and task management settings.</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-sidebar-accent/30 border border-sidebar-border">
+                        <div className="space-y-1">
+                            <h4 className="text-sm font-semibold text-foreground">Enable AI Task Checker</h4>
+                            <p className="text-xs text-muted-foreground max-w-md">
+                                Automatically analyze tasks marked as 'pending-review' using the AI agent.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={settings.aiTaskCheckerEnabled}
+                            onCheckedChange={(checked: boolean) => setSettings({ ...settings, aiTaskCheckerEnabled: checked })}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Bottom Actions */}
             <div className="flex justify-end pt-4">

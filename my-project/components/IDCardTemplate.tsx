@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { QRCodeCanvas } from 'qrcode.react';
-import { removeBackground } from "@imgly/background-removal";
 import { getProxiedImageUrl } from '@/lib/imageProxy';
-import { Phone, Mail, Droplets, Calendar, ShieldAlert, Award, Briefcase } from 'lucide-react';
+import { removeBackground } from "@imgly/background-removal";
+import { Briefcase, Calendar, Droplets, Mail, Phone, ShieldAlert } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
+import React, { useEffect, useState } from 'react';
+
+// TODO: Replace with the actual UUID for Vighnesh Inc
+const VIGHNESH_INC_ORG_ID = "db48c76a-a587-4538-8a16-40577a0d7406";
+const YOUTUBE_ORG_ID = "196099a1-be3d-4bbf-b0d5-2a5fb8d540f9";
 
 interface Profile {
     id?: string;
@@ -16,6 +20,7 @@ interface Profile {
     emergencyContact?: string;
     dob?: string;
     joiningDate?: string;
+    organizationId?: string;
 }
 
 interface IDCardTemplateProps {
@@ -24,9 +29,10 @@ interface IDCardTemplateProps {
     onImageProcessed?: () => void;
     processedImage?: string | null;
     shouldProcess?: boolean;
+    organizationId?: string;
 }
 
-export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processedImage: externalProcessedImage, shouldProcess = false }: IDCardTemplateProps) => {
+export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processedImage: externalProcessedImage, shouldProcess = false, organizationId }: IDCardTemplateProps) => {
     const [internalProcessedImage, setInternalProcessedImage] = useState<string | null>(null);
 
     const displayImage = externalProcessedImage || internalProcessedImage || profile.image;
@@ -39,7 +45,6 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
 
         let isMounted = true;
         const processImage = async () => {
-            // If we already have a blob url that we generated, don't re-process
             if (profile.image && profile.image.startsWith('blob:')) {
                 if (isMounted) {
                     setInternalProcessedImage(profile.image);
@@ -50,7 +55,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
 
             if (!profile.image) {
                 if (isMounted) {
-                    setInternalProcessedImage(null); // Use fallback
+                    setInternalProcessedImage(null);
                     onImageProcessed?.();
                 }
                 return;
@@ -66,7 +71,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
             } catch (error) {
                 console.error("Failed to remove background", error);
                 if (isMounted) {
-                    setInternalProcessedImage(profile.image); // Fallback to original
+                    setInternalProcessedImage(profile.image);
                     onImageProcessed?.();
                 }
             }
@@ -74,11 +79,10 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
 
         processImage();
         return () => { isMounted = false; };
-    }, [profile.id, profile.image, shouldProcess]); // Dependency on profile.id to ensure re-process if user changes but image URL is same (unlikely but safe)
+    }, [profile.id, profile.image, shouldProcess]);
 
-    // Format date properly
     const formatDate = (dateString: string | undefined) => {
-        if (!dateString) return "25 August 2003"; // Default label from user template
+        if (!dateString) return "25 August 2003";
         try {
             return new Date(dateString).toLocaleDateString('en-GB', {
                 day: 'numeric',
@@ -89,6 +93,336 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
             return "25 August 2003";
         }
     };
+
+    const currentOrgId = profile.organizationId || organizationId;
+    const isVighneshInc = currentOrgId === VIGHNESH_INC_ORG_ID;
+    const isYoutube = currentOrgId === YOUTUBE_ORG_ID;
+
+    if (isYoutube) {
+        return (
+            <div ref={idCardRef} style={{ background: 'transparent', padding: '0', margin: '0', boxSizing: 'border-box' }}>
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+                <link
+                    href="https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,100..900;1,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+                    rel="stylesheet"
+                />
+
+                <div style={{
+                    display: 'flex',
+                    gap: '40px',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: '40px',
+                }}>
+                    {/* ================= FRONT SIDE ================= */}
+                    <div style={{
+                        width: '400px',
+                        height: '620px',
+                        background: '#ffffff',
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                        boxShadow: '0 12px 25px rgba(0, 0, 0, 0.15)',
+                        position: 'relative',
+                    }}>
+                        <div style={{ padding: '28px' }}>
+                            <div style={{ padding: '0 42px', margin: '10px 0 26px 0' }}>
+                                <img
+                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789544541386_front-logo.png")}
+                                    alt="logo"
+                                    style={{ width: '100%', objectFit: 'cover' }}
+                                    crossOrigin="anonymous"
+                                />
+                            </div>
+
+                            <div style={{ fontFamily: "'Chivo', sans-serif", marginTop: '16px', fontSize: '20px', color: '#000' }}>
+                                {profile.position || "Graphic Designer"}
+                            </div>
+
+                            <div style={{ fontFamily: "'Poppins', sans-serif", marginTop: '10px', fontSize: '42px', fontWeight: 900, lineHeight: 1.1, color: '#000' }}>
+                                {(profile.firstName || "HIMANSHU").toUpperCase()}<br />
+                                {(profile.lastName || "JANGID").toUpperCase()}
+                            </div>
+
+                            <div style={{ fontFamily: "'Chivo', sans-serif", marginTop: '10px', fontSize: '16px', color: '#000' }}>
+                                EMP ID: {profile.id?.slice(0, 4).toUpperCase() || "0001"}
+                            </div>
+                        </div>
+
+                        <div style={{
+                            position: 'absolute',
+                            bottom: '0',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            width: '100%',
+                            height: '240px',
+                            zIndex: 1,
+                        }}>
+                            <img
+                                src={getProxiedImageUrl(displayImage || "")}
+                                alt="Profile"
+                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                crossOrigin="anonymous"
+                            />
+                        </div>
+
+                        <div style={{ width: '100%', position: 'absolute', bottom: '-4px', left: '0', right: '0', zIndex: 2 }}>
+                            <img
+                                src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466609111_front-bg.png")}
+                                alt=""
+                                style={{ width: '100%', objectFit: 'cover' }}
+                                crossOrigin="anonymous"
+                            />
+                        </div>
+                    </div>
+
+                    {/* ================= BACK SIDE ================= */}
+                    <div style={{ backgroundColor: '#ff0000', borderRadius: '16px' }}>
+                        <div style={{
+                            width: '400px',
+                            height: '620px',
+                            borderRadius: '16px',
+                            overflow: 'hidden',
+                            boxShadow: '0 12px 25px rgba(0, 0, 0, 0.15)',
+                            position: 'relative',
+                            backgroundImage: `url(${getProxiedImageUrl('https://admissionuploads.s3.ap-south-1.amazonaws.com/1789461224179_back-bg.png')})`,
+                            backgroundPosition: 'center',
+                            backgroundSize: 'cover',
+                            backgroundRepeat: 'no-repeat',
+                        }}>
+                            <div style={{
+                                fontFamily: "'Montserrat', sans-serif",
+                                position: 'absolute',
+                                top: '95px',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                fontSize: '110px',
+                                fontWeight: 700,
+                                color: '#fff',
+                                lineHeight: 1,
+                                letterSpacing: '-0.05em',
+                                textAlign: 'center',
+                                zIndex: 1,
+                            }}>
+                                {(profile.position?.split(' ')[0] || "Creative")}<br />
+                                Division
+                            </div>
+
+                            <div style={{ padding: '220px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                    </div>
+                                    <p style={{ margin: 0 }}>{profile.phoneNumber || "+91 95944 94737"}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back (1).png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                    </div>
+                                    <p style={{ margin: 0 }}>{profile.email || "himanshu@gmail.com"}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466098287_bg.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                    </div>
+                                    <p style={{ margin: 0 }}>{profile.bloodGroup || "O Positive"}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466146078_bd.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                    </div>
+                                    <p style={{ margin: 0 }}>{formatDate(profile.dob)}</p>
+                                </div>
+                            </div>
+
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '30px',
+                                left: '24px',
+                                width: '100px',
+                                height: '100px',
+                                background: '#ffffff',
+                                padding: '6px',
+                                zIndex: 1,
+                            }}>
+                                <QRCodeCanvas
+                                    value={`https://linktr.ee/vighnotech`}
+                                    size={88}
+                                    bgColor={"#ffffff"}
+                                    fgColor={"#000000"}
+                                    level={"H"}
+                                    style={{ width: '100%', height: '100%' }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isVighneshInc) {
+        return (
+            <div ref={idCardRef} style={{ background: 'transparent', padding: '0', margin: '0', boxSizing: 'border-box' }}>
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+                <link
+                    href="https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,100..900;1,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+                    rel="stylesheet"
+                />
+
+                <div style={{
+                    display: 'flex',
+                    gap: '40px',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: '40px',
+                }}>
+                    {/* ================= FRONT SIDE ================= */}
+                    <div style={{
+                        width: '400px',
+                        height: '620px',
+                        background: '#ffffff',
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                        boxShadow: '0 12px 25px rgba(0, 0, 0, 0.15)',
+                        position: 'relative',
+                    }}>
+                        <div style={{ padding: '28px' }}>
+                            <div style={{ padding: '0 42px', margin: '10px 0 26px 0' }}>
+                                <img
+                                    src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789460853502_front-logo.png")}
+                                    alt="logo"
+                                    style={{ width: '100%', objectFit: 'cover' }}
+                                    crossOrigin="anonymous"
+                                />
+                            </div>
+
+                            <div style={{ fontFamily: "'Chivo', sans-serif", marginTop: '16px', fontSize: '20px', color: '#000' }}>
+                                {profile.position || "Graphic Designer"}
+                            </div>
+
+                            <div style={{ fontFamily: "'Poppins', sans-serif", marginTop: '10px', fontSize: '42px', fontWeight: 900, lineHeight: 1.1, color: '#000' }}>
+                                {(profile.firstName || "HIMANSHU").toUpperCase()}<br />
+                                {(profile.lastName || "JANGID").toUpperCase()}
+                            </div>
+
+                            <div style={{ fontFamily: "'Chivo', sans-serif", marginTop: '10px', fontSize: '16px', color: '#000' }}>
+                                EMP ID: {profile.id?.slice(0, 4).toUpperCase() || "0001"}
+                            </div>
+                        </div>
+
+                        <div style={{
+                            position: 'absolute',
+                            bottom: '0',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            width: '100%',
+                            height: '240px',
+                            zIndex: 1,
+                        }}>
+                            <img
+                                src={getProxiedImageUrl(displayImage || "")}
+                                alt="Profile"
+                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                crossOrigin="anonymous"
+                            />
+                        </div>
+
+                        <div style={{ width: '100%', position: 'absolute', bottom: '-4px', left: '0', right: '0', zIndex: 2 }}>
+                            <img
+                                src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789544409148_front.png")}
+                                alt=""
+                                style={{ width: '100%', objectFit: 'cover' }}
+                                crossOrigin="anonymous"
+                            />
+                        </div>
+                    </div>
+
+                    {/* ================= BACK SIDE ================= */}
+                    <div style={{ backgroundColor: '#004aad', borderRadius: '16px' }}>
+                        <div style={{
+                            width: '400px',
+                            height: '620px',
+                            borderRadius: '16px',
+                            overflow: 'hidden',
+                            boxShadow: '0 12px 25px rgba(0, 0, 0, 0.15)',
+                            position: 'relative',
+                            backgroundImage: `url(${getProxiedImageUrl('https://admissionuploads.s3.ap-south-1.amazonaws.com/1789461224179_back-bg.png')})`,
+                            backgroundPosition: 'center',
+                            backgroundSize: 'cover',
+                            backgroundRepeat: 'no-repeat',
+                        }}>
+                            <div style={{
+                                fontFamily: "'Montserrat', sans-serif",
+                                position: 'absolute',
+                                top: '95px',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                fontSize: '110px',
+                                fontWeight: 700,
+                                color: '#fff',
+                                lineHeight: 1,
+                                letterSpacing: '-0.05em',
+                                textAlign: 'center',
+                                zIndex: 1,
+                            }}>
+                                {(profile.position?.split(' ')[0] || "Creative")}<br />
+                                Division
+                            </div>
+
+                            <div style={{ padding: '220px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                    </div>
+                                    <p style={{ margin: 0 }}>{profile.phoneNumber || "+91 95944 94737"}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back (1).png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                    </div>
+                                    <p style={{ margin: 0 }}>{profile.email || "himanshu@gmail.com"}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466098287_bg.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                    </div>
+                                    <p style={{ margin: 0 }}>{profile.bloodGroup || "O Positive"}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
+                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466146078_bd.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                    </div>
+                                    <p style={{ margin: 0 }}>{formatDate(profile.dob)}</p>
+                                </div>
+                            </div>
+
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '30px',
+                                left: '24px',
+                                width: '100px',
+                                height: '100px',
+                                background: '#ffffff',
+                                padding: '6px',
+                                zIndex: 1,
+                            }}>
+                                <QRCodeCanvas
+                                    value={`https://linktr.ee/vighnotech`}
+                                    size={88}
+                                    bgColor={"#ffffff"}
+                                    fgColor={"#000000"}
+                                    level={"H"}
+                                    style={{ width: '100%', height: '100%' }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div ref={idCardRef} style={{ background: 'transparent', padding: '0', margin: '0', boxSizing: 'border-box' }}>

@@ -17,6 +17,7 @@ model organiation {
   logo                  String?
   showLoginPopup        Boolean?               @default(false)
   geofencingEnabled     Boolean?               @default(false) // Toggle for geofencing
+  aiTaskCheckerEnabled  Boolean?               @default(false) // Toggle for AI Task Checker
   weekOffs              String[]               @default(["Sunday"])
   holidays              Json[]                 @default([]) // [{id, date: '2024-01-01', name: 'New Year', reason}]
   dailyRequiredHours    Float?                 @default(9) // required work hours per working day

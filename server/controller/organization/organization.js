@@ -79,9 +79,10 @@ const getOrganizationSettings = async (req, res, next) => {
 
     try {
         try { await pool.query(`ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "dailyRequiredHours" DOUBLE PRECISION NOT NULL DEFAULT 9`); } catch (_) {}
+        try { await pool.query(`ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "aiTaskCheckerEnabled" BOOLEAN DEFAULT false`); } catch (_) {}
         const result = await pool.query(
             `SELECT o.id, o.name, "showBanner", "showLoginPopup", logo,
-                    "weekOffs", holidays, "wfhEnabled", "dailyRequiredHours",
+                    "weekOffs", holidays, "wfhEnabled", "dailyRequiredHours", "aiTaskCheckerEnabled",
                     og."isEnabled" as "geofencingEnabled",
                     g.latitude, g.longitude, g.radius
              FROM organiation o
@@ -103,7 +104,7 @@ const getOrganizationSettings = async (req, res, next) => {
 
 const updateOrganizationSettings = async (req, res, next) => {
     const orgId = req.user.organization_uuid;
-    const { name, showBanner, logo, geofencingEnabled, geofenceId, latitude, longitude, radius } = req.body;
+    const { name, showBanner, logo, geofencingEnabled, aiTaskCheckerEnabled, geofenceId, latitude, longitude, radius } = req.body;
 
     if (req.user.role !== 'ADMIN') {
         return next(new BadRequestError('Only admins can update organization settings'));
@@ -186,6 +187,14 @@ const updateOrganizationSettings = async (req, res, next) => {
                 paramIndex++;
             }
 
+            if (aiTaskCheckerEnabled !== undefined) {
+                const aiTaskCheckerEnabledBool = aiTaskCheckerEnabled === 'true' || aiTaskCheckerEnabled === true;
+                try { await client.query(`ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "aiTaskCheckerEnabled" BOOLEAN DEFAULT false`); } catch (_) {}
+                query += `, "aiTaskCheckerEnabled" = $${paramIndex}`;
+                params.push(aiTaskCheckerEnabledBool);
+                paramIndex++;
+            }
+
             query += ` WHERE id = $${paramIndex} RETURNING id`;
             params.push(orgId);
 
@@ -230,7 +239,7 @@ const updateOrganizationSettings = async (req, res, next) => {
             // Fetch updated settings
             const result = await client.query(
                 `SELECT o.id, o.name, "showBanner", "showLoginPopup", logo,
-                        "weekOffs", holidays, "wfhEnabled", "dailyRequiredHours",
+                        "weekOffs", holidays, "wfhEnabled", "dailyRequiredHours", "aiTaskCheckerEnabled",
                         og."isEnabled" as "geofencingEnabled",
                         g.latitude, g.longitude, g.radius
                  FROM organiation o
