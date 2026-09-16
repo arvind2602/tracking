@@ -163,7 +163,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             <img
                                 src={getProxiedImageUrl(displayImage || "")}
                                 alt="Profile"
-                                style={{ maxWidth: '100%', maxHeight: '100%' }}
+                                style={{ height: '100%', width: 'auto' }}
                                 crossOrigin="anonymous"
                             />
                         </div>
@@ -210,30 +210,42 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                                 Division
                             </div>
 
-                            <div style={{ padding: '220px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
+                            <div style={{ padding: '190px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Phone size={14} color="#ff0000" fill="#ff0000" />
+                                        <Phone size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.phoneNumber || "+91 95944 94737"}</p>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{profile.phoneNumber || "+91 95944 94737"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Mail size={14} color="#ff0000" fill="#ff0000" />
+                                        <Mail size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.email || "himanshu@gmail.com"}</p>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{profile.email || "himanshu@gmail.com"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Droplets size={14} color="#ff0000" fill="#ff0000" />
+                                        <Droplets size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.bloodGroup || "O Positive"}</p>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{profile.bloodGroup || "O Positive"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Calendar size={14} color="#ff0000" fill="#ff0000" />
+                                        <Calendar size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0 }}>{formatDate(profile.dob)}</p>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{formatDate(profile.dob)}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <ShieldAlert size={14} color="#ff0000" strokeWidth={2.5} />
+                                    </div>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{profile.emergencyContact || "+91 00000 00000"}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Briefcase size={14} color="#ff0000" strokeWidth={2.5} />
+                                    </div>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{formatDate(profile.joiningDate)}</p>
                                 </div>
                             </div>
 
@@ -328,7 +340,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             <img
                                 src={getProxiedImageUrl(displayImage || "")}
                                 alt="Profile"
-                                style={{ maxWidth: '100%', maxHeight: '100%' }}
+                                style={{ height: '100%', width: 'auto' }}
                                 crossOrigin="anonymous"
                             />
                         </div>
@@ -375,30 +387,42 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                                 Division
                             </div>
 
-                            <div style={{ padding: '220px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
+                            <div style={{ padding: '190px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Phone size={14} color="#004aad" fill="#004aad" />
+                                        <Phone size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.phoneNumber || "+91 95944 94737"}</p>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{profile.phoneNumber || "+91 95944 94737"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Mail size={14} color="#004aad" fill="#004aad" />
+                                        <Mail size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.email || "himanshu@gmail.com"}</p>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{profile.email || "himanshu@gmail.com"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Droplets size={14} color="#004aad" fill="#004aad" />
+                                        <Droplets size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.bloodGroup || "O Positive"}</p>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{profile.bloodGroup || "O Positive"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Calendar size={14} color="#004aad" fill="#004aad" />
+                                        <Calendar size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0 }}>{formatDate(profile.dob)}</p>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{formatDate(profile.dob)}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <ShieldAlert size={14} color="#004aad" strokeWidth={2.5} />
+                                    </div>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{profile.emergencyContact || "+91 00000 00000"}</p>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Briefcase size={14} color="#004aad" strokeWidth={2.5} />
+                                    </div>
+                                    <p style={{ margin: 0, transform: 'translateY(3px)' }}>{formatDate(profile.joiningDate)}</p>
                                 </div>
                             </div>
 
