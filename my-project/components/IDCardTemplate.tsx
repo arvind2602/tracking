@@ -94,7 +94,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
         }
     };
 
-    const currentOrgId = profile.organizationId || organizationId;
+    const currentOrgId = profile.organizationId || (profile as any).organiationId || organizationId;
     const isVighneshInc = currentOrgId === VIGHNESH_INC_ORG_ID;
     const isYoutube = currentOrgId === YOUTUBE_ORG_ID;
 
