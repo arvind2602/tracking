@@ -152,16 +152,18 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                         <div style={{
                             position: 'absolute',
                             bottom: '0',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: '100%',
-                            height: '240px',
+                            left: '0',
+                            right: '0',
+                            height: '280px',
                             zIndex: 2,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'flex-end',
                         }}>
                             <img
                                 src={getProxiedImageUrl(displayImage || "")}
                                 alt="Profile"
-                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                style={{ maxWidth: '100%', maxHeight: '100%' }}
                                 crossOrigin="anonymous"
                             />
                         </div>
@@ -209,29 +211,29 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             </div>
 
                             <div style={{ padding: '220px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
-                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png")} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.phoneNumber || "+91 95944 94737"}</p>
+                                    <p style={{ margin: 0, lineHeight: 1, paddingTop: '2px' }}>{profile.phoneNumber || "+91 95944 94737"}</p>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
-                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back (1).png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back (1).png")} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.email || "himanshu@gmail.com"}</p>
+                                    <p style={{ margin: 0, lineHeight: 1, paddingTop: '2px' }}>{profile.email || "himanshu@gmail.com"}</p>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
-                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466098287_bg.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466098287_bg.png")} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.bloodGroup || "O Positive"}</p>
+                                    <p style={{ margin: 0, lineHeight: 1, paddingTop: '2px' }}>{profile.bloodGroup || "O Positive"}</p>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
-                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466146078_bd.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466146078_bd.png")} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
                                     </div>
-                                    <p style={{ margin: 0 }}>{formatDate(profile.dob)}</p>
+                                    <p style={{ margin: 0, lineHeight: 1, paddingTop: '2px' }}>{formatDate(profile.dob)}</p>
                                 </div>
                             </div>
 
@@ -315,16 +317,18 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                         <div style={{
                             position: 'absolute',
                             bottom: '0',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: '100%',
-                            height: '240px',
+                            left: '0',
+                            right: '0',
+                            height: '280px',
                             zIndex: 2,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'flex-end',
                         }}>
                             <img
                                 src={getProxiedImageUrl(displayImage || "")}
                                 alt="Profile"
-                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                style={{ maxWidth: '100%', maxHeight: '100%' }}
                                 crossOrigin="anonymous"
                             />
                         </div>
@@ -372,29 +376,29 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             </div>
 
                             <div style={{ padding: '220px 24px 0', fontSize: '15px', color: '#fff', fontFamily: "'Poppins', sans-serif", position: 'relative', zIndex: 1 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
-                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769780545994_back.png")} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.phoneNumber || "+91 95944 94737"}</p>
+                                    <p style={{ margin: 0, lineHeight: 1, paddingTop: '2px' }}>{profile.phoneNumber || "+91 95944 94737"}</p>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
-                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back (1).png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com//1769781185497_back (1).png")} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.email || "himanshu@gmail.com"}</p>
+                                    <p style={{ margin: 0, lineHeight: 1, paddingTop: '2px' }}>{profile.email || "himanshu@gmail.com"}</p>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
-                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466098287_bg.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466098287_bg.png")} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
                                     </div>
-                                    <p style={{ margin: 0 }}>{profile.bloodGroup || "O Positive"}</p>
+                                    <p style={{ margin: 0, lineHeight: 1, paddingTop: '2px' }}>{profile.bloodGroup || "O Positive"}</p>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '50px' }}>
-                                    <div style={{ width: '30px', height: '30px', flexShrink: 0 }}>
-                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466146078_bd.png")} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '40px' }}>
+                                    <div style={{ width: '26px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <img src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466146078_bd.png")} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} crossOrigin="anonymous" />
                                     </div>
-                                    <p style={{ margin: 0 }}>{formatDate(profile.dob)}</p>
+                                    <p style={{ margin: 0, lineHeight: 1, paddingTop: '2px' }}>{formatDate(profile.dob)}</p>
                                 </div>
                             </div>
 
