@@ -156,7 +156,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             transform: 'translateX(-50%)',
                             width: '100%',
                             height: '240px',
-                            zIndex: 1,
+                            zIndex: 2,
                         }}>
                             <img
                                 src={getProxiedImageUrl(displayImage || "")}
@@ -166,7 +166,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             />
                         </div>
 
-                        <div style={{ width: '100%', position: 'absolute', bottom: '-4px', left: '0', right: '0', zIndex: 2 }}>
+                        <div style={{ width: '100%', position: 'absolute', bottom: '-4px', left: '0', right: '0', zIndex: 1 }}>
                             <img
                                 src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789466609111_front-bg.png")}
                                 alt=""
@@ -193,7 +193,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             <div style={{
                                 fontFamily: "'Montserrat', sans-serif",
                                 position: 'absolute',
-                                top: '95px',
+                                top: '55px',
                                 left: '50%',
                                 transform: 'translate(-50%, -50%)',
                                 fontSize: '110px',
@@ -319,7 +319,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             transform: 'translateX(-50%)',
                             width: '100%',
                             height: '240px',
-                            zIndex: 1,
+                            zIndex: 2,
                         }}>
                             <img
                                 src={getProxiedImageUrl(displayImage || "")}
@@ -329,7 +329,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             />
                         </div>
 
-                        <div style={{ width: '100%', position: 'absolute', bottom: '-4px', left: '0', right: '0', zIndex: 2 }}>
+                        <div style={{ width: '100%', position: 'absolute', bottom: '-4px', left: '0', right: '0', zIndex: 1 }}>
                             <img
                                 src={getProxiedImageUrl("https://admissionuploads.s3.ap-south-1.amazonaws.com/1789544409148_front.png")}
                                 alt=""
@@ -356,7 +356,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             <div style={{
                                 fontFamily: "'Montserrat', sans-serif",
                                 position: 'absolute',
-                                top: '95px',
+                                top: '55px',
                                 left: '50%',
                                 transform: 'translate(-50%, -50%)',
                                 fontSize: '110px',
