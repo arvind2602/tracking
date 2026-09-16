@@ -215,37 +215,37 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Phone size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{profile.phoneNumber || "+91 95944 94737"}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{profile.phoneNumber || "+91 95944 94737"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Mail size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{profile.email || "himanshu@gmail.com"}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{profile.email || "himanshu@gmail.com"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Droplets size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{profile.bloodGroup || "O Positive"}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{profile.bloodGroup || "O Positive"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Calendar size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{formatDate(profile.dob)}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{formatDate(profile.dob)}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <ShieldAlert size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{profile.emergencyContact || "+91 00000 00000"}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{profile.emergencyContact || "+91 00000 00000"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Briefcase size={14} color="#ff0000" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{formatDate(profile.joiningDate)}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{formatDate(profile.joiningDate)}</p>
                                 </div>
                             </div>
 
@@ -392,37 +392,37 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Phone size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{profile.phoneNumber || "+91 95944 94737"}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{profile.phoneNumber || "+91 95944 94737"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Mail size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{profile.email || "himanshu@gmail.com"}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{profile.email || "himanshu@gmail.com"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Droplets size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{profile.bloodGroup || "O Positive"}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{profile.bloodGroup || "O Positive"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Calendar size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{formatDate(profile.dob)}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{formatDate(profile.dob)}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <ShieldAlert size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{profile.emergencyContact || "+91 00000 00000"}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{profile.emergencyContact || "+91 00000 00000"}</p>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px', height: '34px' }}>
                                     <div style={{ width: '26px', height: '26px', backgroundColor: '#fff', borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <Briefcase size={14} color="#004aad" strokeWidth={2.5} />
                                     </div>
-                                    <p style={{ margin: 0, position: 'relative', top: '-3px' }}>{formatDate(profile.joiningDate)}</p>
+                                    <p style={{ margin: 0, position: 'relative', top: '-4px' }}>{formatDate(profile.joiningDate)}</p>
                                 </div>
                             </div>
 
