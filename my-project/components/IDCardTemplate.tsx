@@ -331,7 +331,7 @@ export const IDCardTemplate = ({ profile, idCardRef, onImageProcessed, processed
                             bottom: '0',
                             left: '0',
                             right: '0',
-                            height: '280px',
+                            height: '360px',
                             zIndex: 2,
                             display: 'flex',
                             justifyContent: 'center',
