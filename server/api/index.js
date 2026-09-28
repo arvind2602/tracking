@@ -45,9 +45,10 @@ app.get('/', (req, res) => {
 app.use((err, req, res, next) => {
   console.error(err);
 
-
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal Server Error'
+  // Custom errors set statusCode (see utils/errors.js); err.status is kept for compat.
+  const status = err.statusCode || err.status || 500;
+  res.status(status).json({
+    message: status < 500 ? (err.message || 'Request failed') : 'Internal Server Error'
   });
 });
 

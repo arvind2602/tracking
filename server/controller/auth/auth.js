@@ -693,12 +693,14 @@ const updateEmployee = async (req, res, next) => {
 
     try {
         if (email) {
+            // Emails are unique per organization, not globally: the same person can belong to
+            // several orgs (login handles this via the org-selection flow).
             const emailCheck = await pool.query(
-                'SELECT id FROM employee WHERE email = $1 AND id != $2 AND is_archived = false',
-                [email, id]
+                'SELECT id FROM employee WHERE email = $1 AND id != $2 AND "organiationId" = $3 AND is_archived = false',
+                [email, id, req.user.organization_uuid]
             );
             if (emailCheck.rowCount > 0) {
-                return next(new UnprocessableEntityError('Email already exists'));
+                return next(new UnprocessableEntityError('Email already exists in this organization'));
             }
         }
 
