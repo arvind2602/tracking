@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
-import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Plus, X, Save, Edit2, Check, Camera, Trash2, Phone, MapPin, MailCheck } from "lucide-react";
+import { User, Mail, Briefcase, Award, Calendar, BadgeCheck, Shield, Plus, X, Save, Edit2, Check, Camera, Trash2, Phone, MapPin, MailCheck, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -31,6 +31,8 @@ interface UserProfile {
     createdAt?: string;
     skills: string[];
     responsibilities: string[];
+    areaOfExpertise: string[];
+    yearsOfExperience?: number | null;
     dob?: string;
     bloodGroup?: string;
     image?: string;
@@ -49,8 +51,11 @@ export default function ProfilePage() {
     // Edit states
     const [editedSkills, setEditedSkills] = useState<string[]>([]);
     const [editedResponsibilities, setEditedResponsibilities] = useState<string[]>([]);
+    const [editedAreaOfExpertise, setEditedAreaOfExpertise] = useState<string[]>([]);
     const [newSkill, setNewSkill] = useState("");
     const [newResponsibility, setNewResponsibility] = useState("");
+    const [newAreaOfExpertise, setNewAreaOfExpertise] = useState("");
+    const [yearsOfExperience, setYearsOfExperience] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
     // New fields state
@@ -75,7 +80,9 @@ export default function ProfilePage() {
 
     // Autocomplete states
     const [availableSkills, setAvailableSkills] = useState<string[]>([]);
+    const [availableExpertise, setAvailableExpertise] = useState<string[]>([]);
     const [openSkillSearch, setOpenSkillSearch] = useState(false);
+    const [openExpertiseSearch, setOpenExpertiseSearch] = useState(false);
     const [includeWeeklyReport, setIncludeWeeklyReport] = useState(false);
     const [savingReportPref, setSavingReportPref] = useState(false);
 
@@ -90,10 +97,13 @@ export default function ProfilePage() {
             // Ensure arrays exist
             data.skills = data.skills || [];
             data.responsibilities = data.responsibilities || [];
+            data.areaOfExpertise = data.areaOfExpertise || [];
 
             setProfile(data);
             setEditedSkills(data.skills);
             setEditedResponsibilities(data.responsibilities);
+            setEditedAreaOfExpertise(data.areaOfExpertise);
+            setYearsOfExperience(data.yearsOfExperience != null ? String(data.yearsOfExperience) : "");
             setDob(data.dob ? new Date(data.dob).toISOString().split('T')[0] : "");
             setJoiningDate(data.joiningDate ? new Date(data.joiningDate).toISOString().split('T')[0] : (data.createdAt ? new Date(data.createdAt).toISOString().split('T')[0] : ""));
 
@@ -131,6 +141,31 @@ export default function ProfilePage() {
         }
     };
 
+    const fetchAvailableExpertise = async (search: string = "") => {
+        try {
+            const response = await axios.get("/auth/skills", {
+                params: { scope: "expertise", search }
+            });
+            setAvailableExpertise(response.data || []);
+        } catch (error) {
+            console.error("Failed to fetch areas of expertise:", error);
+        }
+    };
+
+    // Debounce expertise suggestions while the user types
+    useEffect(() => {
+        if (!isEditing) return;
+        const handle = setTimeout(() => {
+            fetchAvailableExpertise(newAreaOfExpertise);
+        }, 250);
+        return () => clearTimeout(handle);
+    }, [newAreaOfExpertise, isEditing]);
+
+    const filteredAvailableExpertise = availableExpertise.filter(
+        item => !editedAreaOfExpertise.includes(item) &&
+            item.toLowerCase().includes(newAreaOfExpertise.trim().toLowerCase())
+    ).slice(0, 12);
+
     const handleSave = async () => {
         if (!profile) return;
         setIsSaving(true);
@@ -151,6 +186,8 @@ export default function ProfilePage() {
             // Append arrays as JSON strings
             formData.append("skills", JSON.stringify(editedSkills));
             formData.append("responsibilities", JSON.stringify(editedResponsibilities));
+            formData.append("areaOfExpertise", JSON.stringify(editedAreaOfExpertise));
+            formData.append("yearsOfExperience", yearsOfExperience.trim());
 
             if (imageFile) {
                 formData.append("image", imageFile);
@@ -171,6 +208,8 @@ export default function ProfilePage() {
                 email: email,
                 skills: editedSkills,
                 responsibilities: editedResponsibilities,
+                areaOfExpertise: editedAreaOfExpertise,
+                yearsOfExperience: yearsOfExperience.trim() === "" ? null : Number.parseInt(yearsOfExperience, 10),
                 dob: dob,
                 bloodGroup: bloodGroup,
                 phoneNumber: phoneNumber,
@@ -215,6 +254,18 @@ export default function ProfilePage() {
     const removeResponsibility = (index: number) => {
         setEditedResponsibilities(editedResponsibilities.filter((_, i) => i !== index));
         toast.success("Responsibility removed");
+    };
+
+    const handleAddAreaOfExpertise = (value: string) => {
+        const trimmed = value.trim();
+        if (trimmed && !editedAreaOfExpertise.includes(trimmed)) {
+            setEditedAreaOfExpertise([...editedAreaOfExpertise, trimmed]);
+        }
+        setNewAreaOfExpertise("");
+    };
+
+    const removeAreaOfExpertise = (index: number) => {
+        setEditedAreaOfExpertise(editedAreaOfExpertise.filter((_, i) => i !== index));
     };
 
     const handleReportToggle = async (checked: boolean) => {
@@ -589,6 +640,24 @@ export default function ProfilePage() {
                                             <p className="font-medium text-sm">{profile.bloodGroup || "Not set"}</p>
                                         )}
                                     </div>
+                                    <div className="p-2 rounded-lg bg-sidebar/50">
+                                        <p className="text-xs text-muted-foreground mb-1">Years of Experience</p>
+                                        {isEditing ? (
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={60}
+                                                value={yearsOfExperience}
+                                                onChange={(e) => setYearsOfExperience(e.target.value)}
+                                                placeholder="e.g. 4"
+                                                className="h-8 text-xs"
+                                            />
+                                        ) : (
+                                            <p className="font-medium text-sm">
+                                                {profile.yearsOfExperience != null ? `${profile.yearsOfExperience} yr${profile.yearsOfExperience === 1 ? '' : 's'}` : "Not set"}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                                 {profile.role === 'ADMIN' && (
                                     <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-indigo-500/10 border border-blue-500/20">
@@ -711,6 +780,94 @@ export default function ProfilePage() {
                                                     {filteredAvailableSkills.length === 0 && newSkill.trim() === "" && (
                                                         <div className="py-6 text-center text-sm text-muted-foreground">
                                                             Type to search or add skills...
+                                                        </div>
+                                                    )}
+                                                </CommandList>
+                                            </div>
+                                        )}
+                                    </Command>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Area of Expertise Section */}
+                    <Card className="border-none shadow-lg bg-sidebar/30 backdrop-blur-md relative z-20 overflow-visible">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Sparkles className="w-5 h-5 text-cyan-500" />
+                                Area of Expertise
+                            </CardTitle>
+                            <CardDescription>
+                                Domains you specialize in, such as Frontend Development or DevOps.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                {(isEditing ? editedAreaOfExpertise : profile.areaOfExpertise).map((item, index) => (
+                                    <Badge key={index} variant="secondary" className="px-3 py-1.5 text-sm bg-background/50 hover:bg-background border border-border/50 flex items-center gap-2 transition-all">
+                                        {item}
+                                        {isEditing && (
+                                            <button onClick={() => removeAreaOfExpertise(index)} className="text-muted-foreground hover:text-destructive transition-colors">
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        )}
+                                    </Badge>
+                                ))}
+                                {(isEditing ? editedAreaOfExpertise : profile.areaOfExpertise).length === 0 && (
+                                    <p className="text-sm text-muted-foreground italic">No areas of expertise added yet.</p>
+                                )}
+                            </div>
+
+                            {isEditing && (
+                                <div className="relative max-w-md mt-4 z-50">
+                                    <Command shouldFilter={false} className="rounded-lg border shadow-md bg-popover overflow-visible">
+                                        <CommandInput
+                                            placeholder="Search or add area of expertise..."
+                                            value={newAreaOfExpertise}
+                                            onValueChange={setNewAreaOfExpertise}
+                                            onFocus={() => setOpenExpertiseSearch(true)}
+                                            onBlur={() => setTimeout(() => setOpenExpertiseSearch(false), 200)}
+                                        />
+                                        {openExpertiseSearch && (
+                                            <div className="absolute top-full left-0 w-full bg-popover border rounded-b-lg shadow-lg mt-1 max-h-60 overflow-y-auto z-50">
+                                                <CommandList>
+                                                    {filteredAvailableExpertise.length > 0 && (
+                                                        <CommandGroup heading="Suggestions">
+                                                            {filteredAvailableExpertise.map(item => (
+                                                                <CommandItem
+                                                                    key={item}
+                                                                    onSelect={() => handleAddAreaOfExpertise(item)}
+                                                                    className="cursor-pointer"
+                                                                    onMouseDown={(e) => {
+                                                                        e.preventDefault();
+                                                                        handleAddAreaOfExpertise(item);
+                                                                    }}
+                                                                >
+                                                                    {item}
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    )}
+
+                                                    {newAreaOfExpertise.trim() !== "" && !editedAreaOfExpertise.includes(newAreaOfExpertise.trim()) && (
+                                                        <CommandGroup heading="Create new">
+                                                            <CommandItem
+                                                                onSelect={() => handleAddAreaOfExpertise(newAreaOfExpertise)}
+                                                                className="cursor-pointer"
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    handleAddAreaOfExpertise(newAreaOfExpertise);
+                                                                }}
+                                                            >
+                                                                <Plus className="w-3 h-3 mr-2" /> Create &quot;{newAreaOfExpertise.trim()}&quot;
+                                                            </CommandItem>
+                                                        </CommandGroup>
+                                                    )}
+
+                                                    {filteredAvailableExpertise.length === 0 && newAreaOfExpertise.trim() === "" && (
+                                                        <div className="py-6 text-center text-sm text-muted-foreground">
+                                                            Type to search or add an area of expertise...
                                                         </div>
                                                     )}
                                                 </CommandList>

@@ -39,6 +39,8 @@ interface User {
   weeklyPoints?: number;
   skills?: string[];
   responsibilities?: string[];
+  areaOfExpertise?: string[];
+  yearsOfExperience?: number | null;
   image?: string;
   emergencyContact?: string;
   joiningDate?: string;
@@ -55,7 +57,10 @@ export default function Users() {
     phoneNumber: "",
     emergencyContact: "",
     role: "USER" as "USER" | "ADMIN",
+    yearsOfExperience: "",
+    areaOfExpertise: [] as string[],
   });
+  const [newExpertise, setNewExpertise] = useState("");
   const [usersList, setUsersList] = useState<User[]>([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
@@ -207,6 +212,7 @@ export default function Users() {
         user.lastName.toLowerCase().includes(query) ||
         user.email.toLowerCase().includes(query) ||
         user.skills?.some(s => s.toLowerCase().includes(query)) ||
+        user.areaOfExpertise?.some(a => a.toLowerCase().includes(query)) ||
         user.responsibilities?.some(r => r.toLowerCase().includes(query))
       );
     }
@@ -216,7 +222,10 @@ export default function Users() {
   const handleSubmit = async () => {
     const toastId = toast.loading("Adding user...");
     try {
-      await axios.post("/auth/register", form);
+      await axios.post("/auth/register", {
+        ...form,
+        yearsOfExperience: form.yearsOfExperience.trim() === "" ? null : Number.parseInt(form.yearsOfExperience, 10),
+      });
       getUsers();
       setIsModalOpen(false);
       setForm({
@@ -228,12 +237,27 @@ export default function Users() {
         phoneNumber: "",
         emergencyContact: "",
         role: "USER",
+        yearsOfExperience: "",
+        areaOfExpertise: [],
       });
+      setNewExpertise("");
       toast.success("User added", { id: toastId });
     } catch (err) {
       console.error("Failed to add user", err);
       toast.error("Failed to add user", { id: toastId });
     }
+  };
+
+  const addExpertise = () => {
+    const value = newExpertise.trim();
+    if (value && !form.areaOfExpertise.includes(value)) {
+      setForm({ ...form, areaOfExpertise: [...form.areaOfExpertise, value] });
+    }
+    setNewExpertise("");
+  };
+
+  const removeExpertise = (index: number) => {
+    setForm({ ...form, areaOfExpertise: form.areaOfExpertise.filter((_, i) => i !== index) });
   };
 
   const initiateDeleteUser = (userId: string) => {
@@ -857,6 +881,41 @@ export default function Users() {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
               />
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  placeholder="Years of Experience (e.g. 4)"
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={form.yearsOfExperience}
+                  onChange={(e) => setForm({ ...form, yearsOfExperience: e.target.value })}
+                  className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
+                />
+                <Input
+                  placeholder="Add area of expertise + Enter"
+                  value={newExpertise}
+                  onChange={(e) => setNewExpertise(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addExpertise();
+                    }
+                  }}
+                  className="bg-input border-input text-foreground rounded-xl py-6 focus:border-ring"
+                />
+              </div>
+              {form.areaOfExpertise.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {form.areaOfExpertise.map((item, index) => (
+                    <Badge key={index} variant="secondary" className="px-3 py-1.5 text-sm flex items-center gap-2">
+                      {item}
+                      <button type="button" onClick={() => removeExpertise(index)} className="text-muted-foreground hover:text-destructive">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex gap-4 mt-10">
               <Button

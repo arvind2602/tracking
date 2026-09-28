@@ -170,13 +170,15 @@ const register = async (req, res, next) => {
         role: Joi.string().required(),
         phoneNumber: Joi.string().optional().allow(null, ''),
         emergencyContact: Joi.string().optional().allow(null, ''),
-        address: Joi.string().optional().allow(null, '')
+        address: Joi.string().optional().allow(null, ''),
+        areaOfExpertise: Joi.array().items(Joi.string()).optional(),
+        yearsOfExperience: Joi.number().integer().min(0).max(60).optional().allow(null, '')
     });
 
     const { error } = schema.validate(req.body);
     if (error) return next(new BadRequestError(error.details[0].message));
 
-    const { firstName, lastName, email, password, position, role, phoneNumber, emergencyContact, address } = req.body;
+    const { firstName, lastName, email, password, position, role, phoneNumber, emergencyContact, address, areaOfExpertise, yearsOfExperience } = req.body;
 
     try {
         const existingResult = await pool.query(
@@ -188,14 +190,22 @@ const register = async (req, res, next) => {
             return next(new UnprocessableEntityError('Email already exists'));
         }
 
+        await ensureExpertiseColumns();
+        const parsedYears = yearsOfExperience === undefined || yearsOfExperience === null || yearsOfExperience === ''
+            ? null
+            : (() => {
+                const n = Number.parseInt(yearsOfExperience, 10);
+                return Number.isNaN(n) || n < 0 ? null : n;
+            })();
+
         const hashedPassword = await bcrypt.hash(password, 12);
         const organiationId = req.user.organization_uuid;
 
         const insertResult = await pool.query(
-            `INSERT INTO employee ("firstName", "lastName", "email", "password", "position", "role", "organiationId", "phoneNumber", "emergencyContact", "address")
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            `INSERT INTO employee ("firstName", "lastName", "email", "password", "position", "role", "organiationId", "phoneNumber", "emergencyContact", "address", "areaOfExpertise", "yearsOfExperience")
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
              RETURNING id, email, role, "organiationId"`,
-            [firstName, lastName, email, hashedPassword, position, role, organiationId, phoneNumber || null, emergencyContact || null, address || null]
+            [firstName, lastName, email, hashedPassword, position, role, organiationId, phoneNumber || null, emergencyContact || null, address || null, areaOfExpertise || [], parsedYears]
         );
 
         res.status(201).json({ user: insertResult.rows[0] });
@@ -212,13 +222,22 @@ async function ensureReportingColumn() {
     } catch (_) {}
 }
 
+// Ensure area of expertise / years of experience columns exist (idempotent, see prisma/migrations/expertise_experience.sql)
+async function ensureExpertiseColumns() {
+    try {
+        await pool.query(`ALTER TABLE "employee" ADD COLUMN IF NOT EXISTS "areaOfExpertise" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]`);
+        await pool.query(`ALTER TABLE "employee" ADD COLUMN IF NOT EXISTS "yearsOfExperience" INTEGER`);
+    } catch (_) {}
+}
+
 // View single employee
 const getEmployee = async (req, res, next) => {
     const { user_uuid } = req.user;
     try {
         await ensureReportingColumn();
+        await ensureExpertiseColumns();
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate",
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e."areaOfExpertise", e."yearsOfExperience", e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate",
                     COALESCE(e."include_weekly_report", false) as "includeWeeklyReport",
                     o.name as "organizationName"
               FROM employee e
@@ -238,8 +257,9 @@ const getEmployeeById = async (req, res, next) => {
 
     try {
         await ensureReportingColumn();
+        await ensureExpertiseColumns();
         const result = await pool.query(
-            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate",
+            `SELECT e.id, e."firstName", e."lastName", e.email, e.position, e.role, e."organiationId", e."createdAt", e.skills, e.responsibilities, e."areaOfExpertise", e."yearsOfExperience", e.dob, e."bloodGroup", e.image, e."phoneNumber", e."emergencyContact", e.address, e."joiningDate",
                     COALESCE(e."include_weekly_report", false) as "includeWeeklyReport",
                     o.name as "organizationName"
               FROM employee e
@@ -282,6 +302,7 @@ const getEmployeesByOrg = async (req, res, next) => {
     }
 
     try {
+        await ensureExpertiseColumns();
         const result = await pool.query(
             `WITH WeeklyStats AS (
                 SELECT
@@ -345,6 +366,8 @@ const getEmployeesByOrg = async (req, res, next) => {
                 COALESCE(ys."yesterdayTaskCount", 0) as "yesterdayTaskCount",
                 e.skills,
                 e.responsibilities,
+                e."areaOfExpertise",
+                e."yearsOfExperience",
                 e.image,
                 e.dob,
                 e."phoneNumber",
@@ -365,12 +388,15 @@ const getEmployeesByOrg = async (req, res, next) => {
 
 const getSkills = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
-    const { search } = req.query;
+    const { search, scope } = req.query;
+    // scope=expertise returns distinct area-of-expertise chips instead of skills
+    const column = scope === 'expertise' ? '"areaOfExpertise"' : 'skills';
     try {
+        await ensureExpertiseColumns();
         let query = `
             SELECT DISTINCT skill 
             FROM (
-                SELECT unnest(skills) as skill 
+                SELECT unnest(${column}) as skill 
                 FROM employee 
                 WHERE "organiationId" = $1 AND is_archived = false
             ) as distinct_skills
@@ -641,9 +667,10 @@ const updateEmployee = async (req, res, next) => {
     // appending arrays to FormData can be tricky).
     // For now assuming direct fields or simple parsing if needed.
 
-    const { firstName, lastName, email, position, role, skills: rawSkills, responsibilities: rawResponsibilities, dob, bloodGroup, phoneNumber, emergencyContact, address, joiningDate, removeImage, includeWeeklyReport: rawIncludeWeeklyReport } = req.body;
+    const { firstName, lastName, email, position, role, skills: rawSkills, responsibilities: rawResponsibilities, areaOfExpertise: rawAreaOfExpertise, yearsOfExperience, dob, bloodGroup, phoneNumber, emergencyContact, address, joiningDate, removeImage, includeWeeklyReport: rawIncludeWeeklyReport } = req.body;
     let skills = rawSkills;
     let responsibilities = rawResponsibilities;
+    let areaOfExpertise = rawAreaOfExpertise;
 
     // Parse arrays if they come as strings (common with FormData)
     if (typeof skills === 'string') {
@@ -652,6 +679,15 @@ const updateEmployee = async (req, res, next) => {
     if (typeof responsibilities === 'string') {
         try { responsibilities = JSON.parse(responsibilities); } catch (_) { responsibilities = [responsibilities]; }
     }
+    if (typeof areaOfExpertise === 'string') {
+        try { areaOfExpertise = JSON.parse(areaOfExpertise); } catch (_) { areaOfExpertise = [areaOfExpertise]; }
+    }
+    const parsedYears = yearsOfExperience === undefined || yearsOfExperience === null || yearsOfExperience === ''
+        ? null
+        : (() => {
+            const n = Number.parseInt(yearsOfExperience, 10);
+            return Number.isNaN(n) || n < 0 ? null : n;
+        })();
 
     let imageUrl;
 
@@ -672,9 +708,10 @@ const updateEmployee = async (req, res, next) => {
         }
 
         // Build the update query dynamically or simply
-        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, email = $3, position = $4, role = $5, skills = $6, responsibilities = $7, dob = $8, "bloodGroup" = $9, "phoneNumber" = $10, "emergencyContact" = $11, address = $12, "joiningDate" = $13`;
-        const params = [firstName, lastName, email, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, emergencyContact || null, address || null, joiningDate || null];
-        let paramIndex = 14;
+        await ensureExpertiseColumns();
+        let query = `UPDATE employee SET "firstName" = $1, "lastName" = $2, email = $3, position = $4, role = $5, skills = $6, responsibilities = $7, dob = $8, "bloodGroup" = $9, "phoneNumber" = $10, "emergencyContact" = $11, address = $12, "joiningDate" = $13, "areaOfExpertise" = $14, "yearsOfExperience" = $15`;
+        const params = [firstName, lastName, email, position, role, skills || [], responsibilities || [], dob || null, bloodGroup || null, phoneNumber || null, emergencyContact || null, address || null, joiningDate || null, areaOfExpertise || [], parsedYears];
+        let paramIndex = 16;
 
         if (imageUrl) {
             query += `, image = $${paramIndex}`;
@@ -698,7 +735,7 @@ const updateEmployee = async (req, res, next) => {
             if (targetRes.rows[0].organiationId !== req.user.organization_uuid) return next(new BadRequestError('Cannot modify user from another organization'));
             if (targetRes.rows[0].role !== 'ADMIN') return next(new BadRequestError('Only admins can be subscribed to weekly reports'));
             // If this is a reporting-only request (no other profile fields sent), handle as lightweight toggle
-            const isReportingOnly = firstName===undefined && lastName===undefined && email===undefined && position===undefined && role===undefined && rawSkills===undefined && rawResponsibilities===undefined && dob===undefined && bloodGroup===undefined && phoneNumber===undefined && emergencyContact===undefined && address===undefined && joiningDate===undefined && !req.file && removeImage===undefined;
+            const isReportingOnly = firstName===undefined && lastName===undefined && email===undefined && position===undefined && role===undefined && rawSkills===undefined && rawResponsibilities===undefined && rawAreaOfExpertise===undefined && yearsOfExperience===undefined && dob===undefined && bloodGroup===undefined && phoneNumber===undefined && emergencyContact===undefined && address===undefined && joiningDate===undefined && !req.file && removeImage===undefined;
             if (isReportingOnly) {
                 const r = await pool.query(`UPDATE employee SET "include_weekly_report"=$1, "updatedAt"=NOW() WHERE id=$2 RETURNING id, "include_weekly_report" as "includeWeeklyReport", email, role`, [parsedVal, id]);
                 return res.json(r.rows[0]);
@@ -708,7 +745,7 @@ const updateEmployee = async (req, res, next) => {
             paramIndex++;
         }
 
-        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, dob, "bloodGroup", "phoneNumber", "emergencyContact", address, "joiningDate", image, "include_weekly_report" as "includeWeeklyReport"`;
+        query += `, "updatedAt" = NOW() WHERE id = $${paramIndex} AND is_archived = false RETURNING id, "firstName", "lastName", email, position, role, skills, responsibilities, "areaOfExpertise", "yearsOfExperience", dob, "bloodGroup", "phoneNumber", "emergencyContact", address, "joiningDate", image, "include_weekly_report" as "includeWeeklyReport"`;
         params.push(id);
 
         const result = await pool.query(query, params);
@@ -865,6 +902,7 @@ const permanentlyDeleteEmployee = async (req, res, next) => {
 const exportUsers = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
     try {
+        await ensureExpertiseColumns();
         const result = await pool.query(
             `WITH WeeklyStats AS (
                 SELECT
@@ -927,6 +965,8 @@ const exportUsers = async (req, res, next) => {
                 e."joiningDate",
                 e.skills,
                 e.responsibilities,
+                e."areaOfExpertise",
+                e."yearsOfExperience",
                 ws."weeklyPoints",
                 COALESCE(ys."yesterdayPoints", 0) as "yesterdayPoints",
                 RANK() OVER (ORDER BY ws."weeklyPoints" DESC) as rank
@@ -941,11 +981,12 @@ const exportUsers = async (req, res, next) => {
         const users = result.rows;
 
         // Convert to CSV
-        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Skills', 'Responsibilities', 'Weekly Points', 'Joined At', 'Date of Birth', 'Blood Group', 'Phone Number', 'Emergency Contact', 'Address', 'Image URL', 'Last Updated'];
+        const header = ['ID', 'Rank', 'First Name', 'Last Name', 'Email', 'Position', 'Role', 'Skills', 'Area of Expertise', 'Years of Experience', 'Responsibilities', 'Weekly Points', 'Joined At', 'Date of Birth', 'Blood Group', 'Phone Number', 'Emergency Contact', 'Address', 'Image URL', 'Last Updated'];
         const csvRows = [header.join(',')];
 
         users.forEach(user => {
             const skills = (user.skills || []).join('; ');
+            const areaOfExpertise = (user.areaOfExpertise || []).join('; ');
             const responsibilities = (user.responsibilities || []).join('; ');
 
             const row = [
@@ -957,6 +998,8 @@ const exportUsers = async (req, res, next) => {
                 `"${(user.position || '').replace(/"/g, '""')}"`,
                 user.role,
                 `"${skills.replace(/"/g, '""')}"`,
+                `"${areaOfExpertise.replace(/"/g, '""')}"`,
+                user.yearsOfExperience ?? '',
                 `"${responsibilities.replace(/"/g, '""')}"`,
                 user.weeklyPoints,
                 user.joiningDate ? new Date(user.joiningDate).toISOString().split('T')[0] : (user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : ''),

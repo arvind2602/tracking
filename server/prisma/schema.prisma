@@ -50,6 +50,8 @@ model employee {
   lastDeviceId     String?
   responsibilities String[]        @default([])
   skills           String[]        @default([])
+  areaOfExpertise   String[]        @default([])
+  yearsOfExperience Int?
   bloodGroup       String?
   dob              DateTime?
   image            String?
