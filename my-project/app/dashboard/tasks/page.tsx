@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/ui/breadcrumbs";
 import axios from "@/lib/axios";
 import { jwtDecode } from "jwt-decode";
+import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Loader } from "lucide-react";
 import { Task, Project, User } from "@/lib/types";
@@ -132,11 +133,16 @@ export default function Tasks() {
     },
   });
 
-  const tasks = useMemo(() => {
+  const fetchedTasks = useMemo(() => {
     if (!tasksData) return [];
     if (Array.isArray(tasksData)) return tasksData;
     return tasksData.tasks || [];
   }, [tasksData]);
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  useEffect(() => {
+    setTasks(fetchedTasks);
+  }, [fetchedTasks]);
 
   // Sync pagination + stats from the response
   useEffect(() => {
@@ -162,89 +168,6 @@ export default function Tasks() {
 
   // Initialization is handled react-query keys now — no per-fetch needed here.
   // (Legacy code removed; Projects + Employees + Tasks all use shared keys above.)
-
-
-
-  const headedProjectIds = useMemo(
-    () => new Set(projects.filter(p => p.headIds?.includes(currentUserId ?? '')).map(p => p.id)),
-    [projects, currentUserId]
-  );
-  const isHead = headedProjectIds.size > 0;
-
-  // Dashboard Stats State
-  const [dashboardStats, setDashboardStats] = useState({
-    totalTasks: 0,
-    pendingTasks: 0,
-    inProgressTasks: 0,
-    completedTasks: 0,
-    pointsToday: 0,
-    pendingReviewTasks: 0
-  });
-
-
-
-  // ... existing initial data effect
-
-  const fetchAllTasks = useCallback(async (page = currentPage) => {
-    try {
-      setTasksLoading(true);
-
-      const isKanban = activeTab === 'Kanban';
-      const limit = isKanban ? 1000 : itemsPerPage;
-      // In Kanban, always fetch page 1 (all). In List, use requested page.
-      const queryPage = isKanban ? 1 : page;
-
-      const params = new URLSearchParams({
-        page: queryPage.toString(),
-        limit: limit.toString(),
-      });
-
-      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
-      if (projectFilter && projectFilter !== 'all') params.append('projectId', projectFilter);
-      if (userFilter && userFilter !== 'all') params.append('assignedTo', userFilter);
-      if (dateFilter && dateFilter !== 'all') params.append('date', dateFilter);
-      if (sortBy) params.append('sortBy', sortBy);
-      if (sortOrder) params.append('sortOrder', sortOrder);
-
-      const response = await axios.get(`/tasks/employees/tasks?${params.toString()}`);
-
-      if (Array.isArray(response.data)) {
-        setTasks(response.data);
-        setTotalPages(1);
-        setTotalTasks(response.data.length);
-      } else {
-        setTasks(response.data.tasks);
-        setTotalPages(response.data.pagination.totalPages);
-        setCurrentPage(response.data.pagination.page);
-        setTotalTasks(response.data.pagination.total);
-
-        if (response.data.stats) {
-          setDashboardStats(response.data.stats);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch tasks", err);
-      toast.error("Failed to fetch tasks");
-    } finally {
-      setTasksLoading(false);
-    }
-  }, [activeTab, itemsPerPage, currentPage, statusFilter, projectFilter, userFilter, dateFilter, sortBy, sortOrder]);
-
-  useEffect(() => {
-    // Re-fetch tasks when filters change or tab changes
-    // Only fetch if initial data (projects/users) is already loaded
-    if (!isInitialLoading) {
-      fetchAllTasks(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, projectFilter, userFilter, dateFilter, activeTab, sortBy, sortOrder, isInitialLoading]);
-
-  // Handle page change
-  const handlePageChange = (newPage: number) => {
-    if (newPage > 0 && newPage <= totalPages) {
-      fetchAllTasks(newPage);
-    }
-  };
 
   const breadcrumbItems = [
     { label: "Dashboard", href: "/dashboard" },
@@ -467,7 +390,7 @@ export default function Tasks() {
             <AddTaskForm
               users={users}
               projects={userRole === 'ADMIN' ? projects : projects.filter(p => headedProjectIds.has(p.id))}
-              onTaskAdded={fetchAllTasks}
+              onTaskAdded={() => refetchTasks()}
               onClose={() => setIsModalOpen(false)}
               currentUserId={currentUserId}
             />
