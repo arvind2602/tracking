@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { Toaster as HotToaster } from 'react-hot-toast';
-import { Toaster } from 'sonner';
 import { ThemeProvider } from "@/components/theme-provider";
 
 const montserrat = Montserrat({
@@ -36,7 +35,6 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <HotToaster />
-          <Toaster position="top-right" richColors />
           <AuthGuard>
             <QueryProvider>{children}</QueryProvider>
           </AuthGuard>

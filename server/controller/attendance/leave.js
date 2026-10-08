@@ -1,6 +1,23 @@
 const Joi = require('joi');
 const { pool } = require('../../config/db');
 const { BadRequestError, NotFoundError } = require('../../utils/errors');
+const push = require('../../utils/pushNotifications');
+const logger = require('../../utils/logger');
+
+const fmtDate = (d) => {
+  try { return new Date(d).toISOString().slice(0, 10); } catch (_) { return String(d); }
+};
+
+const notifyLeave = (recipients, message) => {
+  try { push.sendToEmployeeIds(recipients, message); } catch (err) { logger.warn(`leave push hook failed: ${err.message}`); }
+};
+
+/** Runs a fire-and-forget push hook, logging (never throwing) on failure. */
+const runPushHook = (label, fn) => {
+  Promise.resolve()
+    .then(fn)
+    .catch((err) => logger.warn(`${label} push hook failed: ${err.message}`));
+};
 
 /**
  * Apply for leave
@@ -35,6 +52,27 @@ const applyLeave = async (req, res, next) => {
       data: result.rows[0],
       message: 'Leave application submitted successfully'
     });
+
+    // Notify org admins about the new leave request (fire-and-forget)
+    runPushHook('applyLeave', async () => {
+      const [me, admins] = await Promise.all([
+        pool.query(`SELECT "firstName", "lastName" FROM employee WHERE id = $1`, [user_uuid]),
+        pool.query(
+          `SELECT id FROM employee WHERE "organiationId" = $1 AND role = 'ADMIN' AND is_archived = false AND id <> $2`,
+          [organization_uuid, user_uuid]
+        ),
+      ]);
+      const name = me.rowCount > 0
+        ? `${me.rows[0].firstName || ''} ${me.rows[0].lastName || ''}`.trim() || 'Someone'
+        : 'Someone';
+      const adminIds = admins.rows.map((r) => r.id);
+      notifyLeave(adminIds, push.buildMessage({
+        title: 'Leave request submitted',
+        body: `${name} applied for ${type} leave (${fmtDate(startDate)} to ${fmtDate(endDate)})`,
+        link: '/dashboard/attendance',
+        type: 'leave_applied',
+      }));
+    });
   } catch (error) {
     next(error);
   }
@@ -51,7 +89,8 @@ const getMyLeaves = async (req, res, next) => {
       `SELECT id, "startDate", "endDate", type, reason, status, "adminNote", "createdAt"
        FROM "leave"
        WHERE "employeeId" = $1
-       ORDER BY "createdAt" DESC`,
+       ORDER BY "createdAt" DESC
+       LIMIT 500`,
       [user_uuid]
     );
 
@@ -74,7 +113,8 @@ const getOrgLeaves = async (req, res, next) => {
        FROM "leave" l
        JOIN employee e ON l."employeeId" = e.id
        WHERE l."organizationId" = $1
-       ORDER BY l."createdAt" DESC`,
+       ORDER BY l."createdAt" DESC
+       LIMIT 1000`,
       [organization_uuid]
     );
 
@@ -114,6 +154,27 @@ const updateLeaveStatus = async (req, res, next) => {
       success: true,
       data: result.rows[0],
       message: `Leave request ${status.toLowerCase()} successfully`
+    });
+
+    // Notify the applicant about the decision (fire-and-forget)
+    runPushHook('updateLeaveStatus', async () => {
+      const applicant = await pool.query(
+        `SELECT l."employeeId", l.type, l."startDate", l."endDate", e."firstName", e."lastName"
+           FROM "leave" l
+           JOIN employee e ON e.id = l."employeeId"
+          WHERE l.id = $1 AND l."organizationId" = $2`,
+        [id, organization_uuid]
+      );
+      if (applicant.rowCount > 0) {
+        const a = applicant.rows[0];
+        const name = `${a.firstName || ''} ${a.lastName || ''}`.trim();
+        notifyLeave([a.employeeId], push.buildMessage({
+          title: `Leave request ${status.toLowerCase()}`,
+          body: `${name ? `${name}: ` : ''}your ${a.type} leave (${fmtDate(a.startDate)} to ${fmtDate(a.endDate)}) was ${status.toLowerCase()}`,
+          link: '/dashboard/attendance',
+          type: 'leave_status',
+        }));
+      }
     });
   } catch (error) {
     next(error);

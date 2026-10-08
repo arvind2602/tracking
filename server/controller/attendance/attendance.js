@@ -524,8 +524,10 @@ const requestLeave = async (req, res, next) => {
     await client.query('BEGIN');
 
     const taskTime = req.body.deviceTime ? new Date(req.body.deviceTime) : new Date();
-    // Create note for leave request
-    const noteResult = await pool.query(
+    // Create note for leave request — on the SAME client as the transaction
+    // (was pool.query, which ran on a different connection so the "transaction"
+    // never actually covered it).
+    const noteResult = await client.query(
       `INSERT INTO note (title, type, "organizationId", "authorId", content, "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, $6::timestamp, $6::timestamp)
        RETURNING id, title, type, "createdAt"`,
@@ -537,10 +539,13 @@ const requestLeave = async (req, res, next) => {
     // Tag admins (if any specified, otherwise all admins)
     const tagIds = tagAdminIds.length > 0 ? tagAdminIds : await getAdminIds(client, req.user.organization_uuid);
 
-    for (const adminId of tagIds) {
+    if (tagIds.length > 0) {
+      // Single bulk INSERT (was one round trip per admin).
       await client.query(
-        `INSERT INTO note_tag ("noteId", "employeeId") VALUES ($1, $2)`,
-        [noteId, adminId]
+        `INSERT INTO note_tag ("noteId", "employeeId")
+         SELECT $1, unnest($2::uuid[])
+         ON CONFLICT DO NOTHING`,
+        [noteId, tagIds]
       );
     }
 
@@ -688,7 +693,7 @@ const getAttendanceHistory = async (req, res, next) => {
     params.push(status);
   }
 
-  query += ` ORDER BY a.date DESC`;
+  query += ` ORDER BY a.date DESC LIMIT 1000`;
 
   try {
     const result = await pool.query(query, params);
@@ -720,8 +725,10 @@ const getMonthlySummary = async (req, res, next) => {
          COUNT(*) as totalDays
        FROM attendance a
        WHERE a."employeeId" = $1
-         AND EXTRACT(YEAR FROM a.date) = $2
-         AND EXTRACT(MONTH FROM a.date) = $3
+         -- Sargable month range (was EXTRACT(YEAR/MONTH) which defeated the
+         -- (employeeId, date) index)
+         AND a.date >= make_date($2::int, $3::int, 1)
+         AND a.date < (make_date($2::int, $3::int, 1) + INTERVAL '1 month')
        GROUP BY DATE_TRUNC('month', a.date)`,
       [user_uuid, targetYear, targetMonth + 1] // PostgreSQL month is 1-based
     );
@@ -825,7 +832,7 @@ const getOrganizationAttendance = async (req, res, next) => {
     paramIndex++;
   }
 
-  query += ` ORDER BY a.date DESC, e."firstName"`;
+  query += ` ORDER BY a.date DESC, e."firstName" LIMIT 5000`;
 
   try {
     const result = await pool.query(query, params);
@@ -937,26 +944,18 @@ const assignShiftToEmployee = async (req, res, next) => {
     );
     if (shiftCheck.rowCount === 0) throw new NotFoundError('Shift not found in organization');
 
-    let assignedCount = 0;
-
-    for (const empId of targetEmployeeIds) {
-      // Verify employee belongs to org
-      const employeeCheck = await client.query(
-        `SELECT id FROM employee WHERE id = $1 AND "organiationId" = $2`,
-        [empId, orgId]
-      );
-
-      if (employeeCheck.rowCount > 0) {
-        const result = await client.query(
-          `INSERT INTO employeeshift ("employeeId", "shiftId")
-           VALUES ($1, $2)
-           ON CONFLICT ("employeeId", "shiftId") DO NOTHING
-           RETURNING id`,
-          [empId, shiftId]
-        );
-        if (result.rowCount > 0) assignedCount++;
-      }
-    }
+    // One bulk statement instead of 2 queries per employee (was 200 round
+    // trips for 100 employees): verifies org membership and inserts in one go.
+    const result = await client.query(
+      `INSERT INTO employeeshift ("employeeId", "shiftId")
+       SELECT e.id, $2
+       FROM employee e
+       WHERE e.id = ANY($1::uuid[]) AND e."organiationId" = $3
+       ON CONFLICT ("employeeId", "shiftId") DO NOTHING
+       RETURNING id`,
+      [targetEmployeeIds, shiftId, orgId]
+    );
+    const assignedCount = result.rowCount;
 
     await client.query('COMMIT');
     res.json({

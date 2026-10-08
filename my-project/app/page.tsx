@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import axios from '@/lib/axios';
+import { registerPushDevice } from '@/lib/push';
 import { Eye, EyeOff, Lock, Mail, Sparkles, Building2, ArrowLeft } from "lucide-react";
 import { jwtDecode } from 'jwt-decode';
 
@@ -70,6 +71,7 @@ export default function Home() {
         setOrganizations(response.data.organizations);
       } else {
         localStorage.setItem('token', response.data.token);
+        registerPushDevice(); // fire-and-forget device token registration
         router.push('/dashboard/tasks');
       }
     } catch (error: any) {
@@ -88,6 +90,7 @@ export default function Home() {
         organizationId,
       });
       localStorage.setItem('token', response.data.token);
+      registerPushDevice(); // fire-and-forget device token registration
       router.push('/dashboard/tasks');
     } catch (error: any) {
       setError(error.response?.data?.error?.message || 'Failed to log in to selected organization.');

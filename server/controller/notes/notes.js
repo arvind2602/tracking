@@ -62,34 +62,32 @@ const createNote = async (req, res, next) => {
             );
             const note = noteResult.rows[0];
 
-            // Insert Tags
+            // Insert Tags / Attachments / Links — one bulk INSERT each
+            // (was one round trip per row).
             if (tags && tags.length > 0) {
-                for (const employeeId of tags) {
-                    await client.query(
-                        `INSERT INTO note_tag ("noteId", "employeeId") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-                        [note.id, employeeId]
-                    );
-                }
+                await client.query(
+                    `INSERT INTO note_tag ("noteId", "employeeId")
+                     SELECT $1, unnest($2::uuid[]) ON CONFLICT DO NOTHING`,
+                    [note.id, tags]
+                );
             }
 
-            // Insert Attachments
             if (attachments && attachments.length > 0) {
-                for (const att of attachments) {
-                    await client.query(
-                        `INSERT INTO note_attachment ("noteId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
-                        [note.id, att.name, att.url, att.fileType, att.size || null, att.heading || null]
-                    );
-                }
+                await client.query(
+                    `INSERT INTO note_attachment ("noteId", name, url, "fileType", size, heading)
+                     SELECT $1, x.name, x.url, x."fileType", x.size::int, x.heading
+                     FROM json_to_recordset($2::json) AS x(name text, url text, "fileType" text, size text, heading text)`,
+                    [note.id, JSON.stringify(attachments)]
+                );
             }
 
-            // Insert Links
             if (links && links.length > 0) {
-                for (const link of links) {
-                    await client.query(
-                        `INSERT INTO note_link ("noteId", name, url, heading) VALUES ($1, $2, $3, $4)`,
-                        [note.id, link.name, link.url, link.heading || null]
-                    );
-                }
+                await client.query(
+                    `INSERT INTO note_link ("noteId", name, url, heading)
+                     SELECT $1, x.name, x.url, x.heading
+                     FROM json_to_recordset($2::json) AS x(name text, url text, heading text)`,
+                    [note.id, JSON.stringify(links)]
+                );
             }
 
             return note;
@@ -135,6 +133,7 @@ const getNotes = async (req, res, next) => {
                 paramIdx++;
             }
 
+            const filterUserId = (employeeId && req.user.role === 'ADMIN') ? employeeId : authorId;
             whereClauses.push(`(n."authorId" = $${paramIdx} OR EXISTS (SELECT 1 FROM note_tag nt WHERE nt."noteId" = n.id AND nt."employeeId" = $${paramIdx}::uuid))`);
             values.push(filterUserId);
             paramIdx++;
@@ -184,6 +183,7 @@ const getNotes = async (req, res, next) => {
             LEFT JOIN projects p ON n."projectId" = p.id
             WHERE ${whereClauses.join(' AND ')}
             ORDER BY n."isPinned" DESC, n."createdAt" DESC
+            LIMIT 500
         `;
 
         const result = await pool.query(query, values);
@@ -192,28 +192,37 @@ const getNotes = async (req, res, next) => {
 
         if (notes.length > 0) {
             const noteIds = notes.map(n => n.id);
-            const tagsRes = await pool.query(`
-                SELECT nt.*, e."firstName", e."lastName", e.email 
-                FROM note_tag nt
-                JOIN employee e ON nt."employeeId" = e.id
-                WHERE nt."noteId" = ANY($1::uuid[])
-            `, [noteIds]);
 
-            const tags = tagsRes.rows;
-            const attRes = await pool.query(`
-                SELECT * FROM note_attachment WHERE "noteId" = ANY($1::uuid[])
-            `, [noteIds]);
-            const attachments = attRes.rows;
+            // Tags, attachments and links are independent — fetch together.
+            const [tagsRes, attRes, linksRes] = await Promise.all([
+                pool.query(`
+                    SELECT nt.*, e."firstName", e."lastName", e.email 
+                    FROM note_tag nt
+                    JOIN employee e ON nt."employeeId" = e.id
+                    WHERE nt."noteId" = ANY($1::uuid[])
+                `, [noteIds]),
+                pool.query(`SELECT * FROM note_attachment WHERE "noteId" = ANY($1::uuid[])`, [noteIds]),
+                pool.query(`SELECT * FROM note_link WHERE "noteId" = ANY($1::uuid[])`, [noteIds]),
+            ]);
 
-            const linksRes = await pool.query(`
-                SELECT * FROM note_link WHERE "noteId" = ANY($1::uuid[])
-            `, [noteIds]);
-            const links = linksRes.rows;
+            // Group once into Maps (was O(n·m) filter-inside-forEach).
+            const group = (rows) => {
+                const map = new Map();
+                for (const row of rows) {
+                    const list = map.get(row.noteId);
+                    if (list) list.push(row);
+                    else map.set(row.noteId, [row]);
+                }
+                return map;
+            };
+            const tagsByNote = group(tagsRes.rows);
+            const attsByNote = group(attRes.rows);
+            const linksByNote = group(linksRes.rows);
 
             notes.forEach(note => {
-                note.tags = tags.filter(t => t.noteId === note.id);
-                note.attachments = attachments.filter(a => a.noteId === note.id);
-                note.links = links.filter(l => l.noteId === note.id);
+                note.tags = tagsByNote.get(note.id) || [];
+                note.attachments = attsByNote.get(note.id) || [];
+                note.links = linksByNote.get(note.id) || [];
             });
         }
 
@@ -222,30 +231,40 @@ const getNotes = async (req, res, next) => {
 };
 
 // 3. Get Pinned Notes
+// Throttle for the expired-pin cleanup sweep (one write every few minutes
+// instead of an UPDATE on every GET).
+let lastUnpinSweepAt = 0;
 const getPinnedNotes = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
 
     try {
-        // Auto-unpin expired notes
-        try {
-            const today = req.query.today || new Date().toISOString();
-            await pool.query(`
-                UPDATE note 
-                SET "isPinned" = false, "pinUntil" = NULL 
-                WHERE "organizationId" = $1 AND "isPinned" = true AND "pinUntil" IS NOT NULL AND "pinUntil" < $2::timestamp
-            `, [organizationId, today]);
-        } catch (updateErr) {
-            console.error("Error auto-unpinning notes:", updateErr);
+        const today = req.query.today || new Date().toISOString();
+
+        // Auto-unpin expired notes — throttled write. The SELECT below also
+        // excludes expired pins at read time, so correctness never depends on
+        // this sweep having run.
+        if (Date.now() - lastUnpinSweepAt > 5 * 60_000) {
+            lastUnpinSweepAt = Date.now();
+            try {
+                await pool.query(`
+                    UPDATE note 
+                    SET "isPinned" = false, "pinUntil" = NULL 
+                    WHERE "organizationId" = $1 AND "isPinned" = true AND "pinUntil" IS NOT NULL AND "pinUntil" < $2::timestamp
+                `, [organizationId, today]);
+            } catch (updateErr) {
+                console.error("Error auto-unpinning notes:", updateErr);
+            }
         }
 
-        // Get currently pinned ORG notes
+        // Get currently pinned ORG notes (expired pins excluded at read time)
         const result = await pool.query(`
             SELECT n.*, e."firstName" as "authorFirstName", e."lastName" as "authorLastName"
             FROM note n
             JOIN employee e ON n."authorId" = e.id
             WHERE n."organizationId" = $1 AND n."isPinned" = true AND n.type = 'ORGANIZATIONAL'
+              AND (n."pinUntil" IS NULL OR n."pinUntil" >= $2::timestamp)
             ORDER BY n."updatedAt" DESC
-        `, [organizationId]);
+        `, [organizationId, today]);
 
         res.json(result.rows);
     } catch (err) { next(err); }
@@ -276,21 +295,19 @@ const getNoteById = async (req, res, next) => {
             if (tagCheck.rowCount === 0) return next(new NotFoundError('Note not found'));
         }
 
-        // Fetch attachments
-        const attRes = await pool.query(`SELECT * FROM note_attachment WHERE "noteId" = $1`, [id]);
+        // Attachments, links and tags are independent — fetch together.
+        const [attRes, linksRes, tagRes] = await Promise.all([
+            pool.query(`SELECT * FROM note_attachment WHERE "noteId" = $1`, [id]),
+            pool.query(`SELECT * FROM note_link WHERE "noteId" = $1`, [id]),
+            pool.query(`
+                SELECT nt.*, e."firstName", e."lastName", e.email 
+                FROM note_tag nt
+                JOIN employee e ON nt."employeeId" = e.id
+                WHERE nt."noteId" = $1
+            `, [id]),
+        ]);
         note.attachments = attRes.rows;
-
-        // Fetch links
-        const linksRes = await pool.query(`SELECT * FROM note_link WHERE "noteId" = $1`, [id]);
         note.links = linksRes.rows;
-
-        // Fetch tags
-        const tagRes = await pool.query(`
-            SELECT nt.*, e."firstName", e."lastName", e.email 
-            FROM note_tag nt
-            JOIN employee e ON nt."employeeId" = e.id
-            WHERE nt."noteId" = $1
-        `, [id]);
         note.tags = tagRes.rows;
 
         res.json(note);
@@ -367,42 +384,41 @@ const updateNote = async (req, res, next) => {
                 returnedNote = res.rows[0];
             }
 
-            // Sync Tags
+            // Sync Tags — delete once, then one bulk INSERT
             if (tags !== undefined) {
                 await client.query(`DELETE FROM note_tag WHERE "noteId" = $1`, [id]);
                 if (tags.length > 0) {
-                    for (const employeeId of tags) {
-                        await client.query(
-                            `INSERT INTO note_tag ("noteId", "employeeId") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-                            [id, employeeId]
-                        );
-                    }
+                    await client.query(
+                        `INSERT INTO note_tag ("noteId", "employeeId")
+                         SELECT $1, unnest($2::uuid[]) ON CONFLICT DO NOTHING`,
+                        [id, tags]
+                    );
                 }
             }
 
-            // Sync Attachments
+            // Sync Attachments — delete once, then one bulk INSERT
             if (attachments !== undefined) {
                 await client.query(`DELETE FROM note_attachment WHERE "noteId" = $1`, [id]);
                 if (attachments.length > 0) {
-                    for (const att of attachments) {
-                        await client.query(
-                            `INSERT INTO note_attachment ("noteId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
-                            [id, att.name, att.url, att.fileType, att.size || null, att.heading || null]
-                        );
-                    }
+                    await client.query(
+                        `INSERT INTO note_attachment ("noteId", name, url, "fileType", size, heading)
+                         SELECT $1, x.name, x.url, x."fileType", x.size::int, x.heading
+                         FROM json_to_recordset($2::json) AS x(name text, url text, "fileType" text, size text, heading text)`,
+                        [id, JSON.stringify(attachments)]
+                    );
                 }
             }
 
-            // Sync Links
+            // Sync Links — delete once, then one bulk INSERT
             if (links !== undefined) {
                 await client.query(`DELETE FROM note_link WHERE "noteId" = $1`, [id]);
                 if (links.length > 0) {
-                    for (const link of links) {
-                        await client.query(
-                            `INSERT INTO note_link ("noteId", name, url, heading) VALUES ($1, $2, $3, $4)`,
-                            [id, link.name, link.url, link.heading || null]
-                        );
-                    }
+                    await client.query(
+                        `INSERT INTO note_link ("noteId", name, url, heading)
+                         SELECT $1, x.name, x.url, x.heading
+                         FROM json_to_recordset($2::json) AS x(name text, url text, heading text)`,
+                        [id, JSON.stringify(links)]
+                    );
                 }
             }
 
@@ -521,16 +537,18 @@ const uploadAttachments = async (req, res, next) => {
             return next(new BadRequestError('No files uploaded'));
         }
 
-        const uploadedFiles = [];
-        for (const file of req.files) {
-            const url = await uploadToCloudinary(file, 'note_attachments');
-            uploadedFiles.push({
-                name: file.originalname || 'attachment',
-                url: url,
-                fileType: file.mimetype || 'application/octet-stream',
-                size: file.size || null
-            });
-        }
+        // Upload all files concurrently (was sequential — up to 10x faster).
+        const uploadedFiles = await Promise.all(
+            req.files.map(async (file) => {
+                const url = await uploadToCloudinary(file, 'note_attachments');
+                return {
+                    name: file.originalname || 'attachment',
+                    url: url,
+                    fileType: file.mimetype || 'application/octet-stream',
+                    size: file.size || null
+                };
+            })
+        );
 
         res.json(uploadedFiles);
     } catch (err) { next(err); }

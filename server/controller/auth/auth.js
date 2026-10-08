@@ -4,7 +4,8 @@ const pool = require('../../config/db');
 const { BadRequestError, UnprocessableEntityError, NotFoundError, AuthorizationError } = require('../../utils/errors');
 const { generateJwtToken } = require('../../utils/jwtGenerator');
 const { jwtConfig } = require('../../config/jwtConfig');
-const bcrypt = require('bcryptjs');
+const { ensureReportingColumn, ensureExpertiseColumns, ensurePasswordResetOtp } = require('../../utils/schemaGuard');
+const bcrypt = require('bcrypt');
 
 
 const login = async (req, res, next) => {
@@ -32,13 +33,20 @@ const login = async (req, res, next) => {
             [email]
         );
 
-        const validEmployees = [];
-        for (const user of result.rows) {
-            const isPasswordValid = await bcrypt.compare(password, user.password);
-            if (isPasswordValid) {
-                validEmployees.push(user);
-            }
-        }
+        // Compare against every org's row for this email in parallel. Native
+        // bcrypt runs these on the libuv threadpool, so this no longer blocks
+        // the event loop (the old bcryptjs loop did, per row).
+        const matches = await Promise.all(
+            result.rows.map(async (user) => {
+                try {
+                    const ok = await bcrypt.compare(password, user.password);
+                    return ok ? user : null;
+                } catch {
+                    return null; // malformed hash — treat as no match
+                }
+            })
+        );
+        const validEmployees = matches.filter(Boolean);
 
         if (validEmployees.length === 0) {
             return next(new UnprocessableEntityError('Invalid email or password'));
@@ -215,20 +223,9 @@ const register = async (req, res, next) => {
 
 };
 
-// Ensure weekly report column exists (idempotent, for deployments without manual migration)
-async function ensureReportingColumn() {
-    try {
-        await pool.query(`ALTER TABLE "employee" ADD COLUMN IF NOT EXISTS "include_weekly_report" BOOLEAN NOT NULL DEFAULT false`);
-    } catch (_) {}
-}
-
-// Ensure area of expertise / years of experience columns exist (idempotent, see prisma/migrations/expertise_experience.sql)
-async function ensureExpertiseColumns() {
-    try {
-        await pool.query(`ALTER TABLE "employee" ADD COLUMN IF NOT EXISTS "areaOfExpertise" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]`);
-        await pool.query(`ALTER TABLE "employee" ADD COLUMN IF NOT EXISTS "yearsOfExperience" INTEGER`);
-    } catch (_) {}
-}
+// ensureReportingColumn / ensureExpertiseColumns now come from
+// utils/schemaGuard (memoized, once per process) instead of running
+// ALTER TABLE on every request. See require at top of file.
 
 // View single employee
 const getEmployee = async (req, res, next) => {
@@ -443,10 +440,8 @@ const forgotPassword = async (req, res, next) => {
 
         const user = result.rows[0];
 
-        // Ensure OTP table exists (idempotent, for deployments without manual migration)
-        try {
-            await pool.query(`CREATE TABLE IF NOT EXISTS "password_reset_otp" (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), "employeeId" UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE, "otpHash" TEXT NOT NULL, "expiresAt" TIMESTAMPTZ NOT NULL, attempts INT DEFAULT 0, "createdAt" TIMESTAMPTZ DEFAULT NOW(), "verifiedAt" TIMESTAMPTZ); CREATE INDEX IF NOT EXISTS "password_reset_otp_employeeId_idx" ON "password_reset_otp"("employeeId"); CREATE INDEX IF NOT EXISTS "password_reset_otp_expiresAt_idx" ON "password_reset_otp"("expiresAt");`);
-        } catch (tblErr) { void tblErr; }
+        // Ensure OTP table exists (idempotent, memoized — see utils/schemaGuard)
+        await ensurePasswordResetOtp();
 
         // Throttle: 60s per email
         const lastOtp = await pool.query(
@@ -509,7 +504,7 @@ const verifyOtp = async (req, res, next) => {
 
     const { email, otp } = req.body;
     try {
-        try { await pool.query(`CREATE TABLE IF NOT EXISTS "password_reset_otp" (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), "employeeId" UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE, "otpHash" TEXT NOT NULL, "expiresAt" TIMESTAMPTZ NOT NULL, attempts INT DEFAULT 0, "createdAt" TIMESTAMPTZ DEFAULT NOW(), "verifiedAt" TIMESTAMPTZ);`); } catch (_) {}
+        await ensurePasswordResetOtp();
         const userRes = await pool.query('SELECT id, email FROM employee WHERE email=$1 AND is_archived=false', [email]);
         if (userRes.rowCount === 0) return next(new BadRequestError('Invalid OTP'));
 

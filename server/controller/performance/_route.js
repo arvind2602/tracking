@@ -4,9 +4,14 @@ const performanceController = require('./performance');
 const dashboardConsolidated = require('./dashboardConsolidated');
 const { getLoginPopupData } = require('./loginPopupData');
 const authMiddleware = require('../../middleware/authMiddleware');
+const httpCache = require('../../utils/httpCache');
 
 // Apply authentication middleware to all report routes
 performance.use(authMiddleware);
+
+// Dashboards fan out 10-15 queries per hit — 30s server-side cache keeps the
+// landing page fast while staying fresh enough for day-to-day use.
+performance.use(httpCache(30_000));
 
 // CONSOLIDATED ENDPOINT - Single API call for entire dashboard
 performance.get('/dashboard-all', dashboardConsolidated.getDashboardAll);

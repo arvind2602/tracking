@@ -5,7 +5,7 @@ import axios from '@/lib/axios';
 import { Button } from '@/components/ui/button';
 import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { MapPin, LogIn, LogOut, Loader2, Smartphone, ShieldCheck, ShieldAlert } from 'lucide-react';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 import { getDeviceId, getDeviceInfo } from '@/lib/device';
 
 interface AttendanceStatus {

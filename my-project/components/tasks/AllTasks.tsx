@@ -26,7 +26,7 @@ import ReactDOM from 'react-dom';
 import { AddTaskForm } from "./AddTaskForm";
 
 import { jwtDecode } from 'jwt-decode';
-import { useRouter } from 'next/navigation';
+import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -50,8 +50,9 @@ interface AllTasksProps {
 }
 
 export default function AllTasks({ tasks, users, projects, setTasks, headedProjectIds, currentPage, totalPages, onPageChange, itemsPerPage, sortBy, sortOrder, onSort }: AllTasksProps) {
-  const router = useRouter();
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  // Task shown in the detail popup (replaces navigating to /dashboard/tasks/{id})
+  const [previewTaskId, setPreviewTaskId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -488,9 +489,9 @@ export default function AllTasks({ tasks, users, projects, setTasks, headedProje
     }
   };
 
-  // Function to open the task detail page
+  // Function to open the task detail popup (was: navigate to its page)
   const handleOpenTaskDetail = (task: Task) => {
-    router.push(`/dashboard/tasks/${task.id}`);
+    setPreviewTaskId(task.id);
   };
 
 
@@ -1789,6 +1790,8 @@ export default function AllTasks({ tasks, users, projects, setTasks, headedProje
         />,
         document.getElementById('modal-root') as HTMLElement
       )}
+
+      <TaskDetailDialog taskId={previewTaskId} onClose={() => setPreviewTaskId(null)} />
 
     </div >
   );

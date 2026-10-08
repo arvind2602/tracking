@@ -71,6 +71,7 @@ model employee {
   qrVisits         QRVisit[]
   leaves           Leave[]
   passwordResetOtps PasswordResetOtp[]
+  pushDevices       PushDevice[]
   includeWeeklyReport Boolean @default(false) @map("include_weekly_report")
 
   @@index([organiationId, is_archived])
@@ -145,6 +146,14 @@ model task {
   @@index([projectId], map: "idx_task_project")
   @@index([projectId, order, createdAt(sort: Desc)], map: "idx_task_project_order")
   @@index([parentId], map: "idx_task_parent")
+  // Perf indexes (scripts/migrate.js): hot filters/sorts that had no index at all.
+  // The `lower(status)` expression index is SQL-only (see scripts/migrate.js).
+  @@index([completedAt])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([dueDate])
+  @@index([createdBy])
+  @@index([status])
 }
 
 model TaskAssignee {
@@ -560,6 +569,8 @@ model Leave {
   @@index([employeeId])
   @@index([organizationId])
   @@index([status])
+  // Pending-leave counts per org filter on both columns together.
+  @@index([organizationId, status])
   @@map("leave")
 }
 
@@ -576,4 +587,20 @@ model PasswordResetOtp {
   @@index([employeeId])
   @@index([expiresAt])
   @@map("password_reset_otp")
+}
+
+// FCM registration tokens for push notifications (one row per device token)
+model PushDevice {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId String   @db.Uuid
+  fcmToken   String   @unique
+  platform   String? // android | ios | web
+  deviceName String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  employee   employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, isActive])
+  @@map("push_device")
 }

@@ -6,18 +6,15 @@
 
 const pool = require('../../config/db');
 const cal = require('../../utils/workCalendar');
+const { ensureDailyRequiredColumn } = require('../../utils/schemaGuard');
+const { pooledMap } = require('../../utils/asyncPool');
 const { renderBacklogReminder, renderBacklogHrReport } = require('../../utils/templates/backlogTemplates');
 
 const DEFAULTER_THRESHOLD_HOURS = 0.25;
 const HALF_DAY_REQUIRED = 4.5;
 
-async function ensureDailyRequiredColumn() {
-  try {
-    await pool.query(
-      `ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "dailyRequiredHours" DOUBLE PRECISION NOT NULL DEFAULT 9`
-    );
-  } catch (_) {}
-}
+// ensureDailyRequiredColumn now comes from utils/schemaGuard (memoized, once
+// per process) instead of running ALTER TABLE on every request.
 
 async function getOrgCalendar(orgId) {
   await ensureDailyRequiredColumn();
@@ -38,7 +35,7 @@ async function getOrgCalendar(orgId) {
 
 // Core computation for one org. todayStr defaults to today IST.
 // mode: 'morning' (worked excludes reminder day) or 'closing' (includes it).
-async function computeOrgBacklog(orgId, { todayStr, mode = 'closing' } = {}) {
+async function computeOrgBacklog(orgId, { todayStr, mode = 'closing', onlyEmployeeId } = {}) {
   const today = todayStr || cal.getTodayISTString();
   const org = await getOrgCalendar(orgId);
   if (!org) throw new Error('Organization not found');
@@ -46,16 +43,38 @@ async function computeOrgBacklog(orgId, { todayStr, mode = 'closing' } = {}) {
   const days = cal.dateRange(week.weekStart, week.weekEnd);
   const holidayByDate = cal.holidayMap(org.holidays);
 
-  const empRes = await pool.query(
-    `SELECT id, "firstName", "lastName", email, role, "joiningDate" FROM employee
-     WHERE "organiationId"=$1 AND is_archived=false ORDER BY "firstName", "lastName"`,
-    [orgId]
-  );
+  // Only fetch one employee when the caller only needs their own backlog
+  // (`/backlog/my`) — was loading the entire org and discarding all but one.
+  const empParams = [orgId];
+  let empWhere = `WHERE "organiationId"=$1 AND is_archived=false`;
+  if (onlyEmployeeId) {
+    empParams.push(onlyEmployeeId);
+    empWhere += ` AND id = $2`;
+  }
+
+  // Employee list and approved leaves are independent — fetch together.
+  const [empRes, leaveRes] = await Promise.all([
+    pool.query(
+      `SELECT id, "firstName", "lastName", email, role, "joiningDate" FROM employee
+       ${empWhere} ORDER BY "firstName", "lastName"`,
+      empParams
+    ),
+    pool.query(
+      `SELECT "employeeId", "startDate", "endDate" FROM "leave"
+       WHERE "organizationId"=$1 AND status='APPROVED' AND "startDate" <= $3::date AND "endDate" >= $2::date`,
+      [orgId, week.weekStart, week.weekEnd]
+    ),
+  ]);
   const employees = empRes.rows;
   const empIds = employees.map((e) => e.id);
 
-  let attByEmp = new Map();
-  let leavesByEmp = new Map();
+  const attByEmp = new Map();
+  const leavesByEmp = new Map();
+  for (const l of leaveRes.rows) {
+    const key = String(l.employeeId);
+    if (!leavesByEmp.has(key)) leavesByEmp.set(key, []);
+    leavesByEmp.get(key).push(l);
+  }
   if (empIds.length) {
     const attRes = await pool.query(
       `SELECT "employeeId", date, "workHours", "checkOut", status FROM attendance
@@ -67,16 +86,6 @@ async function computeOrgBacklog(orgId, { todayStr, mode = 'closing' } = {}) {
       if (!attByEmp.has(key)) attByEmp.set(key, new Map());
       const d = cal.toDateKey(a.date);
       attByEmp.get(key).set(d, a);
-    }
-    const leaveRes = await pool.query(
-      `SELECT "employeeId", "startDate", "endDate" FROM "leave"
-       WHERE "organizationId"=$1 AND status='APPROVED' AND "startDate" <= $3::date AND "endDate" >= $2::date`,
-      [orgId, week.weekStart, week.weekEnd]
-    );
-    for (const l of leaveRes.rows) {
-      const key = String(l.employeeId);
-      if (!leavesByEmp.has(key)) leavesByEmp.set(key, []);
-      leavesByEmp.get(key).push(l);
     }
   }
 
@@ -229,8 +238,11 @@ const triggerBacklogReminder = async (req, res, next) => {
         results.push({ org: org.name, preview: true, week: data.week, sample: data.employees.slice(0, 3) });
         continue;
       }
-      const sent = [];
-      for (const emp of data.employees) {
+      const targets = testEmail ? data.employees.slice(0, 1) : data.employees;
+      // Send with bounded concurrency — was one awaited HTTPS call per
+      // employee (300 employees = 300 serial Resend calls holding the
+      // function open for minutes).
+      const sent = await pooledMap(targets, 8, async (emp) => {
         const to = testEmail || emp.email;
         const tpl = renderBacklogReminder({
           employeeName: emp.name,
@@ -245,9 +257,8 @@ const triggerBacklogReminder = async (req, res, next) => {
           days: emp.days,
         });
         const ret = await sendBacklogReminderEmail({ to, subject: tpl.subject, html: tpl.html, text: tpl.text });
-        sent.push({ to, mocked: ret.mocked, id: ret.id });
-        if (testEmail) break; // one sample when testing
-      }
+        return { to, mocked: ret.mocked, id: ret.id };
+      });
       results.push({ org: org.name, week: data.week, sent: sent.length, detail: testEmail ? sent : undefined });
     }
     res.json({ success: true, today: todayStr, results });
@@ -307,11 +318,12 @@ const triggerBacklogHrReport = async (req, res, next) => {
         results.push({ org: org.name, skipped: 'no admins' });
         continue;
       }
-      const sent = [];
-      for (const to of recipients) {
-        const ret = await sendBacklogHrEmail({ to, subject: tpl.subject, html: tpl.html, text: tpl.text });
-        sent.push({ to, mocked: ret.mocked, id: ret.id });
-      }
+      const sent = await Promise.all(
+        recipients.map(async (to) => {
+          const ret = await sendBacklogHrEmail({ to, subject: tpl.subject, html: tpl.html, text: tpl.text });
+          return { to, mocked: ret.mocked, id: ret.id };
+        })
+      );
       results.push({ org: org.name, week: data.week, defaulters: data.defaulters.length, recipients: sent });
     }
     res.json({ success: true, today: todayStr, results });
@@ -328,6 +340,8 @@ const getMyBacklog = async (req, res, next) => {
     const data = await computeOrgBacklog(req.user.organization_uuid, {
       todayStr,
       mode: req.query.mode === 'morning' ? 'morning' : 'closing',
+      // Personal endpoint — only load this user, not the whole org.
+      onlyEmployeeId: req.user.user_uuid,
     });
     const me = data.employees.find((e) => String(e.id) === String(req.user.user_uuid));
     if (!me) return res.status(404).json({ message: 'Employee not found' });

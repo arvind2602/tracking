@@ -44,27 +44,27 @@ const getTaskInsights = async (req, res, next) => {
     const organizationId = req.user.organization_uuid;
 
     try {
-        // Avg Resolution Time (in hours)
-        const resolutionTimeResult = await pool.query(
-            `SELECT AVG(EXTRACT(EPOCH FROM (t."updatedAt" - t."createdAt"))/3600) as "avgResolutionHours"
-       FROM task t
-       JOIN projects p ON t."projectId" = p.id
-       WHERE p."organiationId" = $1 AND t.status = 'completed'`,
-            [organizationId]
-        );
-
-        // Stuck Tasks (not updated in > 5 days)
+        // Avg Resolution Time + Stuck Tasks are independent — fetch together.
         const today = req.query.today || new Date().toISOString();
-        const stuckTasksResult = await pool.query(
-            `SELECT t.id, t.description, t.status, t."updatedAt", u."firstName", u."lastName", u.id as "userId", p.id as "projectId"
-       FROM task t
-       JOIN projects p ON t."projectId" = p.id
-       LEFT JOIN employee u ON t."assignedTo" = u.id::text
-       WHERE p."organiationId" = $1 
-         AND t.status != 'completed' 
-         AND t."updatedAt" < $2::timestamp - INTERVAL '5 days'`,
-            [organizationId, today]
-        );
+        const [resolutionTimeResult, stuckTasksResult] = await Promise.all([
+            pool.query(
+                `SELECT AVG(EXTRACT(EPOCH FROM (t."updatedAt" - t."createdAt"))/3600) as "avgResolutionHours"
+           FROM task t
+           JOIN projects p ON t."projectId" = p.id
+           WHERE p."organiationId" = $1 AND t.status = 'completed'`,
+                [organizationId]
+            ),
+            pool.query(
+                `SELECT t.id, t.description, t.status, t."updatedAt", u."firstName", u."lastName", u.id as "userId", p.id as "projectId"
+           FROM task t
+           JOIN projects p ON t."projectId" = p.id
+           LEFT JOIN employee u ON t."assignedTo" = u.id::text
+           WHERE p."organiationId" = $1 
+             AND t.status != 'completed' 
+             AND t."updatedAt" < $2::timestamp - INTERVAL '5 days'`,
+                [organizationId, today]
+            ),
+        ]);
 
         res.json({
             avgResolutionHours: Math.round(resolutionTimeResult.rows[0].avgResolutionHours || 0),

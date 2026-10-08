@@ -23,7 +23,12 @@ const getDashboardAll = async (req, res, next) => {
       taskCompletionRate,
       avgCompletionTime,
       recentActivity,
-      taskPoints
+      taskPoints,
+      activeProjectsThisWeek,
+      monthlyProductivityTrend,
+      projectsAtRisk,
+      taskInsights,
+      employeePerformance
     ] = await Promise.all([
       // 1. Dashboard Summary
       pool.query(`
@@ -235,7 +240,102 @@ const getDashboardAll = async (req, res, next) => {
           AND e.is_archived = false
         GROUP BY p.id, p.name, e.id
         ORDER BY p.name, e."firstName"
-      `, [orgId])
+      `, [orgId]),
+
+      // 14. Active Projects This Week
+      pool.query(`
+        SELECT 
+          p.id,
+          p.name,
+          COUNT(t.id)::int AS "activityCount",
+          COUNT(t.id) FILTER (WHERE t.status = 'completed')::int AS "completedTasks",
+          COUNT(t.id) FILTER (WHERE t.status != 'completed')::int AS "ongoingTasks"
+        FROM projects p
+        JOIN task t ON t."projectId" = p.id
+        WHERE p."organiationId" = $1::uuid
+          AND (t."updatedAt" >= NOW() - INTERVAL '7 days' OR t."createdAt" >= NOW() - INTERVAL '7 days')
+        GROUP BY p.id, p.name
+        ORDER BY "activityCount" DESC
+      `, [orgId]),
+
+      // 15. Monthly Productivity Trend (points per month, last 12 months)
+      pool.query(`
+        SELECT 
+          to_char(date_trunc('month', t."updatedAt"), 'Mon YYYY') AS name,
+          COALESCE(SUM(t.points), 0)::int AS points,
+          COUNT(t.id)::int AS "taskCount"
+        FROM task t
+        JOIN projects p ON t."projectId" = p.id
+        WHERE p."organiationId" = $1::uuid 
+          AND t.status = 'completed'
+          AND t."updatedAt" >= NOW() - INTERVAL '12 months'
+        GROUP BY date_trunc('month', t."updatedAt")
+        ORDER BY date_trunc('month', t."updatedAt")
+      `, [orgId]),
+
+      // 16. Projects at Risk
+      pool.query(`
+        SELECT 
+          p.id, 
+          p.name, 
+          p."endDate",
+          COUNT(t.id) as "totalTasks",
+          COUNT(CASE WHEN t.status = 'completed' THEN 1 END) as "completedTasks",
+          COUNT(CASE WHEN t."dueDate" < $2::timestamp AND t.status != 'completed' THEN 1 END) as "overdueTasks"
+        FROM projects p
+        LEFT JOIN task t ON p.id = t."projectId"
+        WHERE p."organiationId" = $1 AND p.is_archived = false
+        GROUP BY p.id
+        HAVING 
+          (p."endDate" < $2::timestamp + INTERVAL '7 days' AND p."endDate" > $2::timestamp) 
+          OR 
+          COUNT(CASE WHEN t."dueDate" < $2::timestamp AND t.status != 'completed' THEN 1 END) > 0`,
+        [orgId, new Date().toISOString()]
+      ),
+
+      // 17. Task Insights (avg resolution time + stuck tasks)
+      Promise.all([
+        pool.query(
+          `SELECT AVG(EXTRACT(EPOCH FROM (t."updatedAt" - t."createdAt"))/3600) as "avgResolutionHours"
+           FROM task t
+           JOIN projects p ON t."projectId" = p.id
+           WHERE p."organiationId" = $1 AND t.status = 'completed'`,
+          [orgId]
+        ),
+        pool.query(
+          `SELECT t.id, t.description, t.status, t."updatedAt", u."firstName", u."lastName", u.id as "userId", p.id as "projectId"
+           FROM task t
+           JOIN projects p ON t."projectId" = p.id
+           LEFT JOIN employee u ON t."assignedTo" = u.id::text
+           WHERE p."organiationId" = $1 
+             AND t.status != 'completed' 
+             AND t."updatedAt" < $2::timestamp - INTERVAL '5 days'`,
+          [orgId, new Date().toISOString()]
+        ),
+      ]),
+
+      // 18. Employee Performance (workload + points + efficiency)
+      pool.query(`
+        SELECT 
+          e.id, 
+          e."firstName", 
+          e."lastName", 
+          e.position,
+          e.image,
+          COUNT(t.id) as "totalAssigned",
+          COUNT(CASE WHEN LOWER(t.status) IN ('done', 'completed') THEN 1 END) as "completedTasks",
+          COUNT(CASE WHEN LOWER(t.status) IN ('pending', 'todo', 'in-progress') THEN 1 END) as "pendingTasks",
+          COUNT(CASE WHEN t."dueDate" < $2::timestamp AND LOWER(t.status) NOT IN ('done', 'completed') THEN 1 END) as "overdueTasks",
+          COALESCE(SUM(CASE WHEN LOWER(t.status) IN ('done', 'completed') THEN t.points ELSE 0 END), 0) as "totalPoints",
+          COALESCE(SUM(CASE WHEN LOWER(t.status) IN ('done', 'completed') AND t."updatedAt" > $2::timestamp - INTERVAL '30 days' THEN t.points ELSE 0 END), 0) as "pointsLast30Days",
+          ROUND(AVG(CASE WHEN LOWER(t.status) IN ('done', 'completed') THEN EXTRACT(EPOCH FROM (t."updatedAt" - t."createdAt"))/3600 ELSE NULL END)::numeric, 1) as "avgCompletionTimeHours"
+        FROM employee e
+        LEFT JOIN task t ON e.id = t."assignedTo"::uuid
+        WHERE e."organiationId" = $1 AND e.is_archived = false
+        GROUP BY e.id
+        ORDER BY "totalPoints" DESC`,
+        [orgId, new Date().toISOString()]
+      ),
     ]);
 
     // Process Active vs Archived
@@ -270,6 +370,40 @@ const getDashboardAll = async (req, res, next) => {
       return obj;
     });
 
+    // Process Projects at Risk (add derived fields)
+    const projectsAtRiskData = projectsAtRisk.rows.map(p => ({
+      ...p,
+      riskFactor: p.overdueTasks > 0 ? 'High' : 'Medium',
+      completionRate: p.totalTasks > 0 ? Math.round((p.completedTasks / p.totalTasks) * 100) : 0
+    }));
+
+    // Process Task Insights
+    const taskInsightsData = {
+      avgResolutionHours: Math.round(taskInsights[0].rows[0].avgResolutionHours || 0),
+      stuckTasks: taskInsights[1].rows
+    };
+
+    // Process Monthly Productivity Trend (analysis metrics)
+    const monthlyTrendRows = monthlyProductivityTrend.rows;
+    let monthlyTrendAnalysis = null;
+    if (monthlyTrendRows.length > 0) {
+      const totalPoints = monthlyTrendRows.reduce((sum, row) => sum + row.points, 0);
+      const avgPoints = Math.round(totalPoints / monthlyTrendRows.length);
+      const bestMonth = monthlyTrendRows.reduce((max, row) => row.points > max.points ? row : max, monthlyTrendRows[0]);
+      const worstMonth = monthlyTrendRows.reduce((min, row) => row.points < min.points ? row : min, monthlyTrendRows[0]);
+      let trend = 0;
+      if (monthlyTrendRows.length >= 2 && monthlyTrendRows[0].points > 0) {
+        trend = Math.round(((monthlyTrendRows[monthlyTrendRows.length - 1].points - monthlyTrendRows[0].points) / monthlyTrendRows[0].points) * 100);
+      }
+      monthlyTrendAnalysis = {
+        avgPoints,
+        trend,
+        bestMonth: { name: bestMonth.name, points: bestMonth.points },
+        worstMonth: { name: worstMonth.name, points: worstMonth.points },
+        totalTasks: monthlyTrendRows.reduce((sum, row) => sum + row.taskCount, 0)
+      };
+    }
+
     // Construct consolidated response
     const response = {
       summary: {
@@ -292,7 +426,15 @@ const getDashboardAll = async (req, res, next) => {
       taskPoints: {
         data: taskPointsData,
         employees: taskPointsEmployees
-      }
+      },
+      activeProjectsThisWeek: activeProjectsThisWeek.rows,
+      monthlyProductivityTrend: {
+        data: monthlyTrendRows,
+        analysis: monthlyTrendAnalysis
+      },
+      projectsAtRisk: projectsAtRiskData,
+      taskInsights: taskInsightsData,
+      employeePerformance: employeePerformance.rows
     };
 
     res.json(response);

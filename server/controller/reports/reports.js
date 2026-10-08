@@ -23,13 +23,16 @@ const getActiveVsArchivedEmployees = async (req, res, next) => {
 };
 const getEmployeeCountPerOrg = async (req, res, next) => {
   try {
+    // Scope to the caller's organization — a full-table GROUP BY over every
+    // tenant was both slow and leaked other orgs' names/headcounts.
     const result = await pool.query(`
       SELECT o.name, COUNT(e.id) AS "employeeCount"
       FROM organiation o
       LEFT JOIN employee e ON e."organiationId" = o.id AND e.is_archived = false
+      WHERE o.id = $1
       GROUP BY o.id, o.name
       ORDER BY o.name
-    `);
+    `, [req.user.organization_uuid]);
     res.json(result.rows);
   } catch (error) {
     next(error);

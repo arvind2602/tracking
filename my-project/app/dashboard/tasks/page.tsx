@@ -38,44 +38,33 @@ export default function Tasks() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"All Tasks" | "Kanban">("All Tasks");
   const modalRef = useRef<HTMLDivElement>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [tasksLoading, setTasksLoading] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [projectFilter, setProjectFilter] = useState<string>("");
   const [userFilter, setUserFilter] = useState<string>("");
   const [dateFilter, setDateFilter] = useState<string>("all");
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [sortBy, setSortBy] = useState<string>('createdAt');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalTasks, setTotalTasks] = useState(0);
   const itemsPerPage = 50;
-  const [, setTotalTasks] = useState(0);
 
-  useEffect(() => {
-    let filtered = tasks;
-    if (statusFilter && statusFilter !== "all") {
-      filtered = filtered.filter((task) => task.status === statusFilter);
-    }
-    if (projectFilter && projectFilter !== "all") {
-      filtered = filtered.filter((task) => task.projectId === projectFilter);
-    }
-    if (userFilter && userFilter !== "all") {
-      filtered = filtered.filter((task) => task.assignedTo === userFilter);
-    }
-    // setFilteredTasks removed as it was unused
-  }, [tasks, statusFilter, projectFilter, userFilter]);
+  // Dashboard Stats State
+  const [dashboardStats, setDashboardStats] = useState({
+    totalTasks: 0,
+    pendingTasks: 0,
+    inProgressTasks: 0,
+    completedTasks: 0,
+    pointsToday: 0,
+    pendingReviewTasks: 0
+  });
 
-  // Initial initialization
+  // Decode token for role/userId
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -89,28 +78,90 @@ export default function Tasks() {
       setCurrentUserId(payload.user.uuid);
     } catch {
       router.push("/");
-      return;
     }
-
-    const fetchInitialData = async () => {
-      try {
-        const [projectsResponse, usersResponse] = await Promise.all([
-          axios.get("/projects"),
-          axios.get(`/auth/organization`),
-        ]);
-        setProjects(projectsResponse.data);
-        setUsers(usersResponse.data);
-        // fetchAllTasks will be triggered by dependency effect
-      } catch (err) {
-        console.error("Failed to fetch initial data", err);
-        toast.error("Failed to fetch initial data");
-      } finally {
-        setIsInitialLoading(false);
-      }
-    };
-
-    fetchInitialData();
   }, [router]);
+
+  // Projects + employees: cached, shared query keys (deduped across pages)
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
+    queryKey: ['projects'],
+    queryFn: async () => (await axios.get('/projects')).data,
+  });
+
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
+    queryKey: ['organizationEmployees'],
+    queryFn: async () => (await axios.get('/auth/organization')).data,
+  });
+
+  const isInitialLoading = projectsLoading || usersLoading;
+
+  const headedProjectIds = useMemo(
+    () => new Set(projects.filter(p => p.headIds?.includes(currentUserId ?? '')).map(p => p.id)),
+    [projects, currentUserId]
+  );
+  const isHead = headedProjectIds.size > 0;
+
+  // Tasks: react-query auto-refetches when any filter in the key changes,
+  // caches per-filter for 60s (staleTime), and dedupes concurrent calls.
+  const isKanban = activeTab === 'Kanban';
+  const limit = isKanban ? 1000 : itemsPerPage;
+  const queryPage = isKanban ? 1 : currentPage;
+
+  const { data: tasksData, isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
+    queryKey: ['tasks', {
+      page: queryPage,
+      limit,
+      statusFilter,
+      projectFilter,
+      userFilter,
+      dateFilter,
+      sortBy,
+      sortOrder,
+    }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: queryPage.toString(),
+        limit: limit.toString(),
+      });
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      if (projectFilter && projectFilter !== 'all') params.append('projectId', projectFilter);
+      if (userFilter && userFilter !== 'all') params.append('assignedTo', userFilter);
+      if (dateFilter && dateFilter !== 'all') params.append('date', dateFilter);
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+      return (await axios.get(`/tasks/employees/tasks?${params.toString()}`)).data;
+    },
+  });
+
+  const tasks = useMemo(() => {
+    if (!tasksData) return [];
+    if (Array.isArray(tasksData)) return tasksData;
+    return tasksData.tasks || [];
+  }, [tasksData]);
+
+  // Sync pagination + stats from the response
+  useEffect(() => {
+    if (!tasksData || Array.isArray(tasksData)) return;
+    if (tasksData.pagination) {
+      setTotalPages(tasksData.pagination.totalPages);
+      setTotalTasks(tasksData.pagination.total);
+    }
+    if (tasksData.stats) setDashboardStats(tasksData.stats);
+  }, [tasksData]);
+
+  // Reset to page 1 whenever filters/tab/sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, projectFilter, userFilter, dateFilter, activeTab, sortBy, sortOrder]);
+
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    if (newPage > 0 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Initialization is handled react-query keys now — no per-fetch needed here.
+  // (Legacy code removed; Projects + Employees + Tasks all use shared keys above.)
 
 
 

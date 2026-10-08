@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { jwtDecode } from "jwt-decode";
 import axios from "@/lib/axios";
 import toast from "react-hot-toast";
 import { Task, User, Project } from "@/lib/types";
@@ -42,6 +43,17 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStructuring, setIsStructuring] = useState(false);
+
+  // USER role must explicitly pick an assignee; admins can leave tasks unassigned
+  const requireAssignee = useMemo(() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return false;
+      return (jwtDecode(token) as { user?: { role?: string } }).user?.role === 'USER';
+    } catch {
+      return false;
+    }
+  }, []);
 
   const [form, setForm] = useState<{
     description: string;
@@ -174,6 +186,10 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
   };
 
   const handleAddTask = async () => {
+    if (requireAssignee && selectedAssignees.length === 0) {
+      toast.error('Select at least one assignee');
+      return;
+    }
     setIsLoading(true);
     const toastId = toast.loading(parentTask ? "Adding subtask..." : "Adding task...");
     try {

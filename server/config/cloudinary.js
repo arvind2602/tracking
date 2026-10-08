@@ -1,3 +1,4 @@
+const path = require('path');
 const { v2: cloudinary } = require('cloudinary');
 const { UnprocessableEntityError } = require('../utils/errors');
 
@@ -25,11 +26,25 @@ if (!process.env.CLOUDINARY_API_SECRET) {
  */
 const uploadToCloudinary = async (file, fileType) => {
   const { v4: uuidv4 } = await import('uuid');
+
+  // Documents (docx/xlsx/txt/…) must keep their file extension in the
+  // public_id: without it Cloudinary serves them as
+  // `application/octet-stream` with `Content-Disposition: attachment`,
+  // which breaks inline previews and the Office/Google viewers.
+  // Images/videos/audio are detected from their content, so they keep the
+  // extensionless public_id (unchanged behaviour for avatars/logos).
+  const mime = (file.mimetype || '').toLowerCase();
+  const isMedia = mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/');
+  const ext = isMedia
+    ? ''
+    : path.extname(file.originalname || '').toLowerCase().replace(/[^.a-z0-9]/g, '');
+  const publicId = uuidv4() + (ext.length > 1 && ext.length <= 10 ? ext : '');
+
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: fileType,
-        public_id: uuidv4(),
+        public_id: publicId,
         resource_type: "auto",
       },
       (error, result) => {

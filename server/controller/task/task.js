@@ -2,7 +2,37 @@ const pool = require('../../config/db');
 const Joi = require('joi');
 const { BadRequestError, NotFoundError } = require('../../utils/errors');
 const { withTransaction } = require('../../utils/queryBuilders');
+const push = require('../../utils/pushNotifications');
+const logger = require('../../utils/logger');
 
+
+// ---------------------------------------------------------------------------
+// Push notification helpers (fire-and-forget — never affect the HTTP response)
+// ---------------------------------------------------------------------------
+
+const getEmployeeName = async (employeeId) => {
+  try {
+    const r = await pool.query(`SELECT "firstName", "lastName" FROM employee WHERE id = $1`, [employeeId]);
+    if (r.rowCount === 0) return null;
+    const { firstName, lastName } = r.rows[0];
+    return `${firstName || ''} ${lastName || ''}`.trim() || null;
+  } catch (_) {
+    return null;
+  }
+};
+
+const notifyTaskParticipants = (recipients, message) => {
+  try {
+    push.sendToEmployeeIds(recipients, message);
+  } catch (err) { logger.warn(`task push hook failed: ${err.message}`); }
+};
+
+/** Runs a fire-and-forget push hook, logging (never throwing) on failure. */
+const runPushHook = (label, fn) => {
+  Promise.resolve()
+    .then(fn)
+    .catch((err) => logger.warn(`${label} push hook failed: ${err.message}`));
+};
 
 // Create Task
 const createTask = async (req, res, next) => {
@@ -57,16 +87,15 @@ const createTask = async (req, res, next) => {
       );
       const newTask = result.rows[0];
 
-      // Create TaskAssignee records if applicable
+      // Create TaskAssignee records if applicable — single bulk INSERT
+      // (was one round trip per assignee).
       if ((type === 'SHARED' || type === 'SEQUENTIAL') && assignees && assignees.length > 0) {
-        let order = 1;
-        for (const assigneeId of assignees) {
-          await client.query(
-            `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
-                   VALUES ($1, $2, $3, $4, $5)`,
-            [newTask.id, assigneeId, type === 'SEQUENTIAL' ? order++ : null, false, taskTime]
-          );
-        }
+        await client.query(
+          `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+           SELECT $1, x.emp, CASE WHEN $3 THEN x.ord::int ELSE NULL END, false, $4
+           FROM unnest($2::uuid[]) WITH ORDINALITY AS x(emp, ord)`,
+          [newTask.id, assignees, type === 'SEQUENTIAL', taskTime]
+        );
       } else if (finalAssignedTo) {
         // Populate TaskAssignee for SINGLE tasks too for consistency
         await client.query(
@@ -80,6 +109,18 @@ const createTask = async (req, res, next) => {
     });
 
     res.status(201).json(task);
+
+    // Notify assignees (fire-and-forget, skip the creator)
+    runPushHook('createTask', async () => {
+      const recipients = [...new Set([finalAssignedTo, ...(assignees || [])])]
+        .filter((id) => id && id !== createdBy);
+      notifyTaskParticipants(recipients, push.buildMessage({
+        title: 'New task assigned',
+        body: `You were assigned: "${push.truncate(description)}"`,
+        link: `/dashboard/tasks/${task.id}`,
+        type: 'task_assigned',
+      }));
+    });
   } catch (error) {
     next(error);
   }
@@ -214,15 +255,13 @@ ${formatAttachments(attachments)}
       );
       const newTask = result.rows[0];
 
-      // Create TaskAssignee records
+      // Create TaskAssignee records — single bulk INSERT
       if (assigneeIds.length > 0) {
-        for (const assigneeId of assigneeIds) {
-          await client.query(
-            `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
-                   VALUES ($1, $2, $3, $4, $5)`,
-            [newTask.id, assigneeId, null, false, new Date()]
-          );
-        }
+        await client.query(
+          `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
+           SELECT $1, unnest($2::uuid[]), NULL, false, $3`,
+          [newTask.id, assigneeIds, new Date()]
+        );
       } else if (finalAssignedTo) {
         await client.query(
           `INSERT INTO task_assignee ("taskId", "employeeId", "order", "isCompleted", "assignedAt")
@@ -309,26 +348,26 @@ const getTask = async (req, res, next) => {
 
     const task = taskResult.rows[0];
 
-    // Fetch subtasks for this task
-    const subResult = await pool.query(
-      `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
-       FROM task t
-       LEFT JOIN employee e ON t."createdBy"::uuid = e.id
-       WHERE t."parentId" = $1
-       ORDER BY t."order" ASC, t."createdAt" ASC`,
-      [id]
-    );
+    // Subtasks and assignees are independent — fetch them together.
+    const [subResult, assigneeResult] = await Promise.all([
+      pool.query(
+        `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName"
+         FROM task t
+         LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+         WHERE t."parentId" = $1
+         ORDER BY t."order" ASC, t."createdAt" ASC`,
+        [id]
+      ),
+      pool.query(
+        `SELECT ta.*, e."firstName", e."lastName", e.email
+         FROM task_assignee ta
+         JOIN employee e ON ta."employeeId" = e.id
+         WHERE ta."taskId" = $1
+         ORDER BY ta."order" ASC`,
+        [id]
+      ),
+    ]);
     task.subtasks = subResult.rows;
-
-    // Fetch assignees for this task
-    const assigneeResult = await pool.query(
-      `SELECT ta.*, e."firstName", e."lastName", e.email
-       FROM task_assignee ta
-       JOIN employee e ON ta."employeeId" = e.id
-       WHERE ta."taskId" = $1
-       ORDER BY ta."order" ASC`,
-      [id]
-    );
     task.assignees = assigneeResult.rows;
 
     res.json(task);
@@ -391,6 +430,9 @@ const getTaskByEmployee = async (req, res, next) => {
 
     if (date) {
       if (date === 'today') {
+        // Deliberately kept as an expression: prod has
+        // idx_task_assigned_at_date ON task(((assigned_at)::date)), which an
+        // equivalent NOW()-range form cannot use.
         contextWhere += ` AND t."assigned_at"::date = CURRENT_DATE`;
       } else if (date === 'week') {
         contextWhere += ` AND t."assigned_at" >= CURRENT_DATE - INTERVAL '7 days'`;
@@ -399,85 +441,17 @@ const getTaskByEmployee = async (req, res, next) => {
       }
     }
 
-    // 3. Get Stats (Using Context Filters, IGNORING Status Filter)
-    // This ensures that when you click "Pending", the "Completed" card still shows the count of completed tasks in the current Project/Date view.
-    const statsResult = await pool.query(
-      `SELECT
-         -- Global Stats (Including Subtasks)
-         COUNT(*) as "totalTasks",
-         COUNT(*) FILTER (WHERE t.status = 'completed') as "completedCount",
-         COUNT(*) FILTER (WHERE t.status = 'pending') as "pendingCount",
-         COUNT(*) FILTER (WHERE t.status = 'in-progress') as "inProgressCount",
-         COUNT(*) FILTER (WHERE t.status = 'pending-review') as "pendingReviewCount",
-          COALESCE(SUM(
-            CASE 
-              WHEN t.type = 'SHARED' THEN 
-                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
-              ELSE 
-                t.points 
-            END
-          ) FILTER (WHERE t.status = 'completed' AND t."updatedAt"::date = ($${paramIdx})::date), 0) as "pointsToday",
-         
-         -- Root Stats (For Pagination)
-         COUNT(*) FILTER (WHERE t."parentId" IS NULL) as "rootTotal",
-         COUNT(*) FILTER (WHERE t."parentId" IS NULL AND t.status = 'completed') as "rootCompleted",
-         COUNT(*) FILTER (WHERE t."parentId" IS NULL AND t.status = 'pending') as "rootPending",
-         COUNT(*) FILTER (WHERE t."parentId" IS NULL AND t.status = 'in-progress') as "rootInProgress",
-         COUNT(*) FILTER (WHERE t."parentId" IS NULL AND t.status = 'pending-review') as "rootPendingReview"
-       FROM task t
-       JOIN projects p ON t."projectId" = p.id
-        ${contextWhere}`,
-      [...contextParams, req.query.today || new Date().toISOString().split('T')[0]]
-    );
-    stats = statsResult.rows[0];
-
-    // 4. Determine Total Count based on Status Filter for PAGINATION (Root Only)
-    if (!status || status === 'all') {
-      totalCount = parseInt(stats.rootTotal);
-    } else if (status === 'pending') {
-      totalCount = parseInt(stats.rootPending);
-    } else if (status === 'in-progress') {
-      totalCount = parseInt(stats.rootInProgress);
-    } else if (status === 'completed') {
-      totalCount = parseInt(stats.rootCompleted);
-    } else if (status === 'pending-review') {
-      totalCount = parseInt(stats.rootPendingReview);
-    } else {
-      totalCount = 0;
-    }
-
-    // 5. Get Data (Filtered by Status + Paginated)
-    // Explicitly enforce Root tasks for the list view
+    // 3. Build all SQL first (pure JS — no DB round trips), then fire the
+    // independent queries in parallel below (was: 5 sequential round trips).
     let mainWhere = contextWhere + ` AND t."parentId" IS NULL`;
     const mainParams = [...contextParams];
-    // paramIdx is already incremented for contextParams. 
 
     if (status && status !== 'all') {
-      // MODIFIED: Include Root tasks matching status OR having subtasks matching status
-      // This ensures that if a Parent is 'completed' but has a 'pending' subtask, 
-      // the Parent is still fetched (so the subtask can be shown).
+      // Include Root tasks matching status OR having subtasks matching status,
+      // so a completed parent with a pending subtask still appears.
       mainWhere += ` AND (t.status = $${paramIdx} OR EXISTS (SELECT 1 FROM task st WHERE st."parentId" = t.id AND st.status = $${paramIdx}))`;
       mainParams.push(status);
       paramIdx++;
-
-      // MODIFIED: Recalculate Total Count for Pagination using the complex query
-      // The pre-calculated 'stats' object only counts exact status matches on roots.
-      const countResult = await pool.query(
-        `SELECT COUNT(DISTINCT t.id) 
-         FROM task t
-         JOIN projects p ON t."projectId" = p.id
-         LEFT JOIN employee e ON t."createdBy"::uuid = e.id
-         ${mainWhere}`,
-        mainParams
-      );
-      totalCount = parseInt(countResult.rows[0].count);
-
-    } else {
-      // For 'all', we can rely on the stats object (rootTotal matches contextWhere + root)
-      // Recalculating here just to be safe and consistent with context filters
-      if (!totalCount && totalCount !== 0) {
-        totalCount = parseInt(stats.rootTotal);
-      }
     }
 
     // 6. Build ORDER BY clause
@@ -505,50 +479,104 @@ const getTaskByEmployee = async (req, res, next) => {
     const pagingParams = [...mainParams, limit, offset];
     // paramIdx is now mainParams.length + 1
 
+    const statsSql = `SELECT
+         -- Global Stats (Including Subtasks)
+         COUNT(*) as "totalTasks",
+         COUNT(*) FILTER (WHERE t.status = 'completed') as "completedCount",
+         COUNT(*) FILTER (WHERE t.status = 'pending') as "pendingCount",
+         COUNT(*) FILTER (WHERE t.status = 'in-progress') as "inProgressCount",
+         COUNT(*) FILTER (WHERE t.status = 'pending-review') as "pendingReviewCount",
+          COALESCE(SUM(
+            CASE 
+              WHEN t.type = 'SHARED' THEN 
+                t.points / GREATEST((SELECT COUNT(*) FROM task_assignee ta WHERE ta."taskId" = t.id), 1)
+              ELSE 
+                t.points 
+            END
+          ) FILTER (WHERE t.status = 'completed' AND t."updatedAt"::date = ($${paramIdx})::date), 0) as "pointsToday",
+         -- Root Stats (For Pagination)
+         COUNT(*) FILTER (WHERE t."parentId" IS NULL) as "rootTotal"
+       FROM task t
+       JOIN projects p ON t."projectId" = p.id
+        ${contextWhere}`;
 
-
-    result = await pool.query(
-      `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName",
+    const pageSql = `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName",
        (SELECT content FROM comment c WHERE c."taskId" = t.id ORDER BY "createdAt" DESC LIMIT 1) as "latestComment"
        FROM task t
        JOIN projects p ON t."projectId" = p.id
        LEFT JOIN employee e ON t."createdBy"::uuid = e.id
        ${mainWhere}
        ${orderByClause}
-       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
-      pagingParams
-    );
+       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`;
+
+    // Status-filtered pagination needs the complex count; the 'all' case can
+    // use stats.rootTotal.
+    const needsCount = Boolean(status && status !== 'all');
+
+    const [statsResult, countResult, pageResult] = await Promise.all([
+      pool.query(statsSql, [...contextParams, req.query.today || new Date().toISOString().split('T')[0]]),
+      needsCount
+        ? pool.query(
+            `SELECT COUNT(DISTINCT t.id) 
+             FROM task t
+             JOIN projects p ON t."projectId" = p.id
+             LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+             ${mainWhere}`,
+            mainParams
+          )
+        : Promise.resolve(null),
+      pool.query(pageSql, pagingParams),
+    ]);
+    result = pageResult;
+
+    stats = statsResult.rows[0];
+    totalCount = countResult
+      ? parseInt(countResult.rows[0].count)
+      : parseInt(stats.rootTotal);
 
     const tasks = result.rows;
 
     if (tasks.length > 0) {
       const taskIds = tasks.map(t => t.id);
-      const subtasksResult = await pool.query(
-        `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName",
-         (SELECT content FROM comment c WHERE c."taskId" = t.id ORDER BY "createdAt" DESC LIMIT 1) as "latestComment"
-         FROM task t
-         LEFT JOIN employee e ON t."createdBy"::uuid = e.id
-         WHERE t."parentId" = ANY($1::uuid[])
-         ORDER BY t."order" ASC, t."createdAt" ASC`,
-        [taskIds]
-      );
 
-      const subtasks = subtasksResult.rows;
+      // Subtasks and assignees are independent — fetch them together.
+      const [subtasksResult, assigneesResult] = await Promise.all([
+        pool.query(
+          `SELECT t.*, e."firstName" as "creatorFirstName", e."lastName" as "creatorLastName",
+           (SELECT content FROM comment c WHERE c."taskId" = t.id ORDER BY "createdAt" DESC LIMIT 1) as "latestComment"
+           FROM task t
+           LEFT JOIN employee e ON t."createdBy"::uuid = e.id
+           WHERE t."parentId" = ANY($1::uuid[])
+           ORDER BY t."order" ASC, t."createdAt" ASC`,
+          [taskIds]
+        ),
+        pool.query(
+          `SELECT ta.*, e."firstName", e."lastName", e.email
+             FROM task_assignee ta
+             JOIN employee e ON ta."employeeId" = e.id
+             WHERE ta."taskId" = ANY($1::uuid[])
+             ORDER BY ta."order" ASC`,
+          [taskIds]
+        ),
+      ]);
 
-      // Fetch assignees for the list of tasks
-      const assigneesResult = await pool.query(
-        `SELECT ta.*, e."firstName", e."lastName", e.email
-           FROM task_assignee ta
-           JOIN employee e ON ta."employeeId" = e.id
-           WHERE ta."taskId" = ANY($1::uuid[])
-           ORDER BY ta."order" ASC`,
-        [taskIds]
-      );
-      const allAssignees = assigneesResult.rows;
+      // Group once into Maps (was O(n·m) filter-inside-forEach).
+      const subtasksByParent = new Map();
+      for (const st of subtasksResult.rows) {
+        const list = subtasksByParent.get(st.parentId);
+        if (list) list.push(st);
+        else subtasksByParent.set(st.parentId, [st]);
+      }
+      const assigneesByTask = new Map();
+      for (const a of assigneesResult.rows) {
+        const list = assigneesByTask.get(a.taskId);
+        if (list) list.push(a);
+        else assigneesByTask.set(a.taskId, [a]);
+      }
 
       tasks.forEach(task => {
-        task.subtasks = subtasks.filter(st => st.parentId === task.id);
-        task.assignees = allAssignees.filter(a => a.taskId === task.id);
+        task.subtasks = subtasksByParent.get(task.id) || [];
+        task.assignees = assigneesByTask.get(task.id) || [];
 
         // Adjust points for SHARED tasks (Divide by assignee count)
         // Only if we are filtering by a specific user (showing "My Share")
@@ -593,7 +621,8 @@ const getTasksByProject = async (req, res, next) => {
        JOIN projects p ON t."projectId" = p.id
        LEFT JOIN employee e ON t."createdBy"::uuid = e.id
        WHERE p.id = $1 AND p."organiationId" = $2
-       ORDER BY t."order" ASC, t."createdAt" DESC`,
+       ORDER BY t."order" ASC, t."createdAt" DESC
+       LIMIT 1000`,
       [projectId, organiationId]
     );
     res.json(result.rows);
@@ -798,30 +827,55 @@ const createComment = async (req, res, next) => {
 
       const comment = commentResult.rows[0];
 
-      // Insert Attachments
+      // Insert Attachments — single bulk INSERT (was one round trip each)
       if (attachments && attachments.length > 0) {
-        for (const att of attachments) {
-          await client.query(
-            `INSERT INTO comment_attachment ("commentId", name, url, "fileType", size, heading) VALUES ($1, $2, $3, $4, $5, $6)`,
-            [comment.id, att.name, att.url, att.fileType, att.size || null, att.heading || null]
-          );
-        }
+        await client.query(
+          `INSERT INTO comment_attachment ("commentId", name, url, "fileType", size, heading)
+           SELECT $1, x.name, x.url, x."fileType", x.size::int, x.heading
+           FROM json_to_recordset($2::json) AS x(name text, url text, "fileType" text, size text, heading text)`,
+          [comment.id, JSON.stringify(attachments)]
+        );
       }
 
-      // Insert Links
+      // Insert Links — single bulk INSERT
       if (links && links.length > 0) {
-        for (const link of links) {
-          await client.query(
-            `INSERT INTO comment_link ("commentId", name, url, heading) VALUES ($1, $2, $3, $4)`,
-            [comment.id, link.name, link.url, link.heading || null]
-          );
-        }
+        await client.query(
+          `INSERT INTO comment_link ("commentId", name, url, heading)
+           SELECT $1, x.name, x.url, x.heading
+           FROM json_to_recordset($2::json) AS x(name text, url text, heading text)`,
+          [comment.id, JSON.stringify(links)]
+        );
       }
 
       return comment;
     });
 
     res.status(201).json(result);
+
+    // Notify task participants about the new comment (skip the author)
+    runPushHook('createComment', async () => {
+      const [taskRow, assigneeRows, actorName] = await Promise.all([
+        pool.query(
+          `SELECT t.description, t."createdBy", t."assignedTo"
+             FROM task t JOIN projects p ON t."projectId" = p.id
+            WHERE t.id = $1 AND p."organiationId" = $2`,
+          [taskId, organizationId]
+        ),
+        pool.query(`SELECT "employeeId" FROM task_assignee WHERE "taskId" = $1`, [taskId]),
+        getEmployeeName(authorId),
+      ]);
+      if (taskRow.rowCount > 0) {
+        const t = taskRow.rows[0];
+        const recipients = [...new Set([t.createdBy, t.assignedTo, ...assigneeRows.rows.map((r) => r.employeeId)])]
+          .filter((id) => id && id !== authorId);
+        notifyTaskParticipants(recipients, push.buildMessage({
+          title: 'New comment',
+          body: `${actorName || 'Someone'} commented on "${push.truncate(t.description, 40)}": "${push.truncate(content || 'a comment', 60)}"`,
+          link: `/dashboard/tasks/${taskId}`,
+          type: 'comment',
+        }));
+      }
+    });
   } catch (error) { next(error); }
 };
 
@@ -848,7 +902,8 @@ const getCommentsByTask = async (req, res, next) => {
        JOIN projects p ON t."projectId" = p.id
        JOIN employee e ON c."authorId" = e.id
        WHERE (t.id = $1 OR t."parentId" = $1) AND p."organiationId" = $2
-       ORDER BY c."createdAt" DESC`,
+       ORDER BY c."createdAt" DESC
+       LIMIT 200`,
       [taskId, organiationId]
     );
 
@@ -857,19 +912,35 @@ const getCommentsByTask = async (req, res, next) => {
     if (comments.length > 0) {
       const commentIds = comments.map(c => c.id);
 
-      const attachmentsRes = await pool.query(
-        `SELECT * FROM comment_attachment WHERE "commentId" = ANY($1::uuid[])`,
-        [commentIds]
-      );
+      // Attachments and links are independent — fetch together.
+      const [attachmentsRes, linksRes] = await Promise.all([
+        pool.query(
+          `SELECT * FROM comment_attachment WHERE "commentId" = ANY($1::uuid[])`,
+          [commentIds]
+        ),
+        pool.query(
+          `SELECT * FROM comment_link WHERE "commentId" = ANY($1::uuid[])`,
+          [commentIds]
+        ),
+      ]);
 
-      const linksRes = await pool.query(
-        `SELECT * FROM comment_link WHERE "commentId" = ANY($1::uuid[])`,
-        [commentIds]
-      );
+      // Group once into Maps (was O(n·m) filter-inside-forEach).
+      const attByComment = new Map();
+      for (const a of attachmentsRes.rows) {
+        const list = attByComment.get(a.commentId);
+        if (list) list.push(a);
+        else attByComment.set(a.commentId, [a]);
+      }
+      const linksByComment = new Map();
+      for (const l of linksRes.rows) {
+        const list = linksByComment.get(l.commentId);
+        if (list) list.push(l);
+        else linksByComment.set(l.commentId, [l]);
+      }
 
       comments.forEach(comment => {
-        comment.attachments = attachmentsRes.rows.filter(a => a.commentId === comment.id);
-        comment.links = linksRes.rows.filter(l => l.commentId === comment.id);
+        comment.attachments = attByComment.get(comment.id) || [];
+        comment.links = linksByComment.get(comment.id) || [];
       });
     }
 
@@ -930,6 +1001,7 @@ const changeTaskStatus = async (req, res, next) => {
         }
 
         if (currentIndex !== -1 && currentIndex < assignees.length - 1) {
+          const nextAssignee = assignees[currentIndex + 1];
           const moveResult = await client.query(
             `UPDATE task t SET
                    "assignedTo" = $1,
@@ -966,6 +1038,22 @@ const changeTaskStatus = async (req, res, next) => {
     });
 
     res.json(result);
+
+    // Notify task creator/assignees of the status change (skip the actor)
+    runPushHook('changeTaskStatus', async () => {
+      const [assigneeRows, actorName] = await Promise.all([
+        pool.query(`SELECT "employeeId" FROM task_assignee WHERE "taskId" = $1`, [id]),
+        getEmployeeName(userId),
+      ]);
+      const recipients = [...new Set([result.createdBy, result.assignedTo, ...assigneeRows.rows.map((r) => r.employeeId)])]
+        .filter((eid) => eid && eid !== userId);
+      notifyTaskParticipants(recipients, push.buildMessage({
+        title: 'Task status updated',
+        body: `${actorName || req.user.email || 'Someone'} set "${push.truncate(result.description, 50)}" to ${status}`,
+        link: `/dashboard/tasks/${id}`,
+        type: 'task_status',
+      }));
+    });
 
     // Trigger AI Analysis if status is 'pending-review'
     if (status === 'pending-review') {
@@ -1022,6 +1110,18 @@ const assignTask = async (req, res, next) => {
     );
     if (result.rowCount === 0) return next(new NotFoundError('Task not found'));
     res.json(result.rows[0]);
+
+    // Notify the new assignee (skip self-assignment)
+    if (assignedTo && assignedTo !== req.user.user_uuid) {
+      runPushHook('assignTask', async () => {
+        notifyTaskParticipants([assignedTo], push.buildMessage({
+          title: 'Task assigned',
+          body: `You were assigned: "${push.truncate(result.rows[0].description)}"`,
+          link: `/dashboard/tasks/${id}`,
+          type: 'task_assigned',
+        }));
+      });
+    }
   }
   catch (error) { next(error); }
 };
@@ -1057,14 +1157,14 @@ const reorderTasks = async (req, res, next) => {
 
   try {
     await withTransaction(pool.pool, async (client) => {
-      for (const task of tasks) {
-        await client.query(
-          `UPDATE task t SET "order" = $1, "updatedAt" = NOW()
-           FROM projects p
-           WHERE t.id = $2 AND t."projectId" = p.id AND p."organiationId" = $3`,
-          [task.order, task.id, organiationId]
-        );
-      }
+      // Single bulk UPDATE instead of one round trip per task.
+      await client.query(
+        `UPDATE task t SET "order" = v."order", "updatedAt" = NOW()
+         FROM projects p,
+              json_to_recordset($1::json) AS v(id uuid, "order" int)
+         WHERE t.id = v.id AND t."projectId" = p.id AND p."organiationId" = $2`,
+        [JSON.stringify(tasks || []), organiationId]
+      );
     });
     res.json({ message: 'Tasks reordered' });
   } catch (error) {

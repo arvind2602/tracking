@@ -13,9 +13,12 @@ if (!dbUrl) {
 const dbConfig = {
     connectionString: `${dbUrl}?sslmode=require`,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
-    max: 20,
+    // Serverless (Vercel): each function instance opens its own pool, so keep it
+    // small to avoid exhausting Postgres connections. Override via DB_POOL_MAX.
+    max: parseInt(process.env.DB_POOL_MAX || '5', 10),
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 20000
+    // Fail fast instead of hanging for 20s when the pool is saturated.
+    connectionTimeoutMillis: 5000
 };
 
 const createPool = () => {
@@ -25,13 +28,9 @@ const createPool = () => {
         console.error('Unexpected error on idle client:', err.message);
     });
 
-    pool.on('acquire', async (client) => {
-        try {
-            await client.query('SELECT NOW()');
-        } catch (err) {
-            console.error('Database connection validation failed:', err.message);
-        }
-    });
+    // NOTE: do NOT validate connections on 'acquire' — that handler used to run
+    // `SELECT NOW()` before every real query, doubling DB round-trips per request.
+    // `pg` already handles connection health via idle timeouts and error events.
 
     return pool;
 };

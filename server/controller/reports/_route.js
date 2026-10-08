@@ -2,9 +2,13 @@ const express = require('express');
 const reports = express.Router();
 const reportsController = require('./reports');
 const authMiddleware = require('../../middleware/authMiddleware');
+const httpCache = require('../../utils/httpCache');
 
 // Apply authentication middleware to all report routes
 reports.use(authMiddleware);
+
+// Reports are pure aggregates — 60s server-side cache erases most repeat latency.
+reports.use(httpCache(60_000));
 
 reports.get('/role-distribution', reportsController.getRoleDistribution);
 reports.get('/task-points', reportsController.getTaskPoints);

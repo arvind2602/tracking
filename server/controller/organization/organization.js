@@ -1,8 +1,9 @@
 const Joi = require('joi');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const { pool } = require('../../config/db');
 const { BadRequestError } = require('../../utils/errors');
 const { generateJwtToken } = require('../../utils/jwtGenerator');
+const { ensureDailyRequiredColumn, ensureAiTaskCheckerColumn } = require('../../utils/schemaGuard');
 
 
 const registerOrganization = async (req, res, next) => {
@@ -78,8 +79,8 @@ const getOrganizationSettings = async (req, res, next) => {
     const orgId = req.user.organization_uuid;
 
     try {
-        try { await pool.query(`ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "dailyRequiredHours" DOUBLE PRECISION NOT NULL DEFAULT 9`); } catch (_) {}
-        try { await pool.query(`ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "aiTaskCheckerEnabled" BOOLEAN DEFAULT false`); } catch (_) {}
+        await ensureDailyRequiredColumn();
+        await ensureAiTaskCheckerColumn();
         const result = await pool.query(
             `SELECT o.id, o.name, "showBanner", "showLoginPopup", logo,
                     "weekOffs", holidays, "wfhEnabled", "dailyRequiredHours", "aiTaskCheckerEnabled",
@@ -181,7 +182,7 @@ const updateOrganizationSettings = async (req, res, next) => {
                 if (Number.isNaN(hrs) || hrs < 1 || hrs > 24) {
                     throw new BadRequestError('dailyRequiredHours must be between 1 and 24');
                 }
-                try { await client.query(`ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "dailyRequiredHours" DOUBLE PRECISION NOT NULL DEFAULT 9`); } catch (_) {}
+                await ensureDailyRequiredColumn();
                 query += `, "dailyRequiredHours" = $${paramIndex}`;
                 params.push(hrs);
                 paramIndex++;
@@ -189,7 +190,7 @@ const updateOrganizationSettings = async (req, res, next) => {
 
             if (aiTaskCheckerEnabled !== undefined) {
                 const aiTaskCheckerEnabledBool = aiTaskCheckerEnabled === 'true' || aiTaskCheckerEnabled === true;
-                try { await client.query(`ALTER TABLE organiation ADD COLUMN IF NOT EXISTS "aiTaskCheckerEnabled" BOOLEAN DEFAULT false`); } catch (_) {}
+                await ensureAiTaskCheckerColumn();
                 query += `, "aiTaskCheckerEnabled" = $${paramIndex}`;
                 params.push(aiTaskCheckerEnabledBool);
                 paramIndex++;

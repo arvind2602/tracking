@@ -154,6 +154,24 @@ export default function DashboardLayout({
     };
   }, [isSidebarOpen]);
 
+  // Project detail pages render a wide Kanban board — free up the space by
+  // auto-collapsing the sidebar on that route only, then restore the previous
+  // state when navigating away. isCollapsed is deliberately left out of the
+  // deps so a manual toggle on the page isn't overridden by this effect.
+  const sidebarRestoreRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const isProjectDetail = /^\/dashboard\/projects\/[^/]+$/.test(pathname);
+    if (isProjectDetail) {
+      setIsSidebarOpen(false);
+      if (sidebarRestoreRef.current === null) sidebarRestoreRef.current = isCollapsed;
+      setIsCollapsed(true);
+    } else if (sidebarRestoreRef.current !== null) {
+      setIsCollapsed(sidebarRestoreRef.current);
+      sidebarRestoreRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     router.push('/');
@@ -196,7 +214,7 @@ export default function DashboardLayout({
 
   const navItems = userRole === 'USER'
     ? allNavItems
-      .filter(item => item.label === 'Tasks' || item.label === 'Profile' || item.label === 'Attendance' || item.label === 'QR Verification')
+      .filter(item => ['Tasks', 'Profile', 'Attendance', 'QR Verification', 'Projects'].includes(item.label))
       .map(item => item.label === 'QR Verification' ? { ...item, href: '/dashboard/qr/scan' } : item)
     : allNavItems;
 

@@ -12,6 +12,8 @@ projects.post('/', projectsController.createProject);
 projects.get('/export', projectsController.exportProjects);
 projects.get('/', projectsController.getProjects);
 projects.put('/priority/update', projectsController.updateProjectsPriority); // Must come before /:id
+projects.delete('/:projectId/resources/attachments/:attachmentId', resourcesController.deleteResourceAttachment);
+projects.delete('/:projectId/resources/links/:linkId', resourcesController.deleteResourceLink);
 projects.get('/:projectId/resources', resourcesController.getProjectResources);
 projects.get('/:id/export', projectsController.exportProjectTasks);
 projects.get('/:id', projectsController.getProject);

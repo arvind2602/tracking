@@ -2,11 +2,15 @@ const express = require('express');
 const routes = require('../controller/routes');
 
 const cors = require('cors');
+const compression = require('compression');
 
 const app = express();
 
 // Trust proxy (Vercel)
 app.set('trust proxy', 1);
+
+// Compress JSON responses (dashboard payloads are often 100s of KB).
+app.use(compression());
 
 // ✅ Robust CORS configuration
 app.use(cors({

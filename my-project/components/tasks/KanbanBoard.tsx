@@ -33,6 +33,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { TaskDetailDialog } from "@/components/tasks/TaskDetailDialog";
 
 interface KanbanBoardProps {
     tasks: Task[];
@@ -53,6 +54,7 @@ export function KanbanBoard({ tasks, users, onTaskUpdate }: KanbanBoardProps) {
         completed: [],
     });
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [previewTaskId, setPreviewTaskId] = useState<string | null>(null);
 
     useEffect(() => {
         const newItems = {
@@ -65,7 +67,9 @@ export function KanbanBoard({ tasks, users, onTaskUpdate }: KanbanBoardProps) {
     }, [tasks]);
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        // distance: 5 lets a plain click open the task popup without
+        // starting a drag (same constraint as the project kanban board)
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
@@ -201,47 +205,51 @@ export function KanbanBoard({ tasks, users, onTaskUpdate }: KanbanBoardProps) {
 
 
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-        >
-            <div className="flex gap-4 h-full overflow-x-auto pb-4 items-start">
-                {COLUMNS.map((col) => (
-                    <div key={col.id} className="flex-1 min-w-[300px] max-w-[350px] bg-muted/40 rounded-lg p-3 border border-border/60 flex flex-col max-h-full">
-                        <div className="flex items-center justify-between mb-3 px-1">
-                            <h3 className="font-semibold text-sm text-foreground tracking-tight flex items-center gap-2">
-                                {col.title}
-                                <span className="bg-background text-muted-foreground text-xs font-mono px-1.5 py-0.5 rounded border border-border">
-                                    {items[col.id]?.length || 0}
-                                </span>
-                            </h3>
+        <>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCorners}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+            >
+                <div className="flex gap-4 h-full overflow-x-auto pb-4 items-start">
+                    {COLUMNS.map((col) => (
+                        <div key={col.id} className="flex-1 min-w-[300px] max-w-[350px] bg-muted/40 rounded-lg p-3 border border-border/60 flex flex-col max-h-full">
+                            <div className="flex items-center justify-between mb-3 px-1">
+                                <h3 className="font-semibold text-sm text-foreground tracking-tight flex items-center gap-2">
+                                    {col.title}
+                                    <span className="bg-background text-muted-foreground text-xs font-mono px-1.5 py-0.5 rounded border border-border">
+                                        {items[col.id]?.length || 0}
+                                    </span>
+                                </h3>
+                            </div>
+                            <div className="flex-1 overflow-y-auto pr-2 space-y-2.5 min-h-0 custom-scrollbar">
+                                <SortableContext
+                                    items={items[col.id]?.map((t) => t.id) || []}
+                                    strategy={verticalListSortingStrategy}
+                                >
+                                    {items[col.id]?.map((task) => (
+                                        <SortableItem key={task.id} task={task} users={users} onTaskClick={setPreviewTaskId} />
+                                    ))}
+                                </SortableContext>
+                            </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto pr-2 space-y-2.5 min-h-0 custom-scrollbar">
-                            <SortableContext
-                                items={items[col.id]?.map((t) => t.id) || []}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                {items[col.id]?.map((task) => (
-                                    <SortableItem key={task.id} task={task} users={users} />
-                                ))}
-                            </SortableContext>
-                        </div>
-                    </div>
-                ))}
-            </div>
-            <DragOverlay dropAnimation={dropAnimation}>
-                {activeId ? (
-                    <TaskCard task={tasks.find((t) => t.id === activeId)!} users={users} isOverlay />
-                ) : null}
-            </DragOverlay>
-        </DndContext>
+                    ))}
+                </div>
+                <DragOverlay dropAnimation={dropAnimation}>
+                    {activeId ? (
+                        <TaskCard task={tasks.find((t) => t.id === activeId)!} users={users} isOverlay />
+                    ) : null}
+                </DragOverlay>
+            </DndContext>
+
+            <TaskDetailDialog taskId={previewTaskId} onClose={() => setPreviewTaskId(null)} />
+        </>
     );
 }
 
-function SortableItem({ task, users }: { task: Task; users: User[] }) {
+function SortableItem({ task, users, onTaskClick }: { task: Task; users: User[]; onTaskClick?: (taskId: string) => void }) {
     const {
         attributes,
         listeners,
@@ -259,12 +267,12 @@ function SortableItem({ task, users }: { task: Task; users: User[] }) {
 
     return (
         <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-            <TaskCard task={task} users={users} />
+            <TaskCard task={task} users={users} onTaskClick={onTaskClick} />
         </div>
     );
 }
 
-function TaskCard({ task, users, isOverlay }: { task: Task; users: User[]; isOverlay?: boolean }) {
+function TaskCard({ task, users, isOverlay, onTaskClick }: { task: Task; users: User[]; isOverlay?: boolean; onTaskClick?: (taskId: string) => void }) {
     const assignedUser = users.find(u => u.id === task.assignedTo);
     const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed';
 
@@ -278,6 +286,7 @@ function TaskCard({ task, users, isOverlay }: { task: Task; users: User[]; isOve
 
     return (
         <div
+            onClick={() => { if (!isOverlay) onTaskClick?.(task.id); }}
             className={`
                 group bg-card p-2 md:p-3 rounded-md border shadow-sm transition-all 
                 hover:shadow-md hover:border-primary/40

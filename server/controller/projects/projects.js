@@ -70,30 +70,35 @@ const getProject = async (req, res, next) => {
       return next(new NotFoundError('Project not found'));
     }
 
-    // Get total count of tasks
-    const countResult = await pool.query(
-      `SELECT COUNT(*) as total FROM task WHERE "projectId" = $1::uuid`,
-      [id]
-    );
+    // Count, paginated tasks and hold history are independent — fetch together
+    // (was 3 sequential round trips, one of them inside res.json).
+    const [countResult, tasksResult, holdResult] = await Promise.all([
+      pool.query(
+        `SELECT COUNT(*) as total FROM task WHERE "projectId" = $1::uuid`,
+        [id]
+      ),
+      pool.query(
+        `SELECT 
+           t.id,
+           t.description,
+           t.status,
+           t.points,
+           t."createdAt",
+           t."updatedAt",
+           COALESCE(e."firstName" || ' ' || e."lastName", 'Unassigned') AS "assignedToName"
+         FROM task t
+         LEFT JOIN employee e ON t."assignedTo"::uuid = e.id
+         WHERE t."projectId" = $1::uuid
+         ORDER BY t."order" ASC, t."createdAt" DESC
+         LIMIT $2 OFFSET $3`,
+        [id, limit, offset]
+      ),
+      pool.query(
+        'SELECT "startDate", "endDate", reason FROM project_hold_history WHERE "projectId" = $1 ORDER BY "startDate" DESC',
+        [id]
+      ),
+    ]);
     const totalTasks = parseInt(countResult.rows[0].total);
-
-    // Get paginated tasks
-    const tasksResult = await pool.query(
-      `SELECT 
-         t.id,
-         t.description,
-         t.status,
-         t.points,
-         t."createdAt",
-         t."updatedAt",
-         COALESCE(e."firstName" || ' ' || e."lastName", 'Unassigned') AS "assignedToName"
-       FROM task t
-       LEFT JOIN employee e ON t."assignedTo"::uuid = e.id
-       WHERE t."projectId" = $1::uuid
-       ORDER BY t."createdAt" DESC
-       LIMIT $2 OFFSET $3`,
-      [id, limit, offset]
-    );
 
     const totalPages = Math.ceil(totalTasks / limit);
 
@@ -108,10 +113,7 @@ const getProject = async (req, res, next) => {
         hasNextPage: page < totalPages,
         hasPrevPage: page > 1
       },
-      holdHistory: (await pool.query(
-        'SELECT "startDate", "endDate", reason FROM project_hold_history WHERE "projectId" = $1 ORDER BY "startDate" DESC',
-        [id]
-      )).rows
+      holdHistory: holdResult.rows
     });
   } catch (error) {
     next(error);
@@ -431,13 +433,13 @@ const updateProjectsPriority = async (req, res, next) => {
         return next(new BadRequestError('One or more projects not found or unauthorized'));
       }
 
-      // Update priorities
-      for (const { id, priority_order } of projectPriorities) {
-        await client.query(
-          `UPDATE projects SET priority_order = $1, "updatedAt" = NOW() WHERE id = $2::uuid`,
-          [priority_order, id]
-        );
-      }
+      // Update priorities — one bulk UPDATE (was one round trip per project)
+      await client.query(
+        `UPDATE projects p SET priority_order = v.priority_order, "updatedAt" = NOW()
+         FROM json_to_recordset($1::json) AS v(id uuid, priority_order int)
+         WHERE p.id = v.id`,
+        [JSON.stringify(projectPriorities)]
+      );
 
       await client.query('COMMIT');
       res.json({ message: 'Project priorities updated successfully' });

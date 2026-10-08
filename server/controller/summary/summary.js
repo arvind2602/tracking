@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const { ensureReportingColumn } = require('../../utils/schemaGuard');
 
 function getWeekBounds(req) {
   // Asia/Kolkata week: Mon 00:00 IST to Sun 23:59 IST. IST = UTC+5:30.
@@ -33,9 +34,8 @@ function getWeekBounds(req) {
   return { weekStart, weekEnd, priorStart, priorEnd };
 }
 
-async function ensureReportingColumn() {
-  try { await pool.query(`ALTER TABLE "employee" ADD COLUMN IF NOT EXISTS "include_weekly_report" BOOLEAN NOT NULL DEFAULT false`); } catch (_) {}
-}
+// ensureReportingColumn now comes from utils/schemaGuard (memoized, once per
+// process) instead of running ALTER TABLE on every request.
 
 async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart, priorEnd) {
   await ensureReportingColumn();
@@ -69,8 +69,11 @@ async function buildWeeklySummary(organizationId, weekStart, weekEnd, priorStart
     pool.query(`SELECT COALESCE(SUM(t.points),0)::int as pts FROM task t JOIN projects p ON t."projectId"=p.id WHERE p."organiationId"=$1 AND LOWER(t.status) IN ('done','completed') AND t."updatedAt" BETWEEN $2 AND $3`, [organizationId, priorStart, priorEnd]),
     pool.query(`SELECT p.id, p.name, p."endDate", COUNT(t.id)::int as "totalTasks", COUNT(CASE WHEN LOWER(t.status) IN ('done','completed') THEN 1 END)::int as "completedTasks", COUNT(CASE WHEN t."dueDate" < $2::timestamptz AND LOWER(t.status) NOT IN ('done','completed') THEN 1 END)::int as "overdueTasks" FROM projects p LEFT JOIN task t ON p.id=t."projectId" WHERE p."organiationId"=$1 AND p.is_archived=false GROUP BY p.id HAVING (p."endDate" < $2::timestamptz + INTERVAL '7 days' AND p."endDate" > $2::timestamptz) OR COUNT(CASE WHEN t."dueDate" < $2::timestamptz AND LOWER(t.status) NOT IN ('done','completed') THEN 1 END) >0`, [organizationId, weekEnd]),
     (async () => {
-      const avg = await pool.query(`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (t."updatedAt"-t."createdAt"))/3600),0)::float as "avgResolutionHours" FROM task t JOIN projects p ON t."projectId"=p.id WHERE p."organiationId"=$1 AND LOWER(t.status) IN ('done','completed')`, [organizationId]);
-      const stuck = await pool.query(`SELECT t.id, t.description, t.status, t."updatedAt", e."firstName", e."lastName" FROM task t JOIN projects p ON t."projectId"=p.id LEFT JOIN employee e ON t."assignedTo"=e.id::text WHERE p."organiationId"=$1 AND LOWER(t.status) NOT IN ('done','completed') AND t."updatedAt" < $2::timestamptz - INTERVAL '5 days' ORDER BY t."updatedAt" ASC LIMIT 20`, [organizationId, weekEnd]);
+      // These two were awaited sequentially inside the IIFE — run together.
+      const [avg, stuck] = await Promise.all([
+        pool.query(`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (t."updatedAt"-t."createdAt"))/3600),0)::float as "avgResolutionHours" FROM task t JOIN projects p ON t."projectId"=p.id WHERE p."organiationId"=$1 AND LOWER(t.status) IN ('done','completed')`, [organizationId]),
+        pool.query(`SELECT t.id, t.description, t.status, t."updatedAt", e."firstName", e."lastName" FROM task t JOIN projects p ON t."projectId"=p.id LEFT JOIN employee e ON t."assignedTo"=e.id::text WHERE p."organiationId"=$1 AND LOWER(t.status) NOT IN ('done','completed') AND t."updatedAt" < $2::timestamptz - INTERVAL '5 days' ORDER BY t."updatedAt" ASC LIMIT 20`, [organizationId, weekEnd]),
+      ]);
       return { avg: avg.rows[0].avgResolutionHours, stuck: stuck.rows };
     })(),
     // Projects going on this week — all active + on_hold (is_archived=false) with weekly stats — overdue = due this week and still open
@@ -278,11 +281,13 @@ const sendWeeklyToOptedIn = async (req, res, next) => {
     if (!recipients.length) return res.json({ message: 'No opted-in admins', data: { weekLabel: data.weekLabel, recipients: [] } });
     if (dryRun) return res.json({ message: 'Dry run', recipients, subject, weekLabel: data.weekLabel });
     const { sendWeeklySummaryEmail } = require('../../utils/email');
-    const results = [];
-    for (const to of recipients) {
-      const ret = await sendWeeklySummaryEmail({ to, subject, html, text });
-      results.push({ to, mocked: ret.mocked, id: ret.id });
-    }
+    // Send concurrently (was one awaited HTTPS call per recipient).
+    const results = await Promise.all(
+      recipients.map(async (to) => {
+        const ret = await sendWeeklySummaryEmail({ to, subject, html, text });
+        return { to, mocked: ret.mocked, id: ret.id };
+      })
+    );
     res.json({ message: 'Weekly summary sent', recipients: results, weekLabel: data.weekLabel });
   } catch (e) { next(e); }
 };

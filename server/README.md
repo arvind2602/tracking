@@ -57,6 +57,7 @@ server/
 │   ├── projects/      # Project CRUD, priority ordering, hold/resume
 │   ├── task/          # Task CRUD, comments, assignments, sequential tasks
 │   ├── analytics/     # Dashboard analytics and metrics
+│   ├── notifications/ # FCM device registration, test, broadcast
 │   ├── performance/   # Employee performance scoring
 │   ├── reports/       # Report generation and exports
 │   ├── projects/      # Project management logic
@@ -71,11 +72,15 @@ server/
 ├── prisma/            # Database schema and migrations
 │   ├── schema.prisma  # Database models
 │   └── migrations/    # Migration history
+├── scripts/           # Setup verification + smoke tests
+│   ├── verify-notifications-setup.js  # DB table + FCM credentials check
+│   └── smoke-notifications.js         # End-to-end push API test
 ├── utils/             # Shared utilities
 │   ├── errorHandler.js    # Global error handler
 │   ├── errors.js          # Custom error classes (BadRequest, NotFound, etc.)
 │   ├── jwtGenerator.js    # JWT token creation
 │   ├── logger.js          # Winston logging configuration
+│   ├── pushNotifications.js # FCM sending (lazy init, mocked when unconfigured)
 │   └── queryBuilders.js   # Shared SQL CTE builders and transaction helper
 └── index.js           # Server entry point
 ```
@@ -97,6 +102,62 @@ See [API_REFERENCE.md](../docs/API_REFERENCE.md) for full endpoint documentation
 | GET | `/api/tasks/projects/:id/tasks` | Yes | List tasks in project |
 | POST | `/api/tasks` | Yes | Create task |
 | PUT | `/api/tasks/:id/status` | Yes | Update task status |
+| POST | `/api/notifications/devices` | Yes | Register FCM device token |
+| POST | `/api/notifications/test` | Cron secret | FCM dry-run credential check |
+| POST | `/api/notifications/broadcast` | Cron secret | Broadcast to all devices |
+
+## Push Notifications (FCM)
+
+Targeted push notifications via Firebase Cloud Messaging, delivered by the
+[VigTask Flutter app](../vigtask/) (WebView wrapper). The web app registers the
+device token on login; the server sends per-user pushes or topic broadcasts.
+
+**Setup**
+
+1. `npm install firebase-admin` (already a dependency).
+2. Create a service-account key (Firebase console → *Project settings* →
+   *Service accounts* → *Generate new private key*) or
+   `gcloud iam service-accounts keys create ...` for project `vigtask-app`.
+3. Base64 the JSON and put it in `.env`:
+   `FIREBASE_SERVICE_ACCOUNT=<base64>` (raw JSON also works).
+   Leave it empty to mock all sends (dev mode — same pattern as `utils/email.js`).
+4. Apply the additive migration (creates `push_device` only, safe to re-run):
+   ```bash
+   npx prisma db execute --file ./prisma/migrations/push_device.sql --schema ./prisma/schema.prisma
+   npx prisma generate
+   ```
+5. Verify everything:
+   ```bash
+   node scripts/verify-notifications-setup.js   # table + credentials + FCM dry-run
+   node scripts/smoke-notifications.js          # 16-check end-to-end API test
+   ```
+
+**Endpoints**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/notifications/devices` | JWT | Register/refresh `{ token, platform, deviceName }` |
+| GET | `/api/notifications/devices` | JWT | List my devices (token redacted) |
+| DELETE | `/api/notifications/devices` | JWT | Deactivate my token(s) — called on logout |
+| POST | `/api/notifications/test` | Cron secret | FCM dry-run to topic `global` (`{ real: true }` to actually send) |
+| POST | `/api/notifications/broadcast` | Cron secret | `{ title, body, link?, topic? }` → topic `global` |
+
+**Automatic triggers** (fire-and-forget, skip the acting user, `data.link` deep-links
+into the WebView):
+
+| Event | Recipients | Message |
+|---|---|---|
+| Task created / assigned | Assignees | "New task assigned" → `/dashboard/tasks/:id` |
+| Task status changed | Creator + assignees | "Task status updated" → `/dashboard/tasks/:id` |
+| Comment added | Task participants | "New comment" → `/dashboard/tasks/:id` |
+| Leave applied | Org admins | "Leave request submitted" → `/dashboard/attendance` |
+| Leave approved/rejected | Applicant | "Leave request …" → `/dashboard/attendance` |
+| Weekly cron summary | Opted-in admins | "Weekly summary ready" → `/dashboard/reports` |
+
+Dead tokens (FCM `unregistered`/`invalid`) are deactivated automatically in
+`push_device` on every send. Payload contract: `{ notification: { title, body },
+data: { link, type } }` — foreground shows an in-app notification, background
+shows a tray notification, tap deep-links.
 
 ## Environment Variables
 

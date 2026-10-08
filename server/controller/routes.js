@@ -13,9 +13,11 @@ const qrRoutes = require('./qr-verification/_route');
 const summaryRoutes = require('./summary/_route');
 const cronRoutes = require('./cron/_route');
 const backlogRoutes = require('./backlog/_route');
+const notificationsRoutes = require('./notifications/_route');
 
 // Mount sub-routers
 organization.use('/cron', cronRoutes);
+organization.use('/notifications', notificationsRoutes);
 organization.use('/summary', summaryRoutes);
 organization.use('/projects', projectsRoutes);
 organization.use('/tasks', taskRoutes);

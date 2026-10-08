@@ -18,7 +18,7 @@ import {
     CheckCircle2,
     Users
 } from 'lucide-react';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 import {
     Dialog,
     DialogContent,

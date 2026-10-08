@@ -1,5 +1,7 @@
 const pool = require('../../config/db');
 const { buildWeeklySummary, getWeekBounds } = require('../summary/summary');
+const { ensureReportingColumn } = require('../../utils/schemaGuard');
+const push = require('../../utils/pushNotifications');
 
 // Cron endpoint for cron-job.com — validates CRON_SECRET via header/query
 const triggerWeeklyCron = async (req, res, next) => {
@@ -22,8 +24,8 @@ const triggerWeeklyCron = async (req, res, next) => {
     if (req.query.weekEnd) mockReq.query.weekEnd = req.query.weekEnd;
     const { weekStart, weekEnd, priorStart, priorEnd } = getWeekBounds(mockReq);
 
-    // Ensure column
-    try { await pool.query(`ALTER TABLE "employee" ADD COLUMN IF NOT EXISTS "include_weekly_report" BOOLEAN NOT NULL DEFAULT false`); } catch (_) {}
+    // Ensure column (memoized — see utils/schemaGuard)
+    await ensureReportingColumn();
 
     // Cross-check preview for Vighnotech (and others) without sending email: ?preview=1&org=Vighnotech
     if (req.query.preview) {
@@ -84,11 +86,13 @@ const triggerWeeklyCron = async (req, res, next) => {
     const results = [];
     for (const org of orgs.rows) {
       let recipients;
+      let pushRecipientIds = [];
       if (testEmail) {
         recipients = [testEmail];
       } else {
-        const r = await pool.query(`SELECT email FROM employee WHERE "organiationId"=$1 AND role='ADMIN' AND "include_weekly_report"=true AND is_archived=false`, [org.id]);
+        const r = await pool.query(`SELECT id, email FROM employee WHERE "organiationId"=$1 AND role='ADMIN' AND "include_weekly_report"=true AND is_archived=false`, [org.id]);
         recipients = r.rows.map(x=>x.email);
+        pushRecipientIds = r.rows.map(x=>x.id);
       }
       if (!recipients.length) {
         results.push({ org: org.name, orgId: org.id, skipped: 'no opted-in admins' });
@@ -97,12 +101,26 @@ const triggerWeeklyCron = async (req, res, next) => {
       const data = await buildWeeklySummary(org.id, weekStart, weekEnd, priorStart, priorEnd);
       const { html, text } = renderWeeklySummary(data);
       const subject = `Weekly CEO Summary — ${data.orgName} • ${data.weekLabel}`;
-      const sent = [];
-      for (const to of recipients) {
-        const ret = await sendWeeklySummaryEmail({ to, subject, html, text });
-        sent.push({ to, mocked: ret.mocked, id: ret.id });
-      }
+      // Send concurrently (was one awaited HTTPS call per recipient).
+      const sent = await Promise.all(
+        recipients.map(async (to) => {
+          const ret = await sendWeeklySummaryEmail({ to, subject, html, text });
+          return { to, mocked: ret.mocked, id: ret.id };
+        })
+      );
       results.push({ org: org.name, orgId: org.id, recipients: sent, weekLabel: data.weekLabel });
+
+      // Push notification to the same opted-in admins (fire-and-forget)
+      if (pushRecipientIds.length) {
+        try {
+          push.sendToEmployeeIds(pushRecipientIds, push.buildMessage({
+            title: 'Weekly summary ready',
+            body: `${data.orgName} — ${data.weekLabel}`,
+            link: '/dashboard/reports',
+            type: 'weekly_summary',
+          }));
+        } catch (_) { /* never break the cron */ }
+      }
     }
 
     res.json({ success: true, weekStart, weekEnd, orgsProcessed: orgs.rowCount, results });
