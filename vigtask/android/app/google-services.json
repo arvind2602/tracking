@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "300685608803",
+    "project_id": "vigtask-app",
+    "storage_bucket": "vigtask-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:300685608803:android:27cd996345892a5ec67556",
+        "android_client_info": {
+          "package_name": "com.vigtask.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9bTFJXuk2nK5XMjsBfk_Ha1bzIMEJgac"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

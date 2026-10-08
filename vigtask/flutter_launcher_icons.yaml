@@ -1,0 +1,5 @@
+flutter_launcher_icons:
+  android: true
+  ios: true
+  # Drop an icon image in the project (e.g. assets/icon.png) and uncomment:
+  # image_path: "assets/icon.png"
