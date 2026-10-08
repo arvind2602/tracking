@@ -185,10 +185,10 @@ export function CheckInButton({ onUpdate }: { onUpdate?: () => void }) {
             if (res.data.success) {
                 toast.success(res.data.message);
                 if (res.data.deviceMismatch) {
-                    toast.warning('New device detected. Admin has been notified.');
+                    toast('New device detected. Admin has been notified.', { icon: '⚠️' });
                 }
                 if (res.data.withinGeofence === false) {
-                    toast.warning('Check-in recorded outside geofence area.');
+                    toast('Check-in recorded outside geofence area.', { icon: '⚠️' });
                 }
                 fetchStatus();
                 if (onUpdate) onUpdate();
