@@ -209,13 +209,12 @@ export default function DashboardLayout({
     { href: '/dashboard/projects', icon: Code, label: 'Projects' },
     { href: '/dashboard/profile', icon: User, label: 'Profile' },
     { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
-    { href: '/dashboard/qr', icon: QrCode, label: 'QR Verification' },
+    
   ];
 
   const navItems = userRole === 'USER'
     ? allNavItems
-      .filter(item => ['Tasks', 'Profile', 'Attendance', 'QR Verification', 'Projects'].includes(item.label))
-      .map(item => item.label === 'QR Verification' ? { ...item, href: '/dashboard/qr/scan' } : item)
+      .filter(item => ['Tasks', 'Profile', 'Attendance', 'Projects'].includes(item.label))
     : allNavItems;
 
   if (isLoading) {
@@ -364,15 +363,6 @@ export default function DashboardLayout({
                 </Select>
               </div>
             )}
-            <Link
-              href="/dashboard/qr/scan"
-              className="p-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl transition-all border border-primary/20 shadow-lg group flex items-center gap-2"
-              title="QR Scanner"
-            >
-              <QrCode className="h-5 w-5 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider">Scanner</span>
-            </Link>
-
             <button
               onClick={() => setIsNotesPanelOpen(true)}
               className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"

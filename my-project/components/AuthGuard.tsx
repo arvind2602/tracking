@@ -32,7 +32,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
           pathname.startsWith('/dashboard/tasks') ||
           pathname.startsWith('/dashboard/profile') ||
           pathname.startsWith('/dashboard/attendance') ||
-          pathname.startsWith('/dashboard/qr');
+          pathname.startsWith('/dashboard/qr') ||
+          pathname.startsWith('/dashboard/projects');
 
         if (!isAllowedPath) {
           router.push('/dashboard/tasks');
