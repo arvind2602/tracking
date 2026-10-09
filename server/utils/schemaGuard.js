@@ -74,4 +74,17 @@ module.exports = {
             `CREATE INDEX IF NOT EXISTS "password_reset_otp_employeeId_idx" ON "password_reset_otp"("employeeId")`,
             `CREATE INDEX IF NOT EXISTS "password_reset_otp_expiresAt_idx" ON "password_reset_otp"("expiresAt")`,
         ]),
+
+    /** project_member table + indexes (see prisma/migrations/project_members.sql) */
+    ensureProjectMemberTable: () =>
+        once('project_member', [
+            `CREATE TABLE IF NOT EXISTS "project_member" (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                "projectId" UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                "employeeId" UUID NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+                "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT "project_member_project_employee_key" UNIQUE ("projectId", "employeeId")
+            )`,
+            `CREATE INDEX IF NOT EXISTS "project_member_employeeId_idx" ON "project_member"("employeeId")`,
+        ]),
 };

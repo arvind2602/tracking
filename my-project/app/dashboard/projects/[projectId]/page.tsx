@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import Breadcrumbs from '@/components/ui/breadcrumbs';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
-import { Loader, LayoutGrid, StickyNote, Paperclip, ArrowRight, Plus, Pause, Play, History, Link as LinkIcon, ExternalLink, TriangleAlert, RotateCcw, Eye, Trash2 } from 'lucide-react';
+import { Loader, LayoutGrid, StickyNote, Paperclip, ArrowRight, Plus, Pause, Play, History, Link as LinkIcon, ExternalLink, TriangleAlert, RotateCcw, Eye, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { KanbanBoard } from '@/components/projects/KanbanBoard';
 import { AddTaskForm } from '@/components/tasks/AddTaskForm';
@@ -25,10 +25,11 @@ import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import { Note } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGetNotes } from '@/hooks/useNotes';
+import TeamMembers, { TeamMember } from '@/components/projects/TeamMembers';
 
 interface Task { id: string; description: string; status: string; points: number; assignedToName: string; createdAt: string; updatedAt: string; }
 interface Pagination { totalTasks: number; currentPage: number; pageSize: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean; }
-interface Project { id: string; name: string; description: string; startDate: string; tasks: Task[]; status: 'ACTIVE' | 'ON_HOLD' | 'COMPLETED'; holdHistory?: { startDate: string; endDate: string | null; reason: string }[]; pagination?: Pagination; }
+interface Project { id: string; name: string; description: string; startDate: string; tasks: Task[]; status: 'ACTIVE' | 'ON_HOLD' | 'COMPLETED'; headIds?: string[]; memberIds?: string[]; holdHistory?: { startDate: string; endDate: string | null; reason: string }[]; pagination?: Pagination; }
 interface ProjectResource { sourceType: 'note' | 'comment'; sourceId: string; sourceName: string; authorId?: string | null; authorName: string; attachments: { id: string; name: string; url: string; fileType: string; size: number; heading: string | null }[]; links: { id: string; name: string; url: string; heading: string | null }[]; }
 interface ResourceDeleteTarget { kind: 'attachment' | 'link'; id: string; name: string; }
 
@@ -57,6 +58,8 @@ const ProjectDetailsPage = () => {
   const [isAddingResource, setIsAddingResource] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [taskFormUsers, setTaskFormUsers] = useState<UserType[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [employees, setEmployees] = useState<UserType[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -70,11 +73,14 @@ const ProjectDetailsPage = () => {
   const fetchProject = async () => {
     setIsLoading(true);
     try {
-      const [projectRes, resourcesRes] = await Promise.all([
+      const [projectRes, resourcesRes, teamRes, employeesRes] = await Promise.all([
         axios.get(`/projects/${projectId}`, { params: { page: 1, limit: TASK_FETCH_LIMIT } }),
-        axios.get(`/projects/${projectId}/resources`)
+        axios.get(`/projects/${projectId}/resources`),
+        axios.get(`/projects/${projectId}/members`),
+        axios.get('/auth/organization')
       ]);
-      setProject(projectRes.data); setResources(resourcesRes.data); setError(null);
+      setProject(projectRes.data); setResources(resourcesRes.data);
+      setTeamMembers(teamRes.data); setEmployees(employeesRes.data); setError(null);
     } catch (e: any) {
       const notFound = e?.response?.status === 404;
       setError(notFound
@@ -91,11 +97,14 @@ const ProjectDetailsPage = () => {
   // Silent refresh after an action — keeps the current view and data on failure
   const reloadProject = async () => {
     try {
-      const [projectRes, resourcesRes] = await Promise.all([
+      const [projectRes, resourcesRes, teamRes, employeesRes] = await Promise.all([
         axios.get(`/projects/${projectId}`, { params: { page: 1, limit: TASK_FETCH_LIMIT } }),
-        axios.get(`/projects/${projectId}/resources`)
+        axios.get(`/projects/${projectId}/resources`),
+        axios.get(`/projects/${projectId}/members`),
+        axios.get('/auth/organization')
       ]);
-      setProject(projectRes.data); setResources(resourcesRes.data); setError(null);
+      setProject(projectRes.data); setResources(resourcesRes.data);
+      setTeamMembers(teamRes.data); setEmployees(employeesRes.data); setError(null);
     } catch { toast.error('Failed to refresh'); }
   };
 
@@ -270,6 +279,12 @@ const ProjectDetailsPage = () => {
               {resources.reduce((a, c) => a + c.attachments.length + c.links.length, 0)}
             </Badge>
           </TabsTrigger>
+          <TabsTrigger value="team" className="flex-1 py-2 gap-2 font-bold data-[state=active]:bg-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg transition-all">
+            <Users className="h-4 w-4" /> Team
+            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] bg-white/20 text-current border-none">
+              {teamMembers.length}
+            </Badge>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="board" className="m-0 border border-border/60 rounded-2xl shadow-lg bg-card overflow-hidden focus-visible:outline-none">
@@ -421,6 +436,15 @@ const ProjectDetailsPage = () => {
               </div>
             )}
           </div>
+        </TabsContent>
+        <TabsContent value="team" className="m-0 border border-border/60 rounded-2xl shadow-lg bg-card overflow-hidden focus-visible:outline-none min-h-[600px]">
+          <TeamMembers
+            projectId={projectId as string}
+            members={teamMembers}
+            employees={employees}
+            canManage={userRole === 'ADMIN' || (!!currentUserId && (project.headIds || []).includes(currentUserId))}
+            onChanged={fetchProject}
+          />
         </TabsContent>
       </Tabs>
 

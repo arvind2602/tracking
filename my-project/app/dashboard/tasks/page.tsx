@@ -95,11 +95,14 @@ export default function Tasks() {
 
   const isInitialLoading = projectsLoading || usersLoading;
 
-  const headedProjectIds = useMemo(
-    () => new Set(projects.filter(p => p.headIds?.includes(currentUserId ?? '')).map(p => p.id)),
+  // Projects the user can access: heads (implicit members) or explicit team members
+  const accessibleProjectIds = useMemo(
+    () => new Set(projects.filter(p =>
+      p.headIds?.includes(currentUserId ?? '') || p.memberIds?.includes(currentUserId ?? '')
+    ).map(p => p.id)),
     [projects, currentUserId]
   );
-  const isHead = headedProjectIds.size > 0;
+  const hasProjectAccess = accessibleProjectIds.size > 0;
 
   // Tasks: react-query auto-refetches when any filter in the key changes,
   // caches per-filter for 60s (staleTime), and dedupes concurrent calls.
@@ -197,7 +200,7 @@ export default function Tasks() {
           </h1>
           <p className="text-muted-foreground mt-1 font-medium text-sm">Manage and monitor organizational tasks.</p>
         </div>
-        {userRole === 'ADMIN' || isHead ? (
+        {userRole === 'ADMIN' || hasProjectAccess ? (
           <Button
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white border-none rounded-xl px-6 py-4 shadow-lg shadow-blue-500/20 transition-all duration-300 gap-2 font-bold"
             onClick={() => setIsModalOpen(true)}
@@ -267,7 +270,7 @@ export default function Tasks() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        {(userRole === 'ADMIN' || isHead) && (
+        {(userRole === 'ADMIN' || hasProjectAccess) && (
           <SearchableSelect
             value={statusFilter}
             onValueChange={(val: string) => setStatusFilter(val)}
@@ -282,7 +285,7 @@ export default function Tasks() {
             className="w-full md:w-[220px]"
           />
         )}
-        {(userRole === 'ADMIN' || isHead) && (
+        {(userRole === 'ADMIN' || hasProjectAccess) && (
           <SearchableSelect
             value={projectFilter}
             onValueChange={(val: string) => setProjectFilter(val)}
@@ -294,7 +297,7 @@ export default function Tasks() {
             className="w-full md:w-[220px]"
           />
         )}
-        {(userRole === 'ADMIN' || isHead) && (
+        {(userRole === 'ADMIN' || hasProjectAccess) && (
           <SearchableSelect
             value={userFilter}
             onValueChange={(val: string) => setUserFilter(val)}
@@ -348,7 +351,7 @@ export default function Tasks() {
               users={users}
               projects={projects}
               setTasks={setTasks}
-              headedProjectIds={headedProjectIds}
+              accessibleProjectIds={accessibleProjectIds}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}
@@ -389,7 +392,7 @@ export default function Tasks() {
 
             <AddTaskForm
               users={users}
-              projects={userRole === 'ADMIN' ? projects : projects.filter(p => headedProjectIds.has(p.id))}
+              projects={userRole === 'ADMIN' ? projects : projects.filter(p => accessibleProjectIds.has(p.id))}
               onTaskAdded={() => refetchTasks()}
               onClose={() => setIsModalOpen(false)}
               currentUserId={currentUserId}

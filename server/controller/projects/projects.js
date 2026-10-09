@@ -1,6 +1,7 @@
 const pool = require('../../config/db');
 const Joi = require('joi');
-const { BadRequestError, NotFoundError } = require('../../utils/errors');
+const { BadRequestError, NotFoundError, AuthorizationError, ConflictError } = require('../../utils/errors');
+const { ensureProjectMemberTable } = require('../../utils/schemaGuard');
 
 
 // Create Project
@@ -56,6 +57,11 @@ const getProject = async (req, res, next) => {
          p."headId",
          p."headIds",
          p.status,
+         COALESCE((
+           SELECT array_agg(pm."employeeId")
+           FROM project_member pm
+           WHERE pm."projectId" = p.id
+         ), ARRAY[]::uuid[]) as "memberIds",
          COALESCE((
            SELECT string_agg(e."firstName" || ' ' || e."lastName", ', ' ORDER BY h.ord)
            FROM unnest(p."headIds") WITH ORDINALITY AS h(id, ord)
@@ -196,6 +202,11 @@ const getProjects = async (req, res, next) => {
          p."headId",
          p."headIds",
          p.status,
+         COALESCE((
+           SELECT array_agg(pm."employeeId")
+           FROM project_member pm
+           WHERE pm."projectId" = p.id
+         ), ARRAY[]::uuid[]) as "memberIds",
          COALESCE((
            SELECT string_agg(ph."firstName" || ' ' || ph."lastName", ', ' ORDER BY h.ord)
            FROM unnest(p."headIds") WITH ORDINALITY AS h(id, ord)
@@ -533,6 +544,127 @@ const resumeProject = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// Get Project Team Members (heads are implicit members)
+const getProjectMembers = async (req, res, next) => {
+  const { id } = req.params;
+  const organiationId = req.user.organization_uuid;
+
+  try {
+    await ensureProjectMemberTable();
+
+    const projectResult = await pool.query(
+      'SELECT id FROM projects WHERE id = $1 AND "organiationId" = $2',
+      [id, organiationId]
+    );
+    if (projectResult.rowCount === 0) return next(new NotFoundError('Project not found'));
+
+    // Heads (projects.headIds) are implicit members; explicit members live in project_member
+    const result = await pool.query(
+      `SELECT
+         e.id,
+         e."firstName",
+         e."lastName",
+         e.position,
+         e.image,
+         (p."headIds" @> ARRAY[e.id::uuid]) AS "isHead",
+         pm."createdAt" AS "joinedAt"
+       FROM employee e
+       JOIN projects p ON p.id = $1
+       LEFT JOIN project_member pm ON pm."projectId" = p.id AND pm."employeeId" = e.id
+       WHERE pm.id IS NOT NULL OR e.id = ANY(p."headIds")
+       ORDER BY "isHead" DESC, e."firstName" ASC`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (error) { next(error); }
+};
+
+// Add Project Team Member (ADMIN or project heads only)
+const addProjectMember = async (req, res, next) => {
+  const { id } = req.params;
+  const { employeeId } = req.body;
+  const organiationId = req.user.organization_uuid;
+
+  if (!employeeId) return next(new BadRequestError('employeeId is required'));
+
+  try {
+    await ensureProjectMemberTable();
+
+    const projectResult = await pool.query(
+      `SELECT p.id, p."headIds"
+       FROM projects p
+       WHERE p.id = $1 AND p."organiationId" = $2`,
+      [id, organiationId]
+    );
+    if (projectResult.rowCount === 0) return next(new NotFoundError('Project not found'));
+
+    const project = projectResult.rows[0];
+    const isProjectHead = (project.headIds || []).includes(req.user.user_uuid);
+    if (req.user.role !== 'ADMIN' && !isProjectHead) {
+      return next(new AuthorizationError('Only admins or project heads can manage team members'));
+    }
+
+    // Employee must belong to the same organization
+    const employeeResult = await pool.query(
+      'SELECT id FROM employee WHERE id = $1 AND "organiationId" = $2',
+      [employeeId, organiationId]
+    );
+    if (employeeResult.rowCount === 0) return next(new NotFoundError('Employee not found'));
+
+    // Heads are implicit members — nothing to insert
+    if ((project.headIds || []).includes(employeeId)) {
+      return next(new ConflictError('Employee is already a team member'));
+    }
+
+    const result = await pool.query(
+      `INSERT INTO project_member ("projectId", "employeeId")
+       VALUES ($1, $2)
+       ON CONFLICT ("projectId", "employeeId") DO NOTHING
+       RETURNING id, "projectId", "employeeId", "createdAt"`,
+      [id, employeeId]
+    );
+    res.status(result.rowCount ? 201 : 200).json(result.rows[0] || { message: 'Already a team member' });
+  } catch (error) { next(error); }
+};
+
+// Remove Project Team Member (ADMIN or project heads only; heads are inherent)
+const removeProjectMember = async (req, res, next) => {
+  const { id, employeeId } = req.params;
+  const organiationId = req.user.organization_uuid;
+
+  try {
+    await ensureProjectMemberTable();
+
+    const projectResult = await pool.query(
+      `SELECT p.id, p."headIds"
+       FROM projects p
+       WHERE p.id = $1 AND p."organiationId" = $2`,
+      [id, organiationId]
+    );
+    if (projectResult.rowCount === 0) return next(new NotFoundError('Project not found'));
+
+    const project = projectResult.rows[0];
+    const isProjectHead = (project.headIds || []).includes(req.user.user_uuid);
+    if (req.user.role !== 'ADMIN' && !isProjectHead) {
+      return next(new AuthorizationError('Only admins or project heads can manage team members'));
+    }
+
+    // Heads are implicit members and can't be removed this way
+    if ((project.headIds || []).includes(employeeId)) {
+      return next(new BadRequestError('Project heads are inherent team members and cannot be removed'));
+    }
+
+    const result = await pool.query(
+      `DELETE FROM project_member
+       WHERE "projectId" = $1 AND "employeeId" = $2
+       RETURNING id`,
+      [id, employeeId]
+    );
+    if (result.rowCount === 0) return next(new NotFoundError('Team member not found'));
+    res.json({ message: 'Team member removed' });
+  } catch (error) { next(error); }
+};
+
 module.exports = {
   createProject,
   getProject,
@@ -543,5 +675,8 @@ module.exports = {
   exportProjectTasks,
   updateProjectsPriority,
   holdProject,
-  resumeProject
+  resumeProject,
+  getProjectMembers,
+  addProjectMember,
+  removeProjectMember
 };

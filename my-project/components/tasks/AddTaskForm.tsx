@@ -123,10 +123,10 @@ export function AddTaskForm({ users, projects, onTaskAdded, onClose, parentId, p
   useEffect(() => {
     // Only run if we have a currentUserId, projects are loaded, no project is selected yet, and we are not in subtask mode
     if (currentUserId && projects.length > 0 && !form.projectId && !parentTask) {
-      // Find a project where the current user is the head
-      const headedProject = projects.find(p => p.headIds?.includes(currentUserId ?? ''));
-      if (headedProject) {
-        setForm(prev => ({ ...prev, projectId: headedProject.id }));
+      // Default to a project the user is part of (head or team member)
+      const accessibleProject = projects.find(p => p.headIds?.includes(currentUserId ?? '') || p.memberIds?.includes(currentUserId ?? ''));
+      if (accessibleProject) {
+        setForm(prev => ({ ...prev, projectId: accessibleProject.id }));
       }
     }
   }, [projects, currentUserId, parentTask, form.projectId]); // Added form.projectId to deps to run once when it's empty

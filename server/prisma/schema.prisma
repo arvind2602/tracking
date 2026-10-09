@@ -72,6 +72,7 @@ model employee {
   leaves           Leave[]
   passwordResetOtps PasswordResetOtp[]
   pushDevices       PushDevice[]
+  memberProjects    ProjectMember[]
   includeWeeklyReport Boolean @default(false) @map("include_weekly_report")
 
   @@index([organiationId, is_archived])
@@ -99,6 +100,7 @@ model projects {
   head           employee?            @relation("ProjectHead", fields: [headId], references: [id])
   organiation    organiation          @relation(fields: [organiationId], references: [id])
   task           task[]
+  members        ProjectMember[]
 
   @@index([organiationId, is_archived])
   @@index([organiationId, priority_order])
@@ -116,6 +118,20 @@ model ProjectHoldHistory {
 
   @@index([projectId])
   @@map("project_hold_history")
+}
+
+model ProjectMember {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId  String   @db.Uuid
+  employeeId String   @db.Uuid
+  createdAt  DateTime @default(now())
+  project    projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee   employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, employeeId])
+  @@index([projectId])
+  @@index([employeeId])
+  @@map("project_member")
 }
 
 model task {

@@ -39,7 +39,7 @@ interface AllTasksProps {
   users: User[];
   projects: Project[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
-  headedProjectIds?: Set<string>;
+  accessibleProjectIds?: Set<string>;
   currentPage?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
@@ -49,7 +49,7 @@ interface AllTasksProps {
   onSort?: (column: string) => void;
 }
 
-export default function AllTasks({ tasks, users, projects, setTasks, headedProjectIds, currentPage, totalPages, onPageChange, itemsPerPage, sortBy, sortOrder, onSort }: AllTasksProps) {
+export default function AllTasks({ tasks, users, projects, setTasks, accessibleProjectIds, currentPage, totalPages, onPageChange, itemsPerPage, sortBy, sortOrder, onSort }: AllTasksProps) {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   // Task shown in the detail popup (replaces navigating to /dashboard/tasks/{id})
   const [previewTaskId, setPreviewTaskId] = useState<string | null>(null);
@@ -266,7 +266,7 @@ export default function AllTasks({ tasks, users, projects, setTasks, headedProje
   };
 
   const canManage = (task: Task) =>
-    userRole === 'ADMIN' || (headedProjectIds ? headedProjectIds.has(task.projectId) : false);
+    userRole === 'ADMIN' || (accessibleProjectIds ? accessibleProjectIds.has(task.projectId) : false);
 
   const initiateDeleteTask = (taskId: string) => {
     setTaskToDelete(taskId);

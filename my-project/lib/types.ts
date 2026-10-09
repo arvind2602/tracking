@@ -92,6 +92,7 @@ export interface Project {
   headId?: string | null;
   headIds?: string[];
   headName?: string | null;
+  memberIds?: string[];
 }
 
 export interface Organization {

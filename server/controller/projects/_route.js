@@ -10,6 +10,9 @@ projects.use(authMiddleware);
 // In your router file
 projects.post('/', projectsController.createProject);
 projects.get('/export', projectsController.exportProjects);
+projects.get('/:id/members', projectsController.getProjectMembers);
+projects.post('/:id/members', projectsController.addProjectMember);
+projects.delete('/:id/members/:employeeId', projectsController.removeProjectMember);
 projects.get('/', projectsController.getProjects);
 projects.put('/priority/update', projectsController.updateProjectsPriority); // Must come before /:id
 projects.delete('/:projectId/resources/attachments/:attachmentId', resourcesController.deleteResourceAttachment);
